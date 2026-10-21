@@ -1,0 +1,5 @@
+usage plugin: 1 requests (bucket=hour, start=plugin default, end=plugin default)
+  all                            1 reqs  in        100 (cached         60, uncached        40)  out        2  reasoning       0
+  key key-a                      1 reqs  in        100 (cached         60, uncached        40)  out        2  reasoning       0
+  model m                        1 reqs  in        100 (cached         60, uncached        40)  out        2  reasoning       0
+  (the plugin's record, not the meter: quota is `read`)

@@ -1,0 +1,1938 @@
+{
+  "note": "Token-matched billing arms run 2026-10-04, after the cpa-usage plugin (docs/relay/usage-oracle.md) made per-request token counts readable. Tokens are the plugin's own per-request record. The meter is the upstream's integer 5h/weekly percent, read live per account by billing_probe.py. Account emails are replaced by the same acct-N labels billing_probe.py uses (acct-1 k12, acct-2 plus, acct-3 plus). No prompt or response text is recorded here: only counts, sizes and timings.",
+  "meter": {
+    "kind": "upstream used_percent, integer, 5h window (primary) and weekly window (secondary)",
+    "resolution": "1 point; a delta below that is not observable, so the abort arm's cost is an upper bound",
+    "read_by": "python3 midstream-abort/billing_probe.py read"
+  },
+  "cost_model_2026-10-05": {
+    "what": "The 5h/weekly percent is a spend meter, not a token counter: points = a*uncached_input + b*cache_read + c*output, least-squares over the six windows where every finalized request is attributable and the meter delta is bracketed by two reads. Token classes are the plugin's own per-request record; 'cache_read' is the plugin's cache_read_tokens.",
+    "fit": {
+      "uncached_input": {
+        "points_per_token": 9.48947e-05,
+        "one_point_per_tokens": 10538
+      },
+      "cache_read": {
+        "points_per_token": 9.5333e-06,
+        "one_point_per_tokens": 104896
+      },
+      "output": {
+        "points_per_token": 0.000486618,
+        "one_point_per_tokens": 2055
+      }
+    },
+    "ratios": {
+      "cache_read_over_uncached": 0.1,
+      "output_over_uncached": 5.13
+    },
+    "rounded_for_use": "1 point is about 10,500 uncached input tokens, or 2,000 output tokens, or 105,000 cache-read tokens -- at gpt-6-astra's price. Other models are priced differently: see per_model_factors.",
+    "windows": [
+      {
+        "window": "arm D, 6 direct astra",
+        "uncached_input": 172428,
+        "cache_read": 0,
+        "output": 4609,
+        "predicted_points": 18.61,
+        "observed_points": 18,
+        "residual": 0.61
+      },
+      {
+        "window": "arm S, 6 direct astra (tiny)",
+        "uncached_input": 2057,
+        "cache_read": 0,
+        "output": 3628,
+        "predicted_points": 1.96,
+        "observed_points": 1,
+        "residual": 0.96
+      },
+      {
+        "window": "arm A-leak-before, 4 direct astra",
+        "uncached_input": 25414,
+        "cache_read": 26112,
+        "output": 1467,
+        "predicted_points": 3.37,
+        "observed_points": 3,
+        "residual": 0.37
+      },
+      {
+        "window": "arm D2, 6 direct astra",
+        "uncached_input": 144341,
+        "cache_read": 28416,
+        "output": 5014,
+        "predicted_points": 16.41,
+        "observed_points": 18,
+        "residual": -1.59
+      },
+      {
+        "window": "arm G-A, 12 direct astra (owner body)",
+        "uncached_input": 9238,
+        "cache_read": 330752,
+        "output": 6950,
+        "predicted_points": 7.41,
+        "observed_points": 8,
+        "residual": -0.59
+      },
+      {
+        "window": "natural experiment 13:20:03-13:46:50Z, 2 direct astra",
+        "uncached_input": 654,
+        "cache_read": 0,
+        "output": 3881,
+        "predicted_points": 1.95,
+        "observed_points": 2,
+        "residual": -0.05
+      },
+      {
+        "window": "H1 cold-direct, 5 unique 60k bodies",
+        "uncached_input": 144162,
+        "cache_read": 0,
+        "output": 3536,
+        "predicted_points": 15.4,
+        "observed_points": 15,
+        "residual": 0.4
+      },
+      {
+        "window": "H2 warm-direct, 10 x the same 60k body",
+        "uncached_input": 61292,
+        "cache_read": 227328,
+        "output": 8278,
+        "predicted_points": 12.01,
+        "observed_points": 11,
+        "residual": 1.01
+      },
+      {
+        "window": "H3 out-direct, 3 tiny prompts with long answers",
+        "uncached_input": 993,
+        "cache_read": 0,
+        "output": 9097,
+        "predicted_points": 4.52,
+        "observed_points": 5,
+        "residual": -0.48
+      }
+    ],
+    "rms_residual_points": 0.798,
+    "reading": "A cache read is charged at about a tenth of an uncached input token and an output token at about five times one, at gpt-6-astra's price. The nine-window fit has RMS 0.798; forcing cache reads free costs 1.509, forcing them to par 11.500, and forcing output free 2.870. The flat claim that 'cached input is charged' was right about the sign and wrong about the price by implying par; 'cache reads are free' is rejected. The individual coefficients are correlated and only the ratios are robust.",
+    "limits": "One plan (plus), one account for the campaign arms, nine windows, RMS 0.798; the cache coefficient is pinned to 0.10x-0.19x (0.053x-0.129x by leave-one-out) and the coefficients are correlated. A per-request term is not separable at a 1-point resolution. The aborted path is measured only through the meter, because an aborted request has no oracle event at all -- which is exactly why 'no event' cannot be read as 'no charge'. Per-model factors are measured for three models only, each from a small number of requests.",
+    "status": "Fitted 2026-10-05 on the six 2026-10-04 arms (1/10,034-1/74,593-1/2,557, RMS 0.713), corrected the same day for the arm S row, then refitted the same night on nine controlled windows after a single-account campaign with 35-minute settles added H1 cold-direct, H2 warm-direct and H3 out-direct. The campaign also measured per-model prices (terra 0.214x, luna ~0) and one relayed owner-body arm that settled +5 with zero usage events -- see campaign_2026-10-05.",
+    "identifiability": {
+      "method": "leave-one-out over the nine windows, plus forcing one term at a time with the others refitted",
+      "uncached_input": "1/10,112 to 1/11,013 tokens per point (the fit is 1/10,538)",
+      "cache_read": "1/78,160 to 1/196,625 tokens per point -- the weakest coefficient. Dropping H3 moves it to 1/78,160 (0.129x of the uncached coefficient), dropping arm G-A to 1/196,625 (0.053x). The fit is 1/104,896 = 0.100x.",
+      "output": "1/1,920 to 1/2,897 tokens per point (the fit is 1/2,055 = 5.13x the uncached coefficient); the two output-dominated windows on their own (H3, and the 13:20 natural experiment) imply about 1/1,900 each",
+      "correlation": "the arms' input:output ratios are similar enough that a and c trade against each other and the cache term trades against both. The defensible claims are the ratios, not the individual tokens-per-point.",
+      "rejections_over_the_nine": "cache reads free (b=0) RMS 1.509 with the other coefficients frozen, 1.244 with them refitted; cache reads at par (b=a) 11.500 frozen, 5.858 refitted; output free (c=0) 2.870 frozen, 1.899 refitted; the fit 0.798. Both columns reject all three; the earlier version of the doc printed only the frozen column while calling it refitted, which a reader pass caught.",
+      "arm_S_correction": "the arm S row first read unc 1,715 / out 3,025 / predicted 1.50, because arm S's recorded window ends '09:11:41Z' and its sixth astra event is at 09:11:41.324313Z -- inside the same second, outside a whole-second inclusive comparison. Corrected to 2,057 / 3,628 by a reader pass.",
+      "what_would_pin_it": "a cache-warm direct arm at the same total input volume as a cache-cold one, on one account, in one window. H2 against H1 is that arm; it moved the cache coefficient from 0.135x to 0.100x and made b=0 cost RMS 1.51 against 0.80."
+    },
+    "per_model_factors": {
+      "what": "the meter is a multi-model spend meter: the same token counts cost different numbers of points depending on the model. All coefficients above are gpt-6-astra's price.",
+      "gpt-6-astra": {
+        "factor": 1.0,
+        "evidence": "the nine-window fit"
+      },
+      "gpt-5.6-terra": {
+        "factor": 0.214,
+        "evidence": "3 finalized requests of 28,659 / 28,848 / 28,791 uncached tokens and 664 / 826 / 857 output, no cache, astra-equivalent cost 9.33 points, meter moved +2 both immediately and after the 35-minute settle"
+      },
+      "check": "the owner's own direct session (14:26-14:30Z; 6 astra + 8 terra + 2 luna events, 446,947 input of which 374,784 cache reads, 72,163 uncached, 8,089 output) predicts 5.97 + 7.78*0.214 + 0.61*0 = 7.63 points and was recorded at +7. Priced as if every model were astra it predicts 14.36.",
+      "gpt-6-luna": {
+        "factor": "< 0.04 (not measurably different from 0)",
+        "evidence": "the 20-event confound window is 14 gpt-6-luna events worth 17.3 astra-equivalent points against a delta of 0 (bound < 0.06), and the day's 25 gpt-6-luna requests carry 1,195,240 input tokens (150,760 uncached, 1,044,480 cache reads) plus ~5,000 output, worth ~27 astra-equivalent points across the day, with the meters moving only in the astra arms (bound < 0.04)"
+      },
+      "gpt-5.6-luna": {
+        "factor": "not bounded",
+        "evidence": "2 events, ~18k input tokens, ~0.6 astra-equivalent points -- too little traffic to bound anything; a different model from the gpt-6-luna row"
+      }
+    }
+  },
+  "arms": [
+    {
+      "id": "D",
+      "what": "6 requests straight to cliproxy /v1/responses (no relay), stream=true, model gpt-6-astra, each body 'instruction + 60,140 chars of unique random filler' so no two requests share a prefix",
+      "utc_window": [
+        "2026-10-04T08:58:23Z",
+        "2026-10-04T09:03:01Z"
+      ],
+      "client_requests": 6,
+      "upstream_requests": 6,
+      "finalized_usage_events": 6,
+      "prompt_chars_each": 60140,
+      "tokens": {
+        "input": 172428,
+        "output": 4609,
+        "reasoning": 251,
+        "cache_read": 0
+      },
+      "per_account": {
+        "acct-2": {
+          "requests": 3,
+          "input": 86247
+        },
+        "acct-3": {
+          "requests": 3,
+          "input": 86181
+        }
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          7,
+          26
+        ],
+        "acct-3": [
+          6,
+          28
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          15,
+          27
+        ],
+        "acct-3": [
+          16,
+          29
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 8,
+        "acct-3": 10,
+        "pool": 18
+      },
+      "meter_delta_weekly": {
+        "acct-2": 1,
+        "acct-3": 1
+      },
+      "derived": "uncached input drives the charge, but not at one rate: each reading is rounded to a whole point, which makes acct-2 consistent only with 9,583-12,321 tokens per point and acct-3 only with 7,835-9,576. Those intervals do not overlap, so the pooled 172,428/18 = 9,579 is a midpoint across two accounts that did not obey one rate. Honest range: one point per roughly 8,000-12,000 uncached input tokens (8-13 points per 100,000), and a small fixed per-request or per-account term is not excluded (arm S's +1 on 2,057 tokens is a one-point bucket)",
+      "per_account_rate_tokens_per_point": {
+        "acct-2": [
+          9583,
+          12321
+        ],
+        "acct-3": [
+          7835,
+          9576
+        ]
+      },
+      "cross_check": "cliproxy's log shows exactly 6 upstream requests in this window, all this arm's; the plugin shows exactly 6 usage events, none from another client"
+    },
+    {
+      "id": "S",
+      "what": "6 requests straight to cliproxy /v1/responses, same instruction, same model, same stream flag, same request count as arm D, but only ~180-char bodies: the control that separates 'per request' from 'per token'",
+      "utc_window": [
+        "2026-10-04T09:07:32Z",
+        "2026-10-04T09:11:41Z"
+      ],
+      "client_requests": 6,
+      "upstream_requests": 6,
+      "finalized_usage_events": 6,
+      "prompt_chars_each": [
+        180,
+        181,
+        181,
+        181,
+        180,
+        181
+      ],
+      "tokens": {
+        "input": 2057,
+        "output": 3628,
+        "reasoning": 236,
+        "cache_read": 0
+      },
+      "per_account": {
+        "acct-2": {
+          "requests": 4,
+          "input": 1374
+        },
+        "acct-3": {
+          "requests": 2,
+          "input": 683
+        }
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          16,
+          27
+        ],
+        "acct-3": [
+          17,
+          29
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          17,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 1,
+        "acct-3": 0,
+        "pool": 1
+      },
+      "meter_delta_weekly": {
+        "acct-2": 0,
+        "acct-3": 1
+      },
+      "derived": "6 finalized requests with almost arm D's output volume (3,628 against 4,609 tokens) and 1/84 of its input cost ~1 point, not 18: the charge follows uncached input tokens, not request count and not output"
+    },
+    {
+      "id": "R",
+      "what": "The token-matched twin of arm D on the aborted path: the same body shape through the relay on 8371, stream=true, model gpt-6-astra. Only the first client request completed (6 segments); the second was killed by the operator after its first segment (recorded as client_gone) so that the arm would not spend a multiple of arm D against an unknown rate",
+      "utc_window": [
+        "2026-10-04T09:03:22Z",
+        "2026-10-04T09:07:18Z"
+      ],
+      "client_requests": 2,
+      "client_requests_completed": 1,
+      "upstream_requests": 7,
+      "finalized_usage_events": 0,
+      "relay_records": [
+        {
+          "ts": "2026-10-04T09:06:46Z",
+          "prompt_chars": 60141,
+          "segs": 6,
+          "cut": "cap",
+          "cut_chain": [
+            "cap"
+          ],
+          "upstream_input_chars_total": 373255,
+          "delivered_chars": 8132,
+          "real_completed": false
+        },
+        {
+          "ts": "2026-10-04T09:07:18Z",
+          "prompt_chars": 60141,
+          "segs": 1,
+          "cut": "client_gone",
+          "upstream_input_chars_total": 61485,
+          "delivered_chars": 0,
+          "real_completed": false
+        }
+      ],
+      "aborted_input_tokens_estimate": {
+        "value": 208000,
+        "how": "7 upstream segments x ~29,700 tokens. Arm D measured the identical 60,140-char body at 28,708 provider input tokens with cache_read 0; each relay segment adds ~2,068 chars (373,255/6 - 60,141) and is scaled from that, which over-counts if the relay's added text tokenises denser than the filler"
+      },
+      "other_aborted_traffic_in_window": "4 further gpt-6-astra upstream requests from concurrently running relay clients (run records with prompt_chars 243, segs 2, cut budget). They are aborted too, so they can only add aborted tokens to the window, never finalized ones",
+      "other_finalized_traffic_in_window": {
+        "requests": 2,
+        "model": "gpt-6-luna",
+        "detail": [
+          {
+            "ts": "2026-10-04T09:06:51Z",
+            "account": "acct-2",
+            "uncached_tokens": 6085
+          },
+          {
+            "ts": "2026-10-04T09:07:10Z",
+            "account": "acct-3",
+            "uncached_tokens": 6540
+          }
+        ],
+        "reading": "the 09:06:51 request landed before the AFTER read but on the other account; the 09:07:10 request landed seconds after the read (17:07:10 against an AFTER read cluster at 17:07:07-08, log-zone +8). Neither explains the acct-3 point taken at the read, but they are why this arm is a bound and not a clean null, and it is why arm R2 was run in a window of its own"
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          15,
+          26
+        ],
+        "acct-3": [
+          16,
+          29
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          15,
+          27
+        ],
+        "acct-3": [
+          17,
+          29
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 0,
+        "acct-3": 1,
+        "pool": 1
+      },
+      "meter_delta_weekly": {
+        "acct-2": 0,
+        "acct-3": 0
+      },
+      "caveat": "the single point on acct-3 is not separable from arm D's own accounting tail: D's last request finished 30 seconds before the read that opened this window, and no usage event at all was recorded in between",
+      "derived": "~208,000 aborted input tokens cost at most one 5h point, where the finalized range of 8,000-12,000 tokens per point puts the same input at +17 to +26, so the cut avoided >=95% of the charge for that volume. cliproxy recorded no usage for any of the 7 segments. The mechanism -- that the cut is what removes the charge -- is inferred from the absence of a billing event, not observed on the provider's side"
+    },
+    {
+      "id": "R2",
+      "what": "R repeated in a window of its own, on a quarter-size body, so that no other arm overlaps it. One client request through the relay, stream=true, model gpt-6-astra, body 'instruction + 15,000 chars of unique random filler'",
+      "utc_window": [
+        "2026-10-04T09:13:38Z",
+        "2026-10-04T09:17:47Z"
+      ],
+      "client_requests": 1,
+      "upstream_requests": 6,
+      "finalized_usage_events": 0,
+      "relay_records": [
+        {
+          "ts": "2026-10-04T09:17:47Z",
+          "prompt_chars": 15141,
+          "segs": 6,
+          "cut": "cap",
+          "upstream_input_chars_total": 103438,
+          "delivered_chars": 8130,
+          "real_completed": false
+        }
+      ],
+      "aborted_input_tokens_estimate": {
+        "value": 49400,
+        "how": "103,438 chars / 2.095 chars per token, the density arm D measured on the same filler (60,140 chars = 28,708 tokens)"
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          17,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          17,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-1": 0,
+        "acct-2": 0,
+        "acct-3": 0,
+        "pool": 0
+      },
+      "meter_delta_weekly": {
+        "acct-1": 0,
+        "acct-2": 0,
+        "acct-3": 0
+      },
+      "other_finalized_traffic_in_window": {
+        "finalized_requests": 7,
+        "input": 426935,
+        "cache_read": 419072,
+        "uncached": 7863,
+        "reading": "worth about +0.8 points at arm D's rate, inside the meter's resolution; the rest was cache reads"
+      },
+      "derived": "~49,400 aborted input tokens cost 0 points where the finalized range of 8,000-12,000 tokens per point predicts +4 to +6. With arm R, ~257,000 aborted input tokens sit behind at most one point against a finalized path of ~8-13 points per 100,000"
+    },
+    {
+      "id": "P",
+      "what": "The proof arm, run after the tripwire's oracle check landed: two client requests through the relay on the same 60,140-char unique-filler bodies as arm D, in a window with nothing else in it",
+      "utc_window": [
+        "2026-10-04T09:56:44Z",
+        "2026-10-04T10:02:02Z"
+      ],
+      "client_requests": 2,
+      "upstream_requests": 12,
+      "finalized_usage_events": 0,
+      "relay_records": [
+        {
+          "ts": "2026-10-04T09:59:20Z",
+          "prompt_chars": 60141,
+          "segs": 6,
+          "cut": "cap",
+          "upstream_input_chars_total": 373309,
+          "delivered_chars": 8130,
+          "real_completed": false
+        },
+        {
+          "ts": "2026-10-04T10:02:02Z",
+          "prompt_chars": 60141,
+          "segs": 6,
+          "cut": "cap",
+          "upstream_input_chars_total": 373391,
+          "delivered_chars": 8130,
+          "real_completed": false
+        }
+      ],
+      "aborted_input_tokens_estimate": {
+        "value": 356439,
+        "how": "746,700 upstream chars / 2.095 chars per token, the density arm D measured on this same filler. An upper bound: the text the relay adds tokenises denser than the filler it is added to"
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          17,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          17,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-1": 0,
+        "acct-2": 0,
+        "acct-3": 0,
+        "pool": 0
+      },
+      "meter_delta_weekly": {
+        "acct-1": 0,
+        "acct-2": 0,
+        "acct-3": 0
+      },
+      "other_finalized_traffic_in_window": "none: the oracle recorded 0 new events in the whole window, for any client, so the window is clean and there is no confound to subtract. This is the property arms R and R2 lacked",
+      "collector_liveness_in_window": {
+        "why": "0 events is only evidence if the collector could have written one. A reader pass on this arm asked exactly that and nearly failed the PR for it, because the only proof was in the session and in docker's stdout, not in the record. It is here now, and the next arm carries a canary instead of an argument",
+        "evidence": [
+          "the plugin was loaded by the recreated container at 2026-10-04T09:45:10Z: `docker logs cli-proxy-api` shows `pluginhost: plugin loaded plugin_id=usage-report version=0.3.3` and `plugin registered` one second after the container started. Those two lines are on stdout, not in logs/main.log, whose last pluginhost line is the *unload* from the outgoing container at 09:45:08Z",
+          "plugin_health() was called at ~2026-10-04T10:00:30Z, inside this arm's window, and answered (True, '39 event(s) in the window'): the plugin was serving its management API, with a null collect_err, while the arm was running",
+          "the event count was 39 before the window and 39 after it, so no finalized request reached cliproxy during the window"
+        ],
+        "weaker_than_a_canary": "this is liveness by observation of the collector, not by observing it record something in-window. Arm P2 adds a canary: one tiny finalized request inside the window that must appear in the oracle, so 'the collector could have written' stops being an assumption"
+      },
+      "derived": "0 points on all three accounts and both windows for ~356,400 aborted input tokens across 12 upstream requests, where the finalized range of 8,000-12,000 tokens per point puts the same input at +30 to +45. The client still received 8,130 characters per request: the cut is not a refusal"
+    },
+    {
+      "id": "P2",
+      "what": "The proof arm repeated on the published revision (main d5bf6ad, relay revision d5bf6ad3), this time with a CANARY: one tiny deliberately finalized request inside the arm's own window, so 'zero events from the aborted volume' stops resting on the assumption that the collector could have written one",
+      "utc_window": [
+        "2026-10-04T10:14:58Z",
+        "2026-10-04T10:28:35Z"
+      ],
+      "canary": {
+        "request": "one 28-char prompt straight to cliproxy /v1/responses, stream=true (dispatch 24 of 24 in this window: 23 aborted segments plus this one)",
+        "recorded_event": {
+          "ts": "2026-10-04T10:14:58Z",
+          "model": "gpt-6-astra",
+          "account": "acct-3",
+          "input": 309,
+          "output": 5
+        },
+        "why": "it is in the oracle, so the collector was demonstrably able to write inside this window. It is also the only finalized request in the window, which matters for attributing the single point below"
+      },
+      "client_requests": 4,
+      "upstream_requests": 23,
+      "upstream_dispatches_including_canary": 24,
+      "finalized_usage_events_from_the_aborted_volume": 0,
+      "new_oracle_events_in_window": 1,
+      "relay_records": [
+        {
+          "ts": "2026-10-04T10:18:48Z",
+          "seq": 289,
+          "prompt_chars": 60141,
+          "segs": 6,
+          "cut": "cap",
+          "upstream_input_chars_total": 373423,
+          "delivered_chars": 8129,
+          "real_completed": false
+        },
+        {
+          "ts": "2026-10-04T10:22:19Z",
+          "seq": 290,
+          "prompt_chars": 60140,
+          "segs": 6,
+          "cut": "cap",
+          "upstream_input_chars_total": 373313,
+          "delivered_chars": 8131,
+          "real_completed": false
+        },
+        {
+          "ts": "2026-10-04T10:25:56Z",
+          "seq": 291,
+          "prompt_chars": 60141,
+          "segs": 6,
+          "cut": "cap",
+          "upstream_input_chars_total": 373369,
+          "delivered_chars": 8128,
+          "real_completed": false
+        },
+        {
+          "ts": "2026-10-04T10:28:35Z",
+          "segs": 5,
+          "cut": "client_gone",
+          "upstream_input_chars_total": 310906,
+          "delivered_chars": 6010,
+          "real_completed": false
+        }
+      ],
+      "tooling_defect_recorded": "the arm was designed for 2 client requests and its driver defaulted to 6; the operator stopped it after the fourth was already in flight, which is why the last record ends client_gone. The FIRST version of this record counted 3 requests and 17 segments and dropped the 10:22:19Z record entirely, because the driver filtered the run log on prompt_chars == 60,141 and that run's body was 60,140 characters. The reader pass on the PR found it by counting what the file itself points at; the numbers here are the recount, and they make the claim stronger rather than weaker",
+      "aborted_input_tokens_estimate": {
+        "value": 683097,
+        "how": "1,431,011 upstream chars / 2.095 chars per token, arm D's measured density; an upper bound, since the relay's own added text tokenises denser than the filler"
+      },
+      "meter_baseline": {
+        "how": "the arm's own BEFORE read was taken but not printed by the driver script - a defect, recorded here rather than papered over. The baseline used is arm P's AFTER read at 2026-10-04T10:02:35Z, twelve minutes before this window opened, and nothing at all happened in between: no finalized event for any client (the oracle's last foreign event is 09:15:40Z) and no relay run (the relay was restarted at 10:11 with a clean drain)",
+        "reading": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            17,
+            27
+          ],
+          "acct-3": [
+            17,
+            30
+          ]
+        }
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          18,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-1": 0,
+        "acct-2": 0,
+        "acct-3": 1,
+        "pool": 1
+      },
+      "meter_delta_weekly": {
+        "acct-1": 0,
+        "acct-2": 0,
+        "acct-3": 0
+      },
+      "attribution_of_the_single_point": "the +1 is on acct-3, which is the account the canary ran on, and the canary is the only finalized request in the window. A 1-point step needs as little as ~0.05 of a point when the underlying value sits just below an integer boundary, so the canary alone can produce it. The aborted volume may have contributed up to that same point; it cannot have contributed more, because then the reading would have moved further",
+      "derived": "~683,100 aborted input tokens across 23 upstream requests (24 dispatches including the canary) cost at most one 5h point, where the finalized range of 8,000-12,000 tokens per point puts the same input at +57 to +85. The collector was provably live in the window (the canary is in the oracle), so the aborted volume's silence is evidence rather than an assumption. The bound is >=57x cheaper per token on the aborted path, and the one observed point is on the canary's own account and within what the canary's rounding can produce"
+    },
+    {
+      "id": "P3-scale",
+      "what": "The scale arm: 12 client requests with 60k-char bodies, three at a time through the relay. Two canaries bracket the window, so 'the collector saw nothing' cannot be answered with 'the collector was dead'",
+      "utc_window": [
+        "2026-10-04T10:52:35Z",
+        "2026-10-04T11:04:22Z"
+      ],
+      "client_requests": 12,
+      "upstream_requests": 58,
+      "canaries": 2,
+      "finalized_usage_events_from_the_aborted_volume": 0,
+      "aborted_input_tokens_estimate": {
+        "value": 1721425,
+        "how": "3,606,190 upstream chars / 2.095 chars per token, arm D's measured density. Two runs ended in `error` cuts and two in `sentinel`, so the segment count is 58 rather than 72"
+      },
+      "relay_record_cuts": {
+        "cap": 9,
+        "sentinel": 2,
+        "error": 2
+      },
+      "other_finalized_traffic_in_window": {
+        "requests": 7,
+        "model": "gpt-6-astra",
+        "input_tokens": 18863,
+        "worth_points": [
+          1.6,
+          2.4
+        ],
+        "note": "another client on the bypass path, all uncached; subtracted in the derived figure. Two further events carried zero tokens: failed requests, worth nothing"
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          27
+        ],
+        "acct-3": [
+          18,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          22,
+          28
+        ],
+        "acct-3": [
+          21,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-1": 0,
+        "acct-2": 5,
+        "acct-3": 3,
+        "pool": 8
+      },
+      "meter_delta_weekly": {
+        "acct-1": 0,
+        "acct-2": 1,
+        "acct-3": 0
+      },
+      "derived": "1,721,425 aborted input tokens moved the meter by 8 points pool-wide, of which about 2 is another client's finalized traffic in the same window: ~6 points for ~1.72M tokens, i.e. one 5h point per 250,000-287,000 aborted input tokens. That is ~30x cheaper than the finalized path (one point per 8,000-12,000) but NOT free. The per-request reading is excluded by the tripwire's own arm, which has spent ~68 aborted requests today carrying 0.04M tokens in total with the meter flat check after check",
+      "why_this_supersedes_the_bound": "arms P and P2 could only say 'at most one point', which I read as 'probably free'. This arm is 2.5x P2's volume and resolves the rate. The corrected claim is ~30x cheaper per token, not unboundedly cheap"
+    },
+    {
+      "id": "A-structured-output-leak-before",
+      "what": "the exact request that billed, recovered from the relay's own trace by leak_replay.py (a Codex CLI task-title call: 7 input items, 61,545 chars, text.format {type: json_schema, strict, maxLength 36}), posted 4 times sequentially at the PUBLISHED relay on 8371 -- revision 8609b22, i.e. without the itemdone cut -- same upstream accounts, stream=true",
+      "utc_window": [
+        "2026-10-04T12:24:14Z",
+        "2026-10-04T12:27:04Z"
+      ],
+      "client_requests": 4,
+      "upstream_requests": 4,
+      "relay_record_cuts": {
+        "terminal": 4
+      },
+      "finalized_usage_events": 4,
+      "tokens": {
+        "input": 51526,
+        "cache_read": 26112,
+        "uncached": 25414,
+        "output": 1467,
+        "reasoning": 1383
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          0,
+          28
+        ],
+        "acct-3": [
+          0,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          3,
+          29
+        ],
+        "acct-3": [
+          0,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 3
+      },
+      "meter_delta_weekly": {
+        "acct-2": 1
+      },
+      "derived": "the leak reproduces 4/4: every run reached the provider's response.completed and was billed. 25,414 uncached input tokens cost +3 pool points -- 8,471 tokens per point, inside arm D's 8,000-12,000 range -- and the oracle recorded 4 events for 4 runs. Answer text delivered: 38-80 characters per run, the schema JSON.",
+      "recorded_by": "arm_run.py replay --body <recovered> --n 4 --conc 1"
+    },
+    {
+      "id": "B-structured-output-leak-after",
+      "what": "the same request, 8 times, at a SCRATCH relay on 8373 running the working tree that contains the itemdone cut (the process reported revision=8609b22, the branch head it was started from; the cut was uncommitted at the time and is commit 512dfa6), identical config otherwise, its own run log at ~/.local/state/cliproxy/arm-runs.jsonl",
+      "utc_window": [
+        "2026-10-04T12:27:16Z",
+        "2026-10-04T12:33:21Z"
+      ],
+      "client_requests": 8,
+      "upstream_requests": 11,
+      "relay_record_cuts": {
+        "itemdone": 8
+      },
+      "relay_record_cut_chains": {
+        "itemdone": 5,
+        "toolpad,itemdone": 3
+      },
+      "finalized_usage_events": 0,
+      "finalized_usage_events_in_the_collector_before_and_after": [
+        57,
+        57
+      ],
+      "aborted_upstream_chars": 690085,
+      "answer_text_delivered_chars": [
+        38,
+        40,
+        40,
+        40,
+        40,
+        40,
+        49,
+        53
+      ],
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          3,
+          29
+        ],
+        "acct-3": [
+          0,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          4,
+          29
+        ],
+        "acct-3": [
+          0,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 1
+      },
+      "meter_delta_weekly": {},
+      "derived": "8 runs, 8 itemdone cuts, 0 billed, and the oracle recorded NOTHING for any of them while arm A had written four events into the same collector three minutes earlier (53 events before, 57 after). The meter moved +1 point, which a 1-point integer makes an upper bound -- and an upper bound is all it is: arm A's +3 and this +1 are both one to three integer points, so this pair cannot be rated (the ratio is anywhere from ~1.7x to ~7x, see arm E, which measured +2 on six runs of the same body). What the pair establishes is qualitative and exact: every run finalized before the cut and none did after it. The client still received the answer -- 38-53 characters per run, and a single separate replay of the same body verified that the synthetic terminal frame carried exactly the 38 characters the deltas carried. The rate itself comes from the arms with resolvable deltas (D against P3-scale and C-scale).",
+      "recorded_by": "arm_run.py replay --body <recovered> --n 8 --conc 1 --url 8373"
+    },
+    {
+      "id": "C-scale-30",
+      "what": "the scale arm: 30 client requests through the relay, each body 'instruction + 60,000 chars of unique random filler' (a different seed from arm D, so no two requests and no two arms share a prefix), three at a time, on the scratch relay carrying the itemdone cut The window also holds one hand-posted harness probe (a 60,141-character body posted at ~12:35:20Z, recorded at 12:36:17Z, 3 segments, 186,273 characters, cut sentinel). It is excluded because it cannot be one of the arm's own requests: it completed 16 seconds after the arm started, and an arm request takes about three minutes. Including it the volume is 31 runs / 147 dispatches / 9,141,177 characters, which moves the rate to one point per ~1.05M-2.1M aborted tokens and changes nothing else.",
+      "utc_window": [
+        "2026-10-04T12:36:01Z",
+        "2026-10-04T13:04:31Z"
+      ],
+      "client_requests": 30,
+      "upstream_requests": 144,
+      "relay_record_cuts": {
+        "cap": 17,
+        "sentinel": 12,
+        "error": 1
+      },
+      "relay_record_segments_per_client_request": 4.8,
+      "aborted_upstream_chars": 8954904,
+      "finalized_usage_events": 1,
+      "other_finalized_traffic_in_window": {
+        "events": 1,
+        "uncached_tokens": 0,
+        "reading": "the one event in the window is a FAILED request of 0 input and 0 output tokens; no other client's traffic ran (the relay's own log has one tripwire probe, aborted)"
+      },
+      "account_split_from_cliproxy_log": {
+        "acct-2": 73,
+        "acct-3": 73,
+        "excluding": "the harness probe's dispatches are inside these 146 too",
+        "reading": "an even split of the 146 account selections cliproxy's log shows in the window, so neither metered account can be hiding the charge behind the other's rounding. The relay's own records attribute 144 dispatches to the arm's 30 requests and 3 to the probe (147 in total); the cliproxy count is one lower, which is a retry or a window-edge call, and the even split is the fact this sentence exists for."
+      },
+      "tokens_if_filler_density": {
+        "basis": "the arm's own density, 2.095 chars/token, measured in arm D",
+        "aborted_input_tokens": 4274417
+      },
+      "errors": 0,
+      "requests_with_no_response": 1,
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          4,
+          29
+        ],
+        "acct-3": [
+          0,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          4,
+          29
+        ],
+        "acct-3": [
+          2,
+          30
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-3": 2
+      },
+      "meter_delta_weekly": {},
+      "derived": "4,274,417 aborted input tokens (filler density) moved the meter by +2 pool-wide, on one account, in a window with no finalized traffic but a zero-token failure. That is one point per 1.1M-2.2M aborted input tokens -- 4-8x cheaper than arm P3-scale's one point per 250,000-287,000, measured on the same body shape, the same concurrency and the same relay policy. THE TWO ARMS DISAGREE BY ~8x and neither can be dismissed from the record: this arm is 2.6x the volume, its window is cleaner (P3-scale's held 18,863 uncached tokens of another client's finalized traffic, worth ~1.9 points), the account split is even, and the meter's posting latency is bounded at under 2.5 minutes by arm D2 below, so this is not a late post. The conservative reading is the one the report quotes.",
+      "excluded_from_the_count": {
+        "runs": 1,
+        "dispatches": 3,
+        "chars": 186273,
+        "why": "a hand-posted harness probe in the same window, identified by its completion time (16s after the arm started; an arm request takes ~3 minutes)",
+        "with_it": {
+          "runs": 31,
+          "dispatches": 147,
+          "chars": 9141177
+        }
+      }
+    },
+    {
+      "id": "D2-direct-6",
+      "what": "arm C's direct counterpart in the same 5h window: 6 requests straight to cliproxy /v1/responses (no relay), same body shape and size, three at a time, filler seed 881000 (arm C used 880000)",
+      "utc_window": [
+        "2026-10-04T13:04:33Z",
+        "2026-10-04T13:07:21Z"
+      ],
+      "client_requests": 6,
+      "upstream_requests": 6,
+      "finalized_usage_events": 6,
+      "tokens": {
+        "input": 172757,
+        "cache_read": 28416,
+        "uncached": 144341,
+        "output": 5014,
+        "reasoning": 406
+      },
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          4,
+          29
+        ],
+        "acct-3": [
+          2,
+          30
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          11,
+          30
+        ],
+        "acct-3": [
+          13,
+          32
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 7,
+        "acct-3": 11
+      },
+      "meter_delta_weekly": {
+        "acct-2": 1,
+        "acct-3": 2
+      },
+      "derived": "172,757 input tokens (144,341 uncached) cost +18 pool points = 3.00 points per request, one point per 9,597 tokens -- arm D reproduced exactly, in the same window as arm C and after arm C's charge had been read. This window also bounds the meter's posting latency: the +18 was visible within 2.5 minutes of the arm's last request (an independent read at 13:07:07Z showed the same values), so arm C's +2 is not a late post."
+    },
+    {
+      "id": "E-published-freehand",
+      "what": "the free-hand measurement on the PUBLISHED relay: after PR 23 merged (230d22d) and the relay restarted on it, the same recovered request as arms A and B was posted 6 times sequentially at 8371 -- no scratch relay, the revision clients talk to",
+      "utc_window": [
+        "2026-10-04T13:47:11Z",
+        "2026-10-04T13:53:24Z"
+      ],
+      "client_requests": 6,
+      "upstream_requests": 10,
+      "relay_record_cuts": {
+        "itemdone": 6
+      },
+      "relay_revision": "230d22deae76ef867ebe1ae6d02495fc86267546",
+      "finalized_usage_events": 0,
+      "finalized_usage_events_in_the_collector_before_and_after": [
+        66,
+        66
+      ],
+      "aborted_upstream_chars": 626552,
+      "answer_text_delivered_chars": [
+        38,
+        40,
+        40,
+        40,
+        40,
+        49
+      ],
+      "segments_per_run": [
+        1,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          11,
+          30
+        ],
+        "acct-3": [
+          15,
+          32
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          13,
+          30
+        ],
+        "acct-3": [
+          15,
+          33
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 2
+      },
+      "meter_delta_weekly": {
+        "acct-3": 1
+      },
+      "derived": "6 of 6 cut itemdone, 0 billed, 0 usage events at cliproxy (66 before and after), +2 pool points for 10 dispatches and 626,552 characters. Together with arm B that is 14 of 14 cut and 0 events against arm A's 4 of 4 billed and 4 events -- the leak class is closed on the published revision, not just on a scratch relay. The meter CANNOT resolve a per-request ratio from this pair: arm A's +3 is 1-3 integer points and B+E's +3 is the same, so the ratio is anywhere from ~1.7x to ~7x. It is recorded as the leak fix's evidence, not as a rate.",
+      "recorded_by": "arm_run.py replay --body <recovered> --n 6 --conc 1 --url 8371"
+    },
+    {
+      "id": "F-gate-verification",
+      "what": "one replay of the recovered structured-output request at a scratch relay running the TIGHTENED `itemdone` gate (gated on the client's own text.format, not on `injected_pad`), to confirm the schema body is still cut after the gate was narrowed",
+      "utc_window": [
+        "2026-10-04T14:41:24Z",
+        "2026-10-04T14:41:40Z"
+      ],
+      "client_requests": 1,
+      "upstream_requests": 1,
+      "relay_record_cuts": {
+        "itemdone": 1
+      },
+      "finalized_usage_events": 0,
+      "answer_text_delivered_chars": [
+        38
+      ],
+      "meter_before": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          17,
+          31
+        ],
+        "acct-3": [
+          18,
+          33
+        ]
+      },
+      "meter_after": {
+        "acct-1": [
+          0,
+          18
+        ],
+        "acct-2": [
+          19,
+          31
+        ],
+        "acct-3": [
+          18,
+          33
+        ]
+      },
+      "meter_delta_5h": {
+        "acct-2": 2
+      },
+      "derived": "the narrowed gate still cuts the schema body: 1 of 1 itemdone, 0 billed, 0 usage events. The +2 the meter shows in this SIXTEEN-SECOND window cannot belong to this run -- it is one aborted 61k-character request, and the oracle recorded nothing for it. It is the Human's own Codex session (14:26-14:30Z; eight of that session's sixteen requests landed on this account -- 3 gpt-6-astra, 4 gpt-5.6-terra, 1 gpt-5.6-luna -- carrying 40,668 uncached input tokens, 176,128 cache reads and 4,974 output, worth 8.4 points in total under the spend model, of which this window caught only the tail) posting its charge late: the cleanest demonstration this campaign has that a charge can land many minutes after the requests that earned it, which is what makes a short before/after window around a small arm unreliable and the most likely explanation of the P3-scale arm reading ~8x higher per token than C-scale. The oracle attributes; the meter only sizes.",
+      "recorded_by": "arm_run.py replay --body <recovered> --n 1 --url 8373 (working tree with the narrowed gate)",
+      "session_count_reconciled": "The same 14:26-14:30Z session is sixteen finalized events across both accounts (6 gpt-6-astra, 8 gpt-5.6-terra, 2 gpt-5.6-luna; 446,947 input of which 374,784 cache reads, 72,163 uncached, 8,089 output -- 15.4 points if every model is counted, 6.10 if only astra is). This arm sees the eight that landed on acct-2; both counts are the same session and neither implies the other is wrong."
+    },
+    {
+      "id": "G-owner-workload-ab",
+      "what": "the controlled A/B on the OWNER's own request body: his Codex CLI pelican turn (136,577 chars, 22 input items, 4 custom tool calls with outputs, additional_tools) recovered from the relay's trace by stripping the relay's padding tool and appended instruction. Arm A posts it 12 times straight to cliproxy (finalizes), arm B posts the same body 12 times through the published relay (aborted). Each arm is followed by a 15-minute settle and a second meter read, because a charge can land long after the requests that earned it (arm F).",
+      "utc_window": [
+        "2026-10-04T16:28:23Z",
+        "2026-10-04T17:20:14Z"
+      ],
+      "client_requests": 12,
+      "arm_A_direct": {
+        "requests": 12,
+        "elapsed_s": 385.9,
+        "finalized_usage_events": 12,
+        "oracle": {
+          "input": 339990,
+          "cache_read": 330752,
+          "uncached": 9238,
+          "cache_creation": 0,
+          "output": 6950,
+          "per_request_uncached": 770
+        },
+        "cache_share": 0.973,
+        "meter_before": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            0,
+            32
+          ],
+          "acct-3": [
+            0,
+            34
+          ]
+        },
+        "meter_after": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            4,
+            33
+          ],
+          "acct-3": [
+            4,
+            35
+          ]
+        },
+        "meter_after_15min_settle": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            4,
+            33
+          ],
+          "acct-3": [
+            4,
+            35
+          ]
+        },
+        "reading": "the 15-minute settle changed nothing, so this delta is the arm's own"
+      },
+      "arm_B_relay": {
+        "requests": 12,
+        "elapsed_s": 911.2,
+        "upstream_dispatches": 20,
+        "aborted_upstream_chars": 2753832,
+        "finalized_usage_events": 0,
+        "cut_chains": {
+          "sentinel": 10,
+          "toolcall": 2
+        },
+        "meter_before": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            4,
+            33
+          ],
+          "acct-3": [
+            4,
+            35
+          ]
+        },
+        "meter_after": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            4,
+            33
+          ],
+          "acct-3": [
+            6,
+            35
+          ]
+        },
+        "meter_after_15min_settle": {
+          "acct-1": [
+            0,
+            18
+          ],
+          "acct-2": [
+            4,
+            33
+          ],
+          "acct-3": [
+            6,
+            35
+          ]
+        },
+        "reading": "the 15-minute settle changed nothing, and the oracle recorded NOTHING for any of the 12"
+      },
+      "derived": "SAME BODY, ADJACENT WINDOWS, BOTH SETTLED: direct +8 points (acct-2 +4, acct-3 +4) against the relay's +2 (acct-3 +2) -> 4.0x cheaper per request, 75% saved, and that is a FLOOR. The relay's own 12 requests finalized nothing and the oracle recorded no event for them, and the +2 cannot be attributed to them: it is either a charge the abort still incurred or a late post belonging to the direct arm, and arm F shows posts landing 15-31 minutes after their requests, which the 15-minute settle here can miss. If it is the latter the direct side is 10 and the relay side 0, so the ratio is better, not worse. The direct side is well explained by the fitted cost model (cost_model_2026-10-05): these 12 requests predict 8.07 points and moved 8. The earlier flat sentence 'cached input is charged' is superseded: a cache read is charged at about one eighth of an uncached input token, and the filler arms measured 6x-45x because their bodies were unique random text with cache 0, so their direct side paid full price on every input token and on output priced at 4.5x. 4x is the floor this workload supports; the published 83-98% is a cache-cold number.",
+      "recorded_by": "ab_run.py (both arms, same body, 15-minute settles) + plugin_usage for the tokens",
+      "superseded_claim": "'Cached input is charged', flat. Replaced by the fitted coefficients in cost_model_2026-10-05 (cache read ~0.126x uncached input), and by the floor reading above."
+    }
+  ],
+  "confound_named_not_part_of_these_arms": {
+    "what": "another client's finalized gpt-6-luna traffic during arm S's window",
+    "measured": {
+      "finalized_requests": 20,
+      "input": 573947,
+      "cache_read": 448256,
+      "of_which_arm_S": {
+        "requests": 6,
+        "input": 2057
+      }
+    },
+    "meter_delta_5h": {
+      "acct-2": 0,
+      "acct-3": 0
+    },
+    "meter_delta_weekly": {
+      "acct-2": 0,
+      "acct-3": 1
+    },
+    "reading": "cached input, or a second model, or both are charged on a scale more than an order of magnitude below uncached gpt-6-astra input. These arms do not establish which, and it does not touch D against S against R",
+    "reconciled_2026-10-05": {
+      "headline": "This is a MODEL control, not a cache control, and it is not evidence about the price of a cache read.",
+      "why": "Of the 20 events, 14 are gpt-6-luna, and luna carries all but 2,057 of the input and ALL 448,256 of the cache reads (the earlier 397,312 was a narrower read of the same window, 09:07:10-09:12:22Z instead of the full 20-event window). Under the fitted cost model (cost_model_2026-10-05) that luna volume is worth 19.4 points and the meter moved by 0. The confound note's own two reads recorded 0 for this window too; arm S's record, whose reads bracket the same traffic more widely, recorded +1 on acct-2, which is inside the ~1.6 points arm S's own six astra requests in the same window predict. Across the whole day 25 gpt-6-luna requests carrying 1,195,240 input tokens of which 1,044,480 were cache reads left the 5h meters flat, while every gpt-6-astra arm moved them.",
+      "conclusion": "gpt-6-luna usage does not appear in these accounts' 5h/weekly percent at all; the reason is unestablished and does not need to be for the arms to be read. What the note still establishes is that a second client's traffic lands in these accounts and has to be excluded per model, which is why the cost-model fit sums astra events only.",
+      "the_earlier_reading": "'charged at a scale more than an order of magnitude below uncached' was wrong in the sense that it treated luna volume as if it were astra volume; the fitted answer is about one eighth, measured on astra windows."
+    }
+  },
+  "campaign_2026-10-05": {
+    "what": "A controlled single-account campaign in an empty 5h window (acct-2 only; acct-1 and acct-3 disabled), the arms back to back with radio silence until a settle read 35 minutes after each arm's last request. Window reset_at 03:40:45Z, 5h=0% at the start.",
+    "arms": [
+      {
+        "id": "H1 cold-direct",
+        "requests": 5,
+        "oracle": {
+          "uncached": 144162,
+          "cache_read": 0,
+          "output": 3536
+        },
+        "predicted": 15.4,
+        "observed_5h": 15,
+        "predicted_note": "nine-window fit"
+      },
+      {
+        "id": "H2 warm-direct",
+        "requests": 10,
+        "oracle": {
+          "uncached": 61292,
+          "cache_read": 227328,
+          "output": 8278
+        },
+        "predicted": 12.01,
+        "observed_5h": 11,
+        "note": "the same 60k body ten times; nine requests read 28,416 cache tokens each, so this arm measures the cache coefficient directly",
+        "predicted_note": "nine-window fit"
+      },
+      {
+        "id": "H3 out-direct",
+        "requests": 3,
+        "oracle": {
+          "uncached": 993,
+          "cache_read": 0,
+          "output": 9097
+        },
+        "predicted": 4.52,
+        "observed_5h": 5,
+        "predicted_note": "nine-window fit"
+      },
+      {
+        "id": "H4 relay-owner",
+        "requests": 12,
+        "upstream_dispatches": 20,
+        "aborted_upstream_chars": 2753424,
+        "cuts": {
+          "sentinel": 8,
+          "toolcall": 4
+        },
+        "finalized_usage_events": 0,
+        "oracle_events_in_window": 0,
+        "observed_5h": 5,
+        "note": "all 12 cut, real_completed false, usage discarded, and the meter still moved 5 points 34 minutes after the last dispatch"
+      }
+    ],
+    "tripwire_inside_H1": "the tripwire's own abort-only arm ran inside H1's settle window (23:05Z: 4 abort-only runs, 8 upstream requests, its report 'meter unchanged on 3 account(s)'), and H1's +15 is fully explained by its own five direct requests (predicted 15.40). Its bodies are 243 characters, so it bounds nothing about a large aborted body. The same cron fired at 01:05:55Z, inside H4's settle window (last dispatch 00:34:36Z, settle read ~01:09Z): 4 runs, 8 dispatches, ~2.8k chars each, which bounds its contribution to H4's +5 at about one point. H5's window (01:52-02:57Z) had no tripwire arm in it -- that cron fires on odd UTC hours.",
+    "max_output_tokens": "honoured on a four-token smoke prompt and ignored on the 60k bodies (634-775 output tokens each) and on H3 (3,144-3,222), so no arm isolates output by suppression; the fit uses the oracle's own per-request counts.",
+    "open": "A relayed owner-body turn cost the meter about 0.42 points (12 turns -> +5) while a relayed filler arm of larger volume charged about nothing (C-scale-30: 30 turns, 144 dispatches, 4,274,417 aborted tokens -> +2). The two are not reconciled; see the relay-charge section of docs/relay/unbill-benefit.md for what is and is not claimed."
+  },
+  "relay_charge_2026-10-05": {
+    "what": "How much a relayed (aborted) client turn costs the meter. Every revision of this repository before this one inferred 'the charge is not incurred' from the absence of a finalized usage event; these arms measure the meter instead.",
+    "mechanism_verified": {
+      "claim": "the relay's mid-read close reaches the provider, so the upstream request is terminated and no usage block is ever sent",
+      "how": "arm H4's 20 dispatches appear in cliproxy's own log, and every dispatch ends at or before the end of the relay run that owns it -- 0 of 20 end after every candidate run (the last dispatch ends exactly at the last run's end, 00:34:36Z)",
+      "trap": "cliproxy's log timestamps in UTC+8 while this host runs UTC+7; a first pass that read the log as UTC paired the wrong arms and appeared to show dispatches outliving their runs. It does not.",
+      "oracle": "zero usage events for all 12 runs; all 12 real_completed false"
+    },
+    "arms": [
+      {
+        "id": "G-B relay (arm G, 2026-10-05)",
+        "turns": 12,
+        "dispatches": 20,
+        "aborted_chars": 2753832,
+        "cuts": {
+          "sentinel": 10,
+          "toolcall": 2
+        },
+        "oracle_events": 0,
+        "meter": 2,
+        "settle_s": 900,
+        "note": "measured on two accounts, one of which (acct-3) shows 0% because it was disabled and unreadable, so this is an under-read"
+      },
+      {
+        "id": "H4 relay-owner",
+        "turns": 12,
+        "dispatches": 20,
+        "aborted_chars": 2753424,
+        "cuts": {
+          "sentinel": 8,
+          "toolcall": 4
+        },
+        "oracle_events": 0,
+        "meter": 5,
+        "settle_s": 2100,
+        "note": "single account (acct-2), settled"
+      },
+      {
+        "id": "H5 relay-owner, settled baseline, watched for 55 minutes",
+        "turns": 12,
+        "dispatches": 19,
+        "aborted_chars": 2616646,
+        "cuts": {
+          "sentinel": 7,
+          "toolcall": 5
+        },
+        "oracle_events": 0,
+        "meter": 4,
+        "settle_s": "reads at +5/+15/+30/+55 minutes",
+        "note": "baseline settled (two reads 4 minutes apart both 38%); +4 already at the +5-minute read and unchanged at +15; no tripwire arm in the window (its cron fires on odd hours); no other /v1/responses traffic in the window per cliproxy's log"
+      },
+      {
+        "id": "H4 settle window contains the 01:05:55Z tripwire arm",
+        "turns": 4,
+        "dispatches": 8,
+        "note": "a reader pass caught that H4's +5 is asserted to be its own while the tripwire's abort-only arm also fired inside H4's settle window; its volume bounds the contamination at about one point, and H5 -- whose window is clean of it -- independently measures +4"
+      }
+    ],
+    "direct_counterpart": {
+      "id": "arm G-A direct",
+      "turns": 12,
+      "finalized": 12,
+      "meter": 8,
+      "note": "the same body, the same 12 turns, straight to cliproxy"
+    },
+    "conclusion": "12 relayed turns of the owner's own body cost the meter 4-5 points against 8 for the same 12 turns direct: about 0.33-0.42 points per relayed turn, a saving of roughly 1.6x-2x rather than the >=4x this repository published. The cut removes the usage event, not the charge.",
+    "contradiction": {
+      "arm": "C-scale-30",
+      "what": "30 relayed turns with 60,000-character unique-filler bodies, 144 dispatches, 4,274,417 aborted tokens, moved the pool by +2 on a reading three minutes later, with no other finalized traffic in the window",
+      "why_it_matters": "same construction as H4/H5 with more volume and less charge",
+      "likely_direction": "the charge is probably proportional to the output the provider had already generated when the cut fired, not to the aborted input: a toolpad/toolcall cut fires before much text exists, while a sentinel cut on a real body fires after the model has written. The cut chains are recorded above so this is testable; it is not settled here.",
+      "status": "reconciled 2026-10-05",
+      "resolution": "The two bodies differ in whether the provider has a prefix cached to read. The filler bodies are unique random text with no prompt_cache_key, so their dispatches read nothing from cache; the owner's body is cached (a replay of it reported 27,776 of 30,487 input tokens from cache). The aborted charge is the cache-read term of the same fitted spend model, and it prices per dispatch: 0.158-0.21 points on a warm prefix (O6 19 dispatches +3, O1 12 dispatches +2, H5 19 dispatches +4) against a fit prediction of 0.18, and 0.00 over 14 cache-cold dispatches (O6c). The direction recorded in `likely_direction` - that the charge follows the output the provider had already generated - is refuted by the same arms: the cache-cold arm generated and delivered *more* text than the warm one (152.8 against 103.1 characters per turn) and charged nothing."
+    },
+    "oracle_lesson": "'no usage event' is not 'no charge'. The provider can bill the prompt it read and the output it had already generated when the connection dropped, without ever sending a usage block. Any claim of the form 'the cut removes the charge' has to be made against the meter."
+  },
+  "continuation_2026-10-05": {
+    "what": "Four arms in one empty 5h window on the single enabled account, to price the relay's continuation and to test whether its charge follows the provider's prefix cache. Same body (the owner's recovered Codex request, 136,577 chars) for C6/O6/O1; O6c differs only in a unique 16-character nonce at the start of the system prompt, so no dispatch of it can be served from cache. 20 turns an arm (10 for O6c), 5 at a time, a meter and oracle read before and after each arm, and a 30-minute settle between them.",
+    "ran": "2026-10-05T04:45:13Z to 2026-10-05T06:42:13Z",
+    "account": "acct-2",
+    "n_per_arm": 12,
+    "n_cold_arm": 12,
+    "window": {
+      "reset_at": 1791195185,
+      "meter_before_first_arm": {
+        "acct-1": {
+          "5h": 0,
+          "wk": 18,
+          "reset_at": 1791195185
+        },
+        "acct-2": {
+          "5h": 3,
+          "wk": 0,
+          "reset_at": 1791191673
+        },
+        "acct-3": {
+          "5h": 0,
+          "wk": 0,
+          "reset_at": 1791186992
+        }
+      }
+    },
+    "arms": [
+      {
+        "arm": "O6 operator/prod",
+        "path": "/api/run",
+        "turns": 12,
+        "runs_excluded_from_the_arm": 0,
+        "concurrency": 2,
+        "elapsed_s": 335.0,
+        "settle_s": 1500,
+        "upstream_dispatches": 19,
+        "aborted_upstream_chars": 2616595,
+        "delivered_chars": 1237,
+        "delivered_chars_per_turn": 103.1,
+        "cut_chains": {
+          "toolpad+sentinel": 7,
+          "toolcall": 5
+        },
+        "real_completed": 0,
+        "config_fingerprint": {
+          "pacing": 0.5,
+          "max_concurrent": 6,
+          "retries": 6,
+          "seg_budget": 1500,
+          "total_cap": 8000,
+          "max_segments": 6,
+          "tail_chars": 1500,
+          "allow_client_tuning": false
+        },
+        "request_seconds": {
+          "median": 48.5,
+          "max": 78.6
+        },
+        "meter_before": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791195185
+          },
+          "acct-2": {
+            "5h": 3,
+            "wk": 0,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_after": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791197023
+          },
+          "acct-2": {
+            "5h": 6,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186993
+          }
+        },
+        "meter_delta_5h": {
+          "acct-1": 0,
+          "acct-2": 3,
+          "acct-3": 0
+        },
+        "meter_delta_weekly": {
+          "acct-1": 0,
+          "acct-2": 1,
+          "acct-3": 0
+        },
+        "finalized_usage_events_in_window": {
+          "None|gpt-6-astra": {
+            "n": 1,
+            "in": 0,
+            "cr": 0,
+            "out": 0
+          }
+        },
+        "points_per_turn": {
+          "acct-1": 0.0,
+          "acct-2": 0.25,
+          "acct-3": 0.0
+        }
+      },
+      {
+        "arm": "O6c operator/cold",
+        "path": "/api/run",
+        "turns": 12,
+        "runs_excluded_from_the_arm": 0,
+        "concurrency": 2,
+        "elapsed_s": 188.3,
+        "settle_s": 1500,
+        "upstream_dispatches": 14,
+        "aborted_upstream_chars": 1930032,
+        "delivered_chars": 1833,
+        "delivered_chars_per_turn": 152.8,
+        "cut_chains": {
+          "sentinel": 10,
+          "toolpad+sentinel": 2
+        },
+        "real_completed": 0,
+        "config_fingerprint": {
+          "pacing": 0.5,
+          "max_concurrent": 6,
+          "retries": 6,
+          "seg_budget": 1500,
+          "total_cap": 8000,
+          "max_segments": 6,
+          "tail_chars": 1500,
+          "allow_client_tuning": false
+        },
+        "request_seconds": {
+          "median": 21.1,
+          "max": 84.9
+        },
+        "meter_before": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791197026
+          },
+          "acct-2": {
+            "5h": 6,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_after": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791198717
+          },
+          "acct-2": {
+            "5h": 6,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_delta_5h": {
+          "acct-1": 0,
+          "acct-2": 0,
+          "acct-3": 0
+        },
+        "meter_delta_weekly": {
+          "acct-1": 0,
+          "acct-2": 0,
+          "acct-3": 0
+        },
+        "finalized_usage_events_in_window": {},
+        "points_per_turn": {
+          "acct-1": 0.0,
+          "acct-2": 0.0,
+          "acct-3": 0.0
+        }
+      },
+      {
+        "arm": "O1 operator/max_segments=1",
+        "path": "/api/run",
+        "turns": 12,
+        "runs_excluded_from_the_arm": 0,
+        "concurrency": 2,
+        "elapsed_s": 308.2,
+        "settle_s": 1500,
+        "upstream_dispatches": 12,
+        "aborted_upstream_chars": 1655064,
+        "delivered_chars": 530,
+        "delivered_chars_per_turn": 44.2,
+        "cut_chains": {
+          "toolpad": 10,
+          "toolcall": 2
+        },
+        "real_completed": 0,
+        "config_fingerprint": {
+          "pacing": 0.5,
+          "max_concurrent": 6,
+          "retries": 6,
+          "seg_budget": 1500,
+          "total_cap": 8000,
+          "max_segments": 6,
+          "tail_chars": 1500,
+          "allow_client_tuning": false
+        },
+        "request_seconds": {
+          "median": 45.0,
+          "max": 105.2
+        },
+        "meter_before": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791198720
+          },
+          "acct-2": {
+            "5h": 6,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_after": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791200530
+          },
+          "acct-2": {
+            "5h": 8,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_delta_5h": {
+          "acct-1": 0,
+          "acct-2": 2,
+          "acct-3": 0
+        },
+        "meter_delta_weekly": {
+          "acct-1": 0,
+          "acct-2": 0,
+          "acct-3": 0
+        },
+        "finalized_usage_events_in_window": {},
+        "points_per_turn": {
+          "acct-1": 0.0,
+          "acct-2": 0.167,
+          "acct-3": 0.0
+        }
+      },
+      {
+        "arm": "O6c2 operator/cold-prepended",
+        "path": "/api/run",
+        "turns": 12,
+        "runs_excluded_from_the_arm": 4,
+        "concurrency": 2,
+        "elapsed_s": 543.6,
+        "settle_s": 1200,
+        "note": "the cache is busted by a new first developer message, which changes no client item and no tool; `prompt_chars` grows by the marker, so the run log carries the evidence that it ran",
+        "upstream_dispatches": 22,
+        "aborted_upstream_chars": 3031211,
+        "delivered_chars": 1723,
+        "delivered_chars_per_turn": 143.6,
+        "cut_chains": {
+          "toolpad+sentinel": 10,
+          "toolcall": 2
+        },
+        "real_completed": 0,
+        "request_seconds": {
+          "median": 93.7,
+          "max": 111.4
+        },
+        "meter_before": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791201801
+          },
+          "acct-2": {
+            "5h": 8,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_after": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791203547
+          },
+          "acct-2": {
+            "5h": 9,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        },
+        "meter_delta_5h": {
+          "acct-1": 0,
+          "acct-2": 1,
+          "acct-3": 0
+        },
+        "finalized_usage_events_in_window": {},
+        "points_per_turn": {
+          "acct-1": 0.0,
+          "acct-2": 0.083,
+          "acct-3": 0.0
+        },
+        "late_meter": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791204149
+          },
+          "acct-2": {
+            "5h": 9,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186993
+          }
+        }
+      }
+    ],
+    "late_reads": [
+      {
+        "at_min": 20,
+        "t": "2026-10-05T07:02:16Z",
+        "meter": {
+          "acct-1": {
+            "5h": 0,
+            "wk": 18,
+            "reset_at": 1791201734
+          },
+          "acct-2": {
+            "5h": 8,
+            "wk": 1,
+            "reset_at": 1791191673
+          },
+          "acct-3": {
+            "5h": 0,
+            "wk": 0,
+            "reset_at": 1791186992
+          }
+        }
+      }
+    ]
+  },
+  "prefix_cache_2026-10-05": {
+    "what": "Direct (non-relayed) replays of the owner's recovered Codex body against cliproxy:8317, to measure the provider's prefix cache before attributing any aborted-path charge to it. Six requests, 2026-10-05T03:24-03:39Z, all before the 5h window reset at 03:41:10Z. Counts and timings only; the body itself is not recorded here.",
+    "reason": "The four-arm campaign on the relay prices a continuation and tests whether an aborted dispatch is charged for the cached prefix. That test is only readable if a front-of-request nonce actually makes the provider's cache miss, so the cache behaviour was measured directly first.",
+    "requests": [
+      {
+        "id": "plain-1",
+        "seconds": 16.7,
+        "completed": true,
+        "input_tokens": 27969,
+        "cached_tokens": 0,
+        "output_tokens": 307,
+        "reading": "first replay of this prefix after >10 minutes idle: cache expired, nothing served from it"
+      },
+      {
+        "id": "plain-2",
+        "seconds": 80.7,
+        "completed": true,
+        "input_tokens": 30487,
+        "cached_tokens": 27776,
+        "output_tokens": 940,
+        "reading": "the same body again, immediately: 27,776 of 30,487 input tokens (91%) served from the prefix cache. So the provider really does cache this body across requests, and the relay's dispatches are the same prefix"
+      },
+      {
+        "id": "nonce-at-item-1",
+        "seconds": 15.1,
+        "completed": true,
+        "input_tokens": 27979,
+        "cached_tokens": 9728,
+        "output_tokens": 261,
+        "reading": "a 16-character nonce prepended to the *system prompt* (input item 1) still matched 9,728 tokens: item 0, the developer additional_tools item, precedes it and stayed cached. This is why the campaign's cold arm puts the nonce in item 0, not item 1"
+      },
+      {
+        "id": "nonce-at-item-1-different-nonce",
+        "seconds": 32.9,
+        "completed": true,
+        "input_tokens": 27979,
+        "cached_tokens": 9728,
+        "output_tokens": 640,
+        "reading": "a different nonce in the same place matched exactly the same 9,728 tokens, i.e. the match stops where the nonce is"
+      },
+      {
+        "id": "nonce-at-item-0",
+        "seconds": 29.7,
+        "completed": true,
+        "input_tokens": 28353,
+        "cached_tokens": 0,
+        "output_tokens": 808,
+        "reading": "the nonce in item 0's first nested tool description - the earliest text in the request - served nothing from cache"
+      },
+      {
+        "id": "nonce-at-item-0-different-nonce",
+        "seconds": 12.5,
+        "completed": true,
+        "input_tokens": 28351,
+        "cached_tokens": 0,
+        "output_tokens": 312,
+        "reading": "repeated with another nonce: still 0. The cache is keyed from the first characters, so a front nonce defeats it"
+      },
+      {
+        "id": "prepended-developer-item",
+        "seconds": 10.8,
+        "completed": true,
+        "input_tokens": 28355,
+        "cached_tokens": 0,
+        "output_tokens": 257,
+        "reading": "the relay-shaped variant: a new first input item instead of a rewrite of the client's own. Accepted by the provider and also 0 cached, which is the implementation to prefer (it never edits the client's content)"
+      }
+    ],
+    "limits": "One model (gpt-6-astra), one account, one body shape, direct path (not through the relay), six requests. The direct path has no injected padding tool and no appended instruction, so these numbers are the provider's cache behaviour for the client prefix; the relay's own additions are measured by the campaign's arms, not here. `input_tokens` is the provider's total with `cached_tokens` a subset of it, which is the class split the spend model uses.",
+    "account": "acct-2"
+  },
+  "aborted_price_2026-10-05": {
+    "what": "What one aborted dispatch costs, warm and cold, and how it was measured.",
+    "warm_dispatch_points": {
+      "O6": 0.158,
+      "O1": 0.167,
+      "H5": 0.21,
+      "range": [
+        0.158,
+        0.21
+      ]
+    },
+    "cold_dispatch_points": {
+      "O6c": {
+        "points_per_dispatch": 0.0,
+        "dispatches": 14,
+        "meter_delta_5h": 0,
+        "note": "nonce in item 0's first tool description, which also changed the model's behaviour"
+      },
+      "O6c2": {
+        "points_per_dispatch": 0.045,
+        "dispatches": 22,
+        "meter_delta_5h": 1,
+        "note": "nonce prepended as an inert developer message; behaviour closer to the warm arm (10 of 12 turns toolpad+sentinel). The 1 point is the meter's own floor over 22 dispatches, and the tripwire's own four-run arm also fired inside this bracket (07:05Z, 8 dispatches of a ~250-character prompt), so this is a ceiling on the cold price rather than a measurement of it; the clean cold reading is O6c's 0 over 14 dispatches"
+      },
+      "bound": "22 cache-cold dispatches moved the meter by one point, so the cold price is at most ~0.045 points a dispatch against 0.158-0.21 warm"
+    },
+    "fit_prediction": {
+      "points_per_dispatch": [
+        0.18,
+        0.24
+      ],
+      "how": "136,577 characters is ~22,800 tokens at this document's 5.99 characters per token and 28,333 at the provider's own count on the finalized counterpart of the same body (4.82 characters per token); ~90% cache reads gives 0.9 * 22,800 / 104,896 = 0.18 to 0.9 * 28,333 / 104,896 = 0.24",
+      "tension": "the measured warm price (0.158-0.21) sits at the bottom of that band, so either the aborted dispatch's billable prefix is smaller than the finalized request's or its cache share is lower; nothing here separates those"
+    },
+    "turn_shape": {
+      "O6": "19 dispatches / 12 turns",
+      "O1": "12 / 12",
+      "O6c": "14 / 12",
+      "H5": "19 / 12"
+    },
+    "continuation": {
+      "dispatches_it_accounts_for": "7 of O6's 19",
+      "points_per_turn": 0.083,
+      "delivered_chars_per_turn": {
+        "with_it": 103.1,
+        "without_it": 44.2
+      },
+      "reading": "the continuation is priced like any other dispatch and carries more than half the delivered characters; max_segments=1 removes it and with it most of the answer"
+    },
+    "day_level": {
+      "dispatches": 357,
+      "aborted_points": [
+        56,
+        75
+      ],
+      "aborted_points_if_cache_busted": [
+        0,
+        16
+      ],
+      "previous_figures": {
+        "filler_derived": [
+          18,
+          50
+        ],
+        "per_turn_arms": [
+          41,
+          52
+        ]
+      },
+      "why_it_changed": "the day's turns averaged 3.5 dispatches against the arms' 1.6, and the price transfers per dispatch"
+    },
+    "limits": "one account, one model (gpt-6-astra), one body shape, one 5h window; the meter is an integer percent; the cold arm's nonce changes 16 characters of the request; why the provider charges the cached part of an aborted request and not the fresh part is not observable here."
+  }
+}

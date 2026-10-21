@@ -1,0 +1,9 @@
+response.output_item.added {"item": {"call_id": "c1", "id": "ctc1", "input": "", "name": "exec", "status": "in_progress", "type": "custom_tool_call"}, "output_index": 0, "sequence_number": 0, "type": "response.output_item.added"}
+response.custom_tool_call_input.delta {"delta": "const r = await tool", "item_id": "ctc1", "output_index": 0, "sequence_number": 1, "type": "response.custom_tool_call_input.delta"}
+response.custom_tool_call_input.delta {"delta": "s.exec_command({cmd:", "item_id": "ctc1", "output_index": 0, "sequence_number": 2, "type": "response.custom_tool_call_input.delta"}
+response.custom_tool_call_input.delta {"delta": "\"printf hello > hell", "item_id": "ctc1", "output_index": 0, "sequence_number": 3, "type": "response.custom_tool_call_input.delta"}
+response.custom_tool_call_input.delta {"delta": "o.txt\"})", "item_id": "ctc1", "output_index": 0, "sequence_number": 4, "type": "response.custom_tool_call_input.delta"}
+response.custom_tool_call_input.done {"input": "const r = await tools.exec_command({cmd:\"printf hello > hello.txt\"})", "item_id": "ctc1", "output_index": 0, "sequence_number": 5, "type": "response.custom_tool_call_input.done"}
+response.output_item.done {"item": {"call_id": "c1", "id": "ctc1", "input": "const r = await tools.exec_command({cmd:\"printf hello > hello.txt\"})", "name": "exec", "status": "completed", "type": "custom_tool_call"}, "output_index": 0, "sequence_number": 6, "type": "response.output_item.done"}
+response.completed {"response": {"id": "resp_synthetic", "model": "test-model", "object": "response", "output": [{"call_id": "c1", "id": "ctc1", "input": "const r = await tools.exec_command({cmd:\"printf hello > hello.txt\"})", "name": "exec", "status": "completed", "type": "custom_tool_call"}], "status": "completed", "synthetic": true, "usage": "<estimate>"}, "sequence_number": 7, "type": "response.completed"}
+relay.summary "<record>"

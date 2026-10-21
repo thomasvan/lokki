@@ -1,0 +1,3 @@
+error {"code": "upstream_stream_error", "error": {"code": "upstream_stream_error", "message": "RuntimeError: upstream died mid-stream", "param": null, "type": "server_error"}, "message": "RuntimeError: upstream died mid-stream", "param": null, "sequence_number": 0, "type": "error"}
+relay.error {"error": "RuntimeError: upstream died mid-stream"}
+relay.summary "<record>"

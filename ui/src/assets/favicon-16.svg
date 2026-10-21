@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- The favicon at 16 px: the sea band dropped, so each wing keeps a full pixel
+       (docs/design/ux/logo.html, "favicon-16"), in app-icon.svg's colours. -->
+  <defs>
+    <clipPath id="sq-full16"><path d="M4 0H12C14.8 0 16 1.2 16 4V12C16 14.8 14.8 16 12 16H4C1.2 16 0 14.8 0 12V4C0 1.2 1.2 0 4 0Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#sq-full16)"><rect width="16" height="16" fill="#2c5f75"/></g>
+  <path fill="#f7fbfc" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z" transform="translate(0 -.5)"/>
+</svg>

@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · visual system</title>
+<style>
+/* ═══ tokens.css (inlined verbatim) ═══ */
+/* lokki · design tokens
+   Sea and sky, quiet. Structure is a deep blue-grey; surfaces are white and soft greys.
+   cutting = calm sea-teal · passing through = gull's-beak amber (full price)
+   unknown = neutral grey · error = clear red · dark scheme = night sea, not black.
+
+   Contrast notes are WCAG 2 ratios against --bg unless named otherwise.
+   Text needs 4.5:1, icons / dots / bars / borders that carry meaning need 3:1.
+   Each state comes in three parts:
+     --state        the mark itself: dots, bars, icons (≥ 3:1)
+     --state-ink    text in that state, on --bg or on its tint (≥ 4.5:1)
+     --state-soft   the background tint behind chips, banners and rows */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg:             oklch(0.985 0.004 220);  /* page / window ground */
+  --surface:        oklch(1 0 0);            /* cards, panels, inputs */
+  --surface-2:      oklch(0.962 0.007 225);  /* sidebar, track, hover fill */
+  --border:         oklch(0.885 0.012 225);
+  --border-strong:  oklch(0.64 0.016 230);
+
+  /* text */
+  --text:           oklch(0.27 0.030 238);
+  --text-muted:     oklch(0.49 0.022 238);
+
+  /* structure accent (primary button, selected segment, links) */
+  --accent:         oklch(0.40 0.060 228);
+  --accent-hover:   oklch(0.33 0.055 228);
+  --accent-contrast:oklch(1 0 0);
+  --accent-soft:    oklch(0.950 0.020 228);
+
+  /* cutting · the relay ends the answer early */
+  --cutting:        oklch(0.55 0.085 195);
+  --cutting-ink:    oklch(0.44 0.075 198);
+  --cutting-soft:   oklch(0.955 0.025 195);
+
+  /* passing through · full price · the warm accent */
+  --passing:        oklch(0.64 0.150 65);
+  --passing-ink:    oklch(0.48 0.110 55);
+  --passing-soft:   oklch(0.965 0.040 80);
+
+  /* unknown · no reading */
+  --unknown:        oklch(0.60 0.012 238);
+  --unknown-ink:    oklch(0.47 0.015 238);
+  --unknown-soft:   oklch(0.955 0.005 238);
+
+  /* error · something failed */
+  --error:          oklch(0.55 0.190 27);
+  --error-ink:      oklch(0.49 0.180 27);
+  --error-soft:     oklch(0.955 0.025 25);
+
+  /* chart series that is neither cutting nor passing */
+  --images:         oklch(0.62 0.070 265);
+
+  /* focus ring */
+  --focus:          oklch(0.55 0.140 245);
+
+  /* shadows */
+  --shadow-1: 0 1px 2px oklch(0.27 0.03 238 / 0.08), 0 1px 1px oklch(0.27 0.03 238 / 0.04);
+  --shadow-2: 0 8px 24px oklch(0.27 0.03 238 / 0.12), 0 2px 6px oklch(0.27 0.03 238 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg:             oklch(0.185 0.025 238);  /* night sea */
+    --surface:        oklch(0.225 0.027 238);
+    --surface-2:      oklch(0.265 0.028 238);
+    --border:         oklch(0.340 0.028 238);
+    --border-strong:  oklch(0.540 0.025 236);
+    --text:           oklch(0.940 0.008 230);
+    --text-muted:     oklch(0.750 0.020 232);
+    --accent:         oklch(0.800 0.070 215);
+    --accent-hover:   oklch(0.870 0.060 215);
+    --accent-contrast:oklch(0.185 0.025 238);
+    --accent-soft:    oklch(0.300 0.040 228);
+    --cutting:        oklch(0.760 0.090 190);
+    --cutting-ink:    oklch(0.840 0.080 190);
+    --cutting-soft:   oklch(0.290 0.045 200);
+    --passing:        oklch(0.800 0.140 72);
+    --passing-ink:    oklch(0.870 0.120 80);
+    --passing-soft:   oklch(0.300 0.045 65);
+    --unknown:        oklch(0.660 0.012 235);
+    --unknown-ink:    oklch(0.820 0.010 235);
+    --unknown-soft:   oklch(0.290 0.012 238);
+    --error:          oklch(0.700 0.170 25);
+    --error-ink:      oklch(0.820 0.100 25);
+    --error-soft:     oklch(0.300 0.060 25);
+    --images:         oklch(0.700 0.070 265);
+    --focus:          oklch(0.760 0.110 232);
+    --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+    --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+  }
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:             oklch(0.185 0.025 238);
+  --surface:        oklch(0.225 0.027 238);
+  --surface-2:      oklch(0.265 0.028 238);
+  --border:         oklch(0.340 0.028 238);
+  --border-strong:  oklch(0.540 0.025 236);
+  --text:           oklch(0.940 0.008 230);
+  --text-muted:     oklch(0.750 0.020 232);
+  --accent:         oklch(0.800 0.070 215);
+  --accent-hover:   oklch(0.870 0.060 215);
+  --accent-contrast:oklch(0.185 0.025 238);
+  --accent-soft:    oklch(0.300 0.040 228);
+  --cutting:        oklch(0.760 0.090 190);
+  --cutting-ink:    oklch(0.840 0.080 190);
+  --cutting-soft:   oklch(0.290 0.045 200);
+  --passing:        oklch(0.800 0.140 72);
+  --passing-ink:    oklch(0.870 0.120 80);
+  --passing-soft:   oklch(0.300 0.045 65);
+  --unknown:        oklch(0.660 0.012 235);
+  --unknown-ink:    oklch(0.820 0.010 235);
+  --unknown-soft:   oklch(0.290 0.012 238);
+  --error:          oklch(0.700 0.170 25);
+  --error-ink:      oklch(0.820 0.100 25);
+  --error-soft:     oklch(0.300 0.060 25);
+  --images:         oklch(0.700 0.070 265);
+  --focus:          oklch(0.760 0.110 232);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+}
+
+/* scheme-independent (also on [data-theme] so --focus-ring picks up a forced scheme's --bg) */
+:root,
+[data-theme] {
+  /* type: system faces only; numbers always tabular */
+  --font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --numeric:   tabular-nums;
+
+  --fs-xs:   11px;   /* captions, axis labels, chip text */
+  --fs-sm:   12px;   /* help lines, reasons, legend */
+  --fs-base: 13px;   /* body, controls, sidebar */
+  --fs-md:   15px;   /* card titles, decision headline */
+  --fs-lg:   18px;   /* page titles */
+  --fs-xl:   24px;   /* stat numbers */
+  --fs-2xl:  32px;   /* mode sentence on Home, hero numbers */
+
+  --lh-tight: 1.2;   /* numbers, headlines */
+  --lh-snug:  1.35;  /* controls, chips, labels */
+  --lh-body:  1.5;   /* sentences */
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+
+  /* spacing: 4 px base */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+
+  /* radii */
+  --r-sm:   4px;     /* chips, ticks, small inputs */
+  --r-md:   6px;     /* buttons, inputs, menu items */
+  --r-lg:  10px;     /* cards, banners */
+  --r-pill: 999px;   /* mode control, gauges */
+
+  /* sizes */
+  --control-h: 32px;
+  --sidebar-w: 208px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+/* ═══ end tokens.css ═══ */
+
+/* ─── specimen page ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: var(--fs-base)/var(--lh-body) var(--font-ui);
+  font-variant-numeric: var(--numeric);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+.num, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+p { margin: 0; text-wrap: pretty; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+
+/* prototype toolbar — outside every frame */
+.toolbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: var(--sp-5);
+  padding: var(--sp-2) var(--sp-6);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+.toolbar .tb-title { font-weight: var(--fw-semi); margin-right: auto; display: flex; align-items: center; gap: var(--sp-2); }
+.toolbar .tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.toolbar label, .toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.toolbar select { height: 26px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); padding: 0 6px; }
+.toolbar :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.page { max-width: 1140px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) 80px; }
+.page-head { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-6); align-items: end; padding-bottom: var(--sp-7); border-bottom: 1px solid var(--border); }
+.page-head h1 { font-size: var(--fs-2xl); line-height: var(--lh-tight); font-weight: var(--fw-semi); letter-spacing: -0.015em; display: flex; align-items: center; gap: var(--sp-3); }
+.page-head h1 svg { width: 40px; height: 40px; color: var(--accent); }
+.page-head p { color: var(--text-muted); max-width: 62ch; margin-top: var(--sp-2); font-size: var(--fs-md); }
+.page-head .meta { color: var(--text-muted); font-size: var(--fs-sm); text-align: right; }
+
+.sec { padding: var(--sp-8) 0 var(--sp-6); border-bottom: 1px solid var(--border); }
+.sec-head { display: grid; grid-template-columns: 220px 1fr; gap: var(--sp-6); margin-bottom: var(--sp-5); }
+.sec-head h2 { font-size: var(--fs-lg); font-weight: var(--fw-semi); line-height: var(--lh-tight); }
+.sec-head .idx { display: block; font: var(--fs-xs)/1 var(--font-mono); color: var(--text-muted); margin-bottom: var(--sp-2); letter-spacing: .04em; }
+.sec-head p { color: var(--text-muted); max-width: 70ch; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+html[data-view="light"] .pair .panel[data-theme="dark"],
+html[data-view="dark"]  .pair .panel[data-theme="light"] { display: none; }
+html[data-view="light"] .pair, html[data-view="dark"] .pair { grid-template-columns: 1fr; }
+.panel {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: var(--sp-5); min-width: 0;
+}
+.panel > .tag { display: flex; justify-content: space-between; font: var(--fs-xs)/1 var(--font-mono); color: var(--text-muted); margin-bottom: var(--sp-4); text-transform: uppercase; letter-spacing: .06em; }
+.stack { display: grid; gap: var(--sp-4); }
+.row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); font-family: var(--font-mono); letter-spacing: .02em; }
+.lbl { font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* palette */
+.sw-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2) var(--sp-3); }
+.sw { display: grid; grid-template-columns: 40px 1fr; gap: var(--sp-3); align-items: center; padding: var(--sp-2); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); }
+.sw i { width: 40px; height: 40px; border-radius: var(--r-sm); border: 1px solid color-mix(in oklch, var(--text) 12%, transparent); }
+.sw b { display: block; font: var(--fw-semi) var(--fs-sm)/1.3 var(--font-mono); }
+.sw span { display: block; font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.35; }
+.sw-group { grid-column: 1 / -1; font-size: var(--fs-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; padding-top: var(--sp-2); }
+
+/* type + spacing */
+.type-row { display: grid; grid-template-columns: 120px 1fr; gap: var(--sp-4); align-items: baseline; padding: var(--sp-3) 0; border-top: 1px solid var(--border); }
+.type-row:first-child { border-top: 0; }
+.space-row { display: grid; grid-template-columns: 80px 60px 1fr; align-items: center; gap: var(--sp-3); padding: 6px 0; }
+.space-row i { display: block; height: 12px; background: var(--accent); border-radius: 2px; }
+.radius-demo { width: 72px; height: 48px; background: var(--surface); border: 1px solid var(--border-strong); }
+.shadow-demo { width: 120px; height: 64px; background: var(--surface); border-radius: var(--r-lg); border: 1px solid var(--border); }
+
+/* ─── icons ─────────────────────────────────────────────────── */
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic-16 { width: 16px; height: 16px; }
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
+.icon-cell { display: grid; grid-template-columns: 40px 20px 1fr; gap: var(--sp-3); align-items: center; padding: var(--sp-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); font-size: var(--fs-sm); }
+.icon-cell .big { width: 40px; height: 40px; background-color: var(--surface-2); border-radius: var(--r-sm); position: relative; }
+.icon-cell .big svg.grid { position: absolute; inset: 0; width: 40px; height: 40px; color: var(--border); }
+.icon-cell .big .ic { position: absolute; inset: 0; width: 40px; height: 40px; stroke-width: 1.5; }
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* ─── mode control ──────────────────────────────────────────── */
+.mode { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--border); }
+.mode button {
+  white-space: nowrap;   /* "Auto 30 %" stays one label in a narrow sample */
+  height: 28px; padding: 0 14px; border: 0; border-radius: var(--r-pill);
+  background: transparent; color: var(--text); font-weight: var(--fw-medium); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.mode button:hover:not(:disabled), [data-force="hover"] .mode:not([aria-disabled]) button:not([aria-checked="true"]) { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.mode button[aria-checked="true"] { background: var(--accent); color: var(--accent-contrast); box-shadow: var(--shadow-1); }
+.mode button[aria-checked="true"]:hover:not(:disabled), [data-force="hover"] .mode:not([aria-disabled]) button[aria-checked="true"] { background: var(--accent-hover); }
+.mode button:focus-visible, [data-force="focus"] .mode:not([aria-disabled]) button[aria-checked="true"] { outline: none; box-shadow: var(--focus-ring); }
+.mode button:active, [data-force="pressed"] .mode:not([aria-disabled]) button[aria-checked="true"] { transform: translateY(1px); }
+.mode[aria-busy="true"] button { cursor: progress; }
+.mode[aria-busy="true"] button:not([aria-checked="true"]) { color: var(--text-muted); }
+.mode[aria-disabled] { background: var(--surface-2); }
+.mode[aria-disabled] button { cursor: not-allowed; color: var(--text-muted); }
+.mode[aria-disabled] button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.mode-sentence { color: var(--text-muted); font-size: var(--fs-sm); max-width: 46ch; }
+.reason-lock { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: var(--fs-sm); }
+
+/* ─── decision line + top bar ───────────────────────────────── */
+.topbar { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.decision { display: grid; grid-template-columns: 10px auto; column-gap: var(--sp-2); align-items: baseline; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.decision .dot { align-self: center; }
+.dot-cutting { background: var(--cutting); box-shadow: 0 0 0 3px var(--cutting-soft); }
+.dot-passing { background: var(--passing); box-shadow: 0 0 0 3px var(--passing-soft); }
+.dot-unknown { background: var(--unknown); box-shadow: 0 0 0 3px var(--unknown-soft); }
+.dot-error   { background: var(--error); box-shadow: 0 0 0 3px var(--error-soft); }
+.decision-head { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); }
+.decision-reason { grid-column: 2; font-size: var(--fs-sm); color: var(--text-muted); font-family: var(--font-mono); }
+.note { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--cutting-soft); color: var(--cutting-ink); font-size: var(--fs-sm); }
+.note .btn { margin-left: auto; }
+
+/* ─── buttons ───────────────────────────────────────────────── */
+.btn {
+  height: var(--control-h); padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap;
+  font-weight: var(--fw-medium); line-height: 1; transition: background-color .12s, border-color .12s;
+}
+.btn-sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); }
+.btn-primary { background: var(--accent); color: var(--accent-contrast); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-quiet { background: transparent; color: var(--text); }
+.btn-danger { background: var(--surface); color: var(--error-ink); border-color: var(--error); }
+.btn-primary:hover, [data-force="hover"] .btn-primary:not(:disabled) { background: var(--accent-hover); }
+.btn-secondary:hover, [data-force="hover"] .btn-secondary:not(:disabled) { background: var(--surface-2); border-color: var(--text-muted); }
+.btn-quiet:hover, [data-force="hover"] .btn-quiet:not(:disabled) { background: color-mix(in oklch, var(--text) 8%, transparent); }
+.btn-danger:hover, [data-force="hover"] .btn-danger:not(:disabled) { background: var(--error-soft); }
+.btn:focus-visible, [data-force="focus"] .btn:not(:disabled) { outline: none; box-shadow: var(--focus-ring); }
+.btn:active:not(:disabled), [data-force="pressed"] .btn:not(:disabled) { transform: translateY(1px); }
+.btn-primary:active:not(:disabled), [data-force="pressed"] .btn-primary:not(:disabled) { background: var(--accent-hover); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn[aria-busy="true"] { opacity: 1; cursor: progress; }
+.btn-grid { display: grid; grid-template-columns: 76px repeat(3, auto); gap: var(--sp-3); align-items: center; justify-content: start; }
+
+/* ─── chips ─────────────────────────────────────────────────── */
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }
+.chip .dot { width: 7px; height: 7px; box-shadow: none; }
+.chip .ic { width: 14px; height: 14px; stroke-width: 1.75; }
+.chip-cutting { background: var(--cutting-soft); color: var(--cutting-ink); }
+.chip-passing { background: var(--passing-soft); color: var(--passing-ink); }
+.chip-unknown { background: var(--unknown-soft); color: var(--unknown-ink); }
+.chip-error   { background: var(--error-soft); color: var(--error-ink); }
+.chip-ok      { background: var(--surface-2); color: var(--text); }
+.chip-off     { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; display: inline-block; }
+
+/* ─── quota gauge ───────────────────────────────────────────── */
+.gauge { padding: var(--sp-3) var(--sp-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.gauge-top { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.gauge-top .val { font: var(--fw-semi) var(--fs-md)/1 var(--font-mono); }
+.gauge-top .chip { margin-left: auto; }
+.bar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-pill); }
+.bar .tick { position: absolute; left: 30%; top: -4px; width: 2px; height: 16px; margin-left: -1px; background: var(--text-muted); border-radius: 1px; }
+.bar.empty { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); border: 0; }
+.bar-scale { position: relative; height: 14px; font: var(--fs-xs)/14px var(--font-mono); color: var(--text-muted); }
+.bar-scale span { position: absolute; transform: translateX(-50%); }
+.gauge-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); }
+.gauge.disabled .val, .gauge.disabled .gauge-top b { color: var(--text-muted); }
+.linkbtn { border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: var(--r-sm); color: var(--accent); font-weight: var(--fw-medium); cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+.linkbtn:hover, [data-force="hover"] .linkbtn { background: var(--accent-soft); }
+.linkbtn:focus-visible, [data-force="focus"] .linkbtn { outline: none; box-shadow: var(--focus-ring); }
+
+/* ─── stat cards + chart ────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.stat { padding: var(--sp-3) var(--sp-4); }
+.stat + .stat { border-left: 1px solid var(--border); }
+.stat .lbl { display: flex; align-items: center; gap: 6px; }
+.stat .big { font: var(--fw-semi) var(--fs-xl)/1.15 var(--font-mono); font-variant-numeric: tabular-nums; margin: 4px 0 2px; letter-spacing: -0.01em; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-4); }
+.chart-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.chart-head h3 { font-size: var(--fs-md); font-weight: var(--fw-semi); }
+.seg-sm { display: inline-flex; padding: 2px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+.seg-sm button { border: 0; background: transparent; height: 22px; padding: 0 8px; border-radius: var(--r-sm); font-size: var(--fs-sm); cursor: pointer; color: var(--text); }
+.seg-sm button:hover { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.seg-sm button[aria-pressed="true"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.seg-sm button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid line { stroke: var(--border); }
+.chart text { fill: var(--text-muted); font: 10px var(--font-mono); }
+.s-relay { fill: var(--cutting); } .s-pass { fill: var(--passing); } .s-img { fill: var(--images); } .s-err { fill: var(--error); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin-top: var(--sp-3); font-size: var(--fs-sm); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.legend b { font-family: var(--font-mono); font-weight: var(--fw-semi); }
+
+/* ─── banners + restart bar ─────────────────────────────────── */
+.banner { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); border-radius: var(--r-lg); border: 1px solid; min-height: 44px; }
+.banner { flex-wrap: wrap; }
+.banner p { flex: 1 1 200px; min-width: 0; }
+.banner .acts { display: flex; gap: var(--sp-1); align-items: center; margin-left: auto; }
+.banner-info    { background: var(--accent-soft);  border-color: color-mix(in oklch, var(--accent) 30%, transparent);  color: var(--text); }
+.banner-info > .ic { color: var(--accent); }
+.banner-warning { background: var(--passing-soft); border-color: color-mix(in oklch, var(--passing) 45%, transparent); color: var(--text); }
+.banner-warning > .ic { color: var(--passing-ink); }
+.banner-error   { background: var(--error-soft);   border-color: color-mix(in oklch, var(--error) 40%, transparent);   color: var(--text); }
+.banner-error > .ic { color: var(--error-ink); }
+.icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border: 0; border-radius: var(--r-md); background: transparent; color: var(--text); cursor: pointer; }
+.icon-btn:hover, [data-force="hover"] .icon-btn { background: color-mix(in oklch, var(--text) 9%, transparent); }
+.icon-btn:focus-visible, [data-force="focus"] .icon-btn { outline: none; box-shadow: var(--focus-ring); }
+.scroller { height: 210px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg); }
+.restart-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4); background: var(--accent-soft); border-bottom: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); }
+.restart-bar p { flex: 1; }
+.restart-bar > .ic { color: var(--accent); }
+
+/* ─── settings rows ─────────────────────────────────────────── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.card-title { padding: var(--sp-3) var(--sp-4); font-weight: var(--fw-semi); font-size: var(--fs-md); border-bottom: 1px solid var(--border); }
+.srow { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-4); align-items: center; padding: var(--sp-3) var(--sp-4); }
+.srow + .srow { border-top: 1px solid var(--border); }
+.srow .t { font-weight: var(--fw-medium); }
+.srow .h { font-size: var(--fs-sm); color: var(--text-muted); }
+.srow.locked .t { color: var(--text-muted); }
+.srow .why { display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-muted); margin-top: 2px; }
+.card-foot { display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); background: var(--surface-2); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+.card-foot .lbl { margin-right: auto; }
+.switch { display: inline-flex; align-items: center; gap: var(--sp-2); border: 0; background: none; padding: 2px; border-radius: var(--r-pill); cursor: pointer; font-size: var(--fs-sm); color: var(--text); }
+.switch .trk { width: 32px; height: 18px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-strong); position: relative; transition: background-color .12s; }
+.switch .trk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .12s; }
+.switch[aria-checked="true"] .trk { background: var(--accent); box-shadow: none; }
+.switch[aria-checked="true"] .trk::after { transform: translateX(14px); background: var(--accent-contrast); }
+.switch:hover .trk { box-shadow: inset 0 0 0 1px var(--text-muted); }
+.switch[aria-checked="true"]:hover .trk { background: var(--accent-hover); }
+.switch:focus-visible, [data-force="focus"] .switch:not(:disabled) { outline: none; box-shadow: var(--focus-ring); }
+.switch:disabled { cursor: not-allowed; color: var(--text-muted); }
+.switch:disabled .trk { opacity: .5; }
+.field { height: var(--control-h); width: 92px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); color: var(--text); font-family: var(--font-mono); text-align: right; }
+.field:hover { border-color: var(--text-muted); }
+.field:focus-visible, [data-force="focus"] .field:not(:disabled) { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in oklch, var(--focus) 25%, transparent); }
+.field:disabled { background: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+
+/* ─── sidebar ───────────────────────────────────────────────── */
+.side-demo { display: grid; grid-template-columns: var(--sidebar-w) 1fr; height: 420px; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.sidebar { background: var(--surface-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3); }
+.brand { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) var(--sp-5); font-size: 17px; font-weight: var(--fw-semi); letter-spacing: -0.02em; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); }
+.nav { display: grid; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 var(--sp-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; font-weight: var(--fw-medium); }
+.nav a .ic { color: var(--text-muted); }
+.nav a:hover, [data-force="hover"] .nav a:nth-child(2) { background: color-mix(in oklch, var(--text) 7%, var(--surface-2)); }
+.nav a[aria-current="page"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.nav a[aria-current="page"] .ic { color: var(--accent); }
+.nav a:focus-visible, [data-force="focus"] .nav a:nth-child(2) { outline: none; box-shadow: var(--focus-ring); }
+.side-foot { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border); display: grid; gap: 4px; font-size: var(--fs-sm); }
+.side-foot .st { display: flex; align-items: center; gap: var(--sp-2); }
+.side-foot .dot { width: 8px; height: 8px; box-shadow: none; }
+.dot-run { background: var(--accent); }
+.side-main { padding: var(--sp-4); display: grid; align-content: start; gap: var(--sp-3); background: var(--bg); }
+.side-main .lbl { font-size: var(--fs-xs); }
+
+@media (max-width: 960px) {
+  .pair, .sec-head { grid-template-columns: 1fr; }
+  .icon-grid { grid-template-columns: repeat(2, 1fr); }
+  .toolbar { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64"><path fill="currentColor" stroke="none" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 20 20"><path d="M3.25 9.25 10 3.5l6.75 5.75"/><path d="M5 8v8.25h3.5V12h3v4.25H15V8"/></symbol>
+    <symbol id="i-accounts" viewBox="0 0 20 20"><circle cx="8" cy="7" r="3"/><path d="M2.75 16.25c.55-2.85 2.65-4.5 5.25-4.5s4.7 1.65 5.25 4.5"/><path d="M12.75 4.15a3 3 0 0 1 0 5.7"/><path d="M14.75 11.9c1.4.6 2.3 2.1 2.5 4.35"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 20 20"><path d="M4.75 16.25V11M8.25 16.25V6M11.75 16.25V9M15.25 16.25V3.75"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20"><path d="M3.25 6H9m4 0h3.75"/><circle cx="11" cy="6" r="2"/><path d="M3.25 14H7m4 0h5.75"/><circle cx="9" cy="14" r="2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 20 20"><rect x="7" y="7" width="9.25" height="9.25" rx="1.75"/><path d="M13 7V5a1.25 1.25 0 0 0-1.25-1.25H5A1.25 1.25 0 0 0 3.75 5v6.75A1.25 1.25 0 0 0 5 13h2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 20 20"><path d="M4 8.5a6.25 6.25 0 0 1 11.6-1.25"/><path d="M15.75 3.75V7.5H12"/><path d="M16 11.5a6.25 6.25 0 0 1-11.6 1.25"/><path d="M4.25 16.25V12.5H8"/></symbol>
+    <symbol id="i-external" viewBox="0 0 20 20"><path d="M11 3.75h5.25V9"/><path d="M16.25 3.75 9.5 10.5"/><path d="M14 11.75v3.5a1 1 0 0 1-1 1H4.75a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="M10 9.25V14"/><path d="M10 6.5v.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m4.5 10.5 3.75 3.75L15.5 6"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 20 20"><path d="M10 3.25 17.25 16H2.75Z"/><path d="M10 8.25v3.5"/><path d="M10 13.75v.01"/></symbol>
+    <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="m7.5 7.5 5 5m0-5-5 5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 20 20"><path d="m8 5 5 5-5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></symbol>
+    <symbol id="i-close" viewBox="0 0 20 20"><path d="m5.5 5.5 9 9m0-9-9 9"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 20 20"><path d="M15.75 10a5.75 5.75 0 1 1-2.55-4.78"/><path d="M13.5 2.25V5.5h-3.25"/><path d="M8.75 7.75 12 10l-3.25 2.25Z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 20 20"><rect x="4.75" y="9" width="10.5" height="7.5" rx="1.5"/><path d="M7 9V6.75a3 3 0 0 1 6 0V9"/></symbol>
+    <symbol id="i-spinner" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5" stroke-dasharray="28 13" class="spin" style="transform-origin:10px 10px"/></symbol>
+    <symbol id="grid20" viewBox="0 0 20 20"><path fill="none" stroke="currentColor" stroke-width=".1" d="M0 0h20v20H0zM2 0v20M4 0v20M6 0v20M8 0v20M10 0v20M12 0v20M14 0v20M16 0v20M18 0v20M0 2h20M0 4h20M0 6h20M0 8h20M0 10h20M0 12h20M0 14h20M0 16h20M0 18h20"/></symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64"><use href="#mark"/></svg>lokki · visual system <span class="cap">prototype toolbar</span></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="viewSeg">
+      <button type="button" data-view="both" aria-pressed="true">Both</button>
+      <button type="button" data-view="light" aria-pressed="false">Light</button>
+      <button type="button" data-view="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+  <label>Force state
+    <select id="forceSel">
+      <option value="">Rest (live)</option>
+      <option value="hover">Hover</option>
+      <option value="focus">Focus</option>
+      <option value="pressed">Pressed</option>
+    </select>
+  </label>
+</div>
+
+<main class="page">
+  <header class="page-head">
+    <div>
+      <h1><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki visual system</h1>
+      <p>Sea and sky, quiet. A deep blue-grey carries structure; teal means the relay is cutting; amber means a request passes through at full price.</p>
+    </div>
+    <div class="meta mono">tokens.css · 0.1<br>system-ui · ui-monospace</div>
+  </header>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">01</span><h2>Palette</h2></div>
+      <p>Ratios are WCAG 2 contrast against <span class="mono">--bg</span> unless named. A state's plain token is for dots, bars and icons; its <span class="mono">-ink</span> is for text; its <span class="mono">-soft</span> is the tint behind both.</p></div>
+    <div class="pair" id="palettePair"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">02</span><h2>Type</h2></div>
+      <p>System faces only. Sentences in <span class="mono">system-ui</span>; numbers, reasons, keys and endpoints in <span class="mono">ui-monospace</span>, always tabular.</p></div>
+    <div class="panel" id="typeScale"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">03</span><h2>Spacing, radii, shadow</h2></div>
+      <p>A 4 px base. Controls are 32 px tall (28 px in dense rows); cards pad 16 px; sections sit 40 px apart.</p></div>
+    <div class="pair" style="grid-template-columns:1fr 1fr">
+      <div class="panel" id="spaceScale"></div>
+      <div class="panel stack">
+        <div class="row" style="gap:var(--sp-5)">
+          <div><div class="radius-demo" style="border-radius:var(--r-sm)"></div><div class="cap" style="margin-top:6px">--r-sm 4</div></div>
+          <div><div class="radius-demo" style="border-radius:var(--r-md)"></div><div class="cap" style="margin-top:6px">--r-md 6</div></div>
+          <div><div class="radius-demo" style="border-radius:var(--r-lg)"></div><div class="cap" style="margin-top:6px">--r-lg 10</div></div>
+          <div><div class="radius-demo" style="border-radius:var(--r-pill)"></div><div class="cap" style="margin-top:6px">--r-pill</div></div>
+        </div>
+        <div class="row" style="gap:var(--sp-6);padding-top:var(--sp-3)">
+          <div><div class="shadow-demo" style="box-shadow:var(--shadow-1)"></div><div class="cap" style="margin-top:8px">--shadow-1 · selected segment, active nav</div></div>
+          <div><div class="shadow-demo" style="box-shadow:var(--shadow-2)"></div><div class="cap" style="margin-top:8px">--shadow-2 · popover, tooltip</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">04</span><h2>Icons</h2></div>
+      <p>Drawn for lokki on a 20 px grid, 1.5 px stroke, round caps, <span class="mono">currentColor</span>. Shown at 2× over the grid and at size.</p></div>
+    <div class="pair" data-tpl="tpl-icons"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">05</span><h2>Mode control</h2></div>
+      <p>One click changes the mode; no Save. The first control is live. Busy shows while the core confirms; disabled keeps the current mode visible and says why.</p></div>
+    <div class="pair" data-tpl="tpl-mode"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">06</span><h2>Decision line</h2></div>
+      <p>Sits beside the mode control in the top bar of every screen. The headline names the outcome; the reason underneath is quoted verbatim from the core.</p></div>
+    <div class="pair" data-tpl="tpl-decision"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">07</span><h2>Buttons</h2></div>
+      <p>One primary per view. Use the toolbar's Force state to see hover, focus and pressed on every button at once.</p></div>
+    <div class="pair" data-tpl="tpl-buttons"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">08</span><h2>State chips</h2></div>
+      <p>Every state colour travels with its word. An account is <b>low</b> in teal because low accounts are what make Auto cut; <b>ok</b> stays neutral; <b>not watched</b> is only an outline.</p></div>
+    <div class="pair" data-tpl="tpl-chips"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">09</span><h2>Quota gauge</h2></div>
+      <p>Remaining quota as a thin bar, with a tick at the 30 % threshold Auto cuts below. The number, the reset phrase and the freshness line sit on the same card.</p></div>
+    <div class="pair" data-tpl="tpl-gauge"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">10</span><h2>Stat cards and request chart</h2></div>
+      <p>Specimen with sample counts, not real usage. 24 hourly bars stacked by outcome; the range control sits beside the title; the legend carries the counts.</p></div>
+    <div class="pair" data-tpl="tpl-stats"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">11</span><h2>Banners and restart bar</h2></div>
+      <p>Banners sit above the content they concern. The restart bar is sticky at the top of Settings and stays until CLIProxyAPI restarts — scroll the frame to see it hold.</p></div>
+    <div class="pair" data-tpl="tpl-banners"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">12</span><h2>Settings rows</h2></div>
+      <p>Label and one grey line at left, control at right. A locked row keeps its value readable and gives the reason in place. Each card saves on its own and counts its changes.</p></div>
+    <div class="pair" data-tpl="tpl-settings"></div>
+  </section>
+
+  <section class="sec" style="border-bottom:0">
+    <div class="sec-head"><div><span class="idx">13</span><h2>Sidebar</h2></div>
+      <p>208 px. Mark and wordmark, four destinations, and the service status at the foot. Hover is forced on Accounts when Force state is set.</p></div>
+    <div class="pair" data-tpl="tpl-sidebar"></div>
+  </section>
+</main>
+
+<!-- ─── component templates (cloned into a light and a dark panel) ─── -->
+<template id="tpl-icons">
+  <div class="icon-grid"></div>
+</template>
+
+<template id="tpl-mode">
+  <div class="stack">
+    <div class="stack" style="gap:var(--sp-2)">
+      <span class="lbl">Live · click to change</span>
+      <div class="mode" role="radiogroup" aria-label="Mode" data-live>
+        <button type="button" role="radio" aria-checked="false" data-m="direct">Direct</button>
+        <button type="button" role="radio" aria-checked="true" data-m="auto">Auto 30 %</button>
+        <button type="button" role="radio" aria-checked="false" data-m="relay">Relay</button>
+      </div>
+      <p class="mode-sentence" data-sentence>Cut when the watched accounts run low; otherwise pass through at full price.</p>
+    </div>
+    <div class="row"><span class="lbl" style="width:84px">Relay</span>
+      <div class="mode" role="radiogroup" aria-label="Mode"><button type="button" role="radio" aria-checked="false">Direct</button><button type="button" role="radio" aria-checked="false">Auto 30 %</button><button type="button" role="radio" aria-checked="true">Relay</button></div></div>
+    <div class="row"><span class="lbl" style="width:84px">Direct</span>
+      <div class="mode" role="radiogroup" aria-label="Mode"><button type="button" role="radio" aria-checked="true">Direct</button><button type="button" role="radio" aria-checked="false">Auto 30 %</button><button type="button" role="radio" aria-checked="false">Relay</button></div></div>
+    <div class="row"><span class="lbl" style="width:84px">Busy</span>
+      <div class="mode" role="radiogroup" aria-label="Mode" aria-busy="true"><button type="button" role="radio" aria-checked="false">Direct</button><button type="button" role="radio" aria-checked="true"><svg class="ic ic-16"><use href="#i-spinner"/></svg>Auto 30 %</button><button type="button" role="radio" aria-checked="false">Relay</button></div>
+      <span class="lbl">Switching to Auto…</span></div>
+    <div class="row" style="align-items:flex-start"><span class="lbl" style="width:84px;padding-top:6px">Disabled</span>
+      <div class="stack" style="gap:6px">
+        <div class="mode" role="radiogroup" aria-label="Mode" aria-disabled="true"><button type="button" role="radio" aria-checked="false" disabled>Direct</button><button type="button" role="radio" aria-checked="true" disabled>Auto 30 %</button><button type="button" role="radio" aria-checked="false" disabled>Relay</button></div>
+        <span class="reason-lock"><svg class="ic ic-16"><use href="#i-lock"/></svg>the settings file is not writable here</span>
+      </div></div>
+  </div>
+</template>
+
+<template id="tpl-decision">
+  <div class="stack">
+    <div class="topbar">
+      <div class="mode" role="radiogroup" aria-label="Mode"><button type="button" role="radio" aria-checked="false">Direct</button><button type="button" role="radio" aria-checked="false">Auto 30 %</button><button type="button" role="radio" aria-checked="true">Relay</button></div>
+      <div class="decision"><span class="dot dot-cutting"></span><span class="decision-head">Cutting every request</span><span class="decision-reason">routing: relay</span></div>
+    </div>
+    <div class="topbar">
+      <div class="mode" role="radiogroup" aria-label="Mode"><button type="button" role="radio" aria-checked="false">Direct</button><button type="button" role="radio" aria-checked="true">Auto 30 %</button><button type="button" role="radio" aria-checked="false">Relay</button></div>
+      <div class="decision"><span class="dot dot-passing"></span><span class="decision-head">Passing requests through</span><span class="decision-reason">not every watched account is low</span></div>
+    </div>
+    <div class="topbar">
+      <div class="mode" role="radiogroup" aria-label="Mode"><button type="button" role="radio" aria-checked="true">Direct</button><button type="button" role="radio" aria-checked="false">Auto 30 %</button><button type="button" role="radio" aria-checked="false">Relay</button></div>
+      <div class="decision"><span class="dot dot-passing"></span><span class="decision-head">Passing requests through</span><span class="decision-reason">routing: direct</span></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-buttons">
+  <div class="btn-grid">
+    <span class="lbl">Primary</span><button type="button" class="btn btn-primary">Install and restart</button><button type="button" class="btn btn-primary" disabled>Install and restart</button><button type="button" class="btn btn-primary" aria-busy="true" disabled><svg class="ic ic-16"><use href="#i-spinner"/></svg>Saving…</button>
+    <span class="lbl">Secondary</span><button type="button" class="btn btn-secondary"><svg class="ic ic-16"><use href="#i-refresh"/></svg>Check now</button><button type="button" class="btn btn-secondary" disabled><svg class="ic ic-16"><use href="#i-refresh"/></svg>Check now</button><button type="button" class="btn btn-secondary" aria-busy="true" disabled><svg class="ic ic-16"><use href="#i-spinner"/></svg>Saving…</button>
+    <span class="lbl">Quiet</span><button type="button" class="btn btn-quiet"><svg class="ic ic-16"><use href="#i-copy"/></svg>Copy key</button><button type="button" class="btn btn-quiet" disabled><svg class="ic ic-16"><use href="#i-copy"/></svg>Copy key</button><span></span>
+    <span class="lbl">Danger</span><button type="button" class="btn btn-danger">Remove from watched</button><button type="button" class="btn btn-danger" disabled>Remove from watched</button><span></span>
+  </div>
+</template>
+
+<template id="tpl-chips">
+  <div class="stack">
+    <div><div class="lbl" style="margin-bottom:6px">Request</div>
+      <div class="row">
+        <span class="chip chip-cutting"><span class="dot" style="background:var(--cutting)"></span>cutting</span>
+        <span class="chip chip-passing"><span class="dot" style="background:var(--passing)"></span>passing through</span>
+        <span class="chip chip-unknown"><span class="dot" style="background:var(--unknown)"></span>unknown</span>
+        <span class="chip chip-error"><svg class="ic"><use href="#i-error"/></svg>error</span>
+      </div></div>
+    <div><div class="lbl" style="margin-bottom:6px">Account</div>
+      <div class="row">
+        <span class="chip chip-cutting"><svg class="ic"><use href="#i-warning"/></svg>low</span>
+        <span class="chip chip-ok"><svg class="ic"><use href="#i-check"/></svg>ok</span>
+        <span class="chip chip-unknown"><span class="dot" style="background:var(--unknown)"></span>unknown</span>
+        <span class="chip chip-off"><span class="ring"></span>not watched</span>
+      </div></div>
+  </div>
+</template>
+
+<template id="tpl-gauge">
+  <div class="stack" style="gap:var(--sp-3)">
+    <div class="gauge">
+      <div class="gauge-top"><b>5 h window</b><span class="val">20 %</span><span class="lbl">left</span><span class="chip chip-cutting"><svg class="ic"><use href="#i-warning"/></svg>low</span></div>
+      <div class="bar" role="meter" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100" aria-label="20 % remaining"><span class="fill" style="width:20%;background:var(--cutting)"></span><span class="tick"></span></div>
+      <div class="bar-scale"><span style="left:30%">30</span></div>
+      <div class="gauge-foot"><span>resets in 1 h 12 min · 14:32</span><span>last read 12 s ago · <button type="button" class="linkbtn">Read now</button></span></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-top"><b>5 h window</b><span class="val">90 %</span><span class="lbl">left</span><span class="chip chip-ok"><svg class="ic"><use href="#i-check"/></svg>ok</span></div>
+      <div class="bar" role="meter" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100" aria-label="90 % remaining"><span class="fill" style="width:90%;background:var(--accent)"></span><span class="tick"></span></div>
+      <div class="bar-scale"><span style="left:30%">30</span></div>
+      <div class="gauge-foot"><span>resets in 1 h 12 min · 14:32</span><span>last read 12 s ago · <button type="button" class="linkbtn">Read now</button></span></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-top"><b>5 h window</b><span class="val">—</span><span class="lbl">no reading</span><span class="chip chip-unknown"><span class="dot" style="background:var(--unknown)"></span>unknown</span></div>
+      <div class="bar empty" role="meter" aria-label="no reading"><span class="tick"></span></div>
+      <div class="bar-scale"><span style="left:30%">30</span></div>
+      <div class="gauge-foot"><span>not read yet</span><button type="button" class="linkbtn">Read now</button></div>
+    </div>
+    <div class="gauge disabled">
+      <div class="gauge-top"><b>5 h window</b><span class="val">55 %</span><span class="lbl">left</span><span class="chip chip-off"><span class="ring"></span>not watched</span></div>
+      <div class="bar" role="meter" aria-valuenow="55" aria-valuemin="0" aria-valuemax="100" aria-label="55 % remaining, account disabled"><span class="fill" style="width:55%;background:var(--unknown)"></span><span class="tick" style="background:var(--unknown)"></span></div>
+      <div class="bar-scale"><span style="left:30%">30</span></div>
+      <div class="gauge-foot"><span>account disabled · last read 3 h ago</span></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-stats">
+  <div class="stack">
+    <div class="stats">
+      <div class="stat"><div class="lbl"><span class="dot" style="width:8px;height:8px;background:var(--cutting)"></span>Cut</div><div class="big" data-sum="relay">—</div><div class="cap">last 24 h · sample</div></div>
+      <div class="stat"><div class="lbl"><span class="dot" style="width:8px;height:8px;background:var(--passing)"></span>Passed through</div><div class="big" data-sum="pass">—</div><div class="cap">last 24 h · sample</div></div>
+      <div class="stat"><div class="lbl"><svg class="ic ic-16" style="color:var(--error-ink)"><use href="#i-error"/></svg>Errors</div><div class="big" data-sum="err">—</div><div class="cap">last 24 h · sample</div></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><h3>Requests</h3>
+        <div class="seg-sm" role="group" aria-label="Range"><button type="button" aria-pressed="true" data-range="24">24 h</button><button type="button" aria-pressed="false" data-range="7">7 d</button></div>
+        <span class="cap" style="margin-left:auto">sample data</span></div>
+      <svg class="chart" viewBox="0 0 480 170" role="img" aria-label="Requests per hour by outcome"></svg>
+      <div class="legend"></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-banners">
+  <div class="stack" style="gap:var(--sp-3)">
+    <div class="banner banner-info"><svg class="ic"><use href="#i-info"/></svg>
+      <p><b>lokki 0.2.0 is available</b></p>
+      <div class="acts"><button type="button" class="btn btn-quiet btn-sm">Release notes<svg class="ic ic-16"><use href="#i-external"/></svg></button><button type="button" class="btn btn-secondary btn-sm">Check now</button><button type="button" class="btn btn-primary btn-sm">Install and restart</button></div></div>
+    <div class="banner banner-warning"><svg class="ic"><use href="#i-warning"/></svg>
+      <p>The settings file is not writable here. Changes cannot be saved.</p>
+      <button type="button" class="icon-btn" aria-label="Dismiss"><svg class="ic ic-16"><use href="#i-close"/></svg></button></div>
+    <div class="banner banner-error"><svg class="ic"><use href="#i-error"/></svg>
+      <p><b>CLIProxyAPI not reachable.</b> Requests cannot be served.</p>
+      <div class="acts"><button type="button" class="btn btn-secondary btn-sm"><svg class="ic ic-16"><use href="#i-restart"/></svg>Restart CLIProxyAPI</button></div></div>
+    <div class="scroller">
+      <div class="restart-bar"><svg class="ic"><use href="#i-restart"/></svg><p>Restart CLIProxyAPI to use the new settings.</p><button type="button" class="btn btn-primary btn-sm">Restart CLIProxyAPI</button></div>
+      <div class="srow"><div><div class="t">Endpoint</div><div class="h mono">http://127.0.0.1:8381/v1</div></div><button type="button" class="btn btn-quiet btn-sm"><svg class="ic ic-16"><use href="#i-copy"/></svg>Copy</button></div>
+      <div class="srow"><div><div class="t">Text tool calls</div><div class="h">The model writes its exec call as text, and lokki makes the call and cuts there</div></div><button type="button" class="switch" role="switch" aria-checked="true"><span class="trk"></span>On</button></div>
+      <div class="srow"><div><div class="t">Read every</div><div class="h">How often lokki reads each account's quota, in every mode</div></div><input class="field" value="60 s" aria-label="Read every"></div>
+      <div class="srow"><div><div class="t">Port</div><div class="h">Where clients reach lokki.</div></div><input class="field" value="8381" aria-label="Port"></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-settings">
+  <div class="card">
+    <div class="card-title">Tool calls</div>
+    <div class="srow"><div><div class="t">Text tool calls</div><div class="h">The model writes its exec call as text, and lokki makes the call and cuts there</div></div><button type="button" class="switch" role="switch" aria-checked="true" data-toggle><span class="trk"></span><span data-word>On</span></button></div>
+    <div class="srow"><div><div class="t">Read every</div><div class="h">How often lokki reads each account's quota, in every mode</div></div><input class="field" value="60 s" aria-label="Read every"></div>
+    <div class="srow locked"><div><div class="t">Port</div><div class="h">Where clients reach lokki.</div>
+      <div class="why"><svg class="ic ic-16"><use href="#i-lock"/></svg>the settings file is not writable here</div></div><input class="field" value="8381" aria-label="Port" disabled></div>
+    <div class="card-foot"><span class="lbl">2 changes</span><button type="button" class="btn btn-quiet btn-sm">Discard</button><button type="button" class="btn btn-primary btn-sm">Save 2 changes</button></div>
+  </div>
+</template>
+
+<template id="tpl-sidebar">
+  <div class="side-demo">
+    <aside class="sidebar">
+      <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki</div>
+      <nav class="nav" aria-label="Destinations">
+        <a href="#" aria-current="page"><svg class="ic"><use href="#i-home"/></svg>Home</a>
+        <a href="#"><svg class="ic"><use href="#i-accounts"/></svg>Accounts</a>
+        <a href="#"><svg class="ic"><use href="#i-activity"/></svg>Activity</a>
+        <a href="#"><svg class="ic"><use href="#i-settings"/></svg>Settings</a>
+      </nav>
+      <div class="side-foot"><span class="st"><span class="dot dot-run"></span>CLIProxyAPI running</span><span class="cap">lokki 0.1.0</span></div>
+    </aside>
+    <div class="side-main">
+      <span class="lbl">Foot, when the service is down</span>
+      <div class="side-foot" style="border:0;padding:var(--sp-3);background:var(--surface-2);border-radius:var(--r-md);margin:0">
+        <span class="st" style="color:var(--error-ink)"><svg class="ic ic-16"><use href="#i-error"/></svg>CLIProxyAPI not reachable</span><span class="cap">lokki 0.1.0</span></div>
+      <span class="lbl">Small icons in place</span>
+      <div class="row" style="gap:var(--sp-1)">
+        <button type="button" class="icon-btn" aria-label="Copy"><svg class="ic"><use href="#i-copy"/></svg></button>
+        <button type="button" class="icon-btn" aria-label="Refresh"><svg class="ic"><use href="#i-refresh"/></svg></button>
+        <button type="button" class="icon-btn" aria-label="Open"><svg class="ic"><use href="#i-external"/></svg></button>
+        <button type="button" class="icon-btn" aria-label="Add"><svg class="ic"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button>
+        <button type="button" class="icon-btn" aria-label="Restart"><svg class="ic"><use href="#i-restart"/></svg></button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var SENT = {
+    direct: 'Every request goes to CLIProxyAPI untouched, at full price.',
+    auto: 'Cut when the watched accounts run low; otherwise pass through at full price.',
+    relay: 'Every request is cut: lokki ends the answer early so it costs less.'
+  };
+
+  /* palette data: [token, value, note] */
+  var PAL = {
+    light: [
+      ['Surfaces'], ['--bg','0.985 0.004 220','ground'], ['--surface','1 0 0','cards · 1.05:1'], ['--surface-2','0.962 0.007 225','sidebar, track'], ['--border','0.885 0.012 225','hairline · decorative'],
+      ['Text and structure'], ['--text','0.27 0.030 238','14.4:1 · 15.0:1 surface'], ['--text-muted','0.49 0.022 238','6.0:1 · 5.6:1 surface-2'], ['--accent','0.40 0.060 228','8.7:1 · 9.1:1 with contrast'], ['--accent-contrast','1 0 0','text on accent · 9.1:1'], ['--focus','0.55 0.140 245','ring · 4.6:1'], ['--images','0.62 0.070 265','chart series · 3.7:1'],
+      ['States'], ['--cutting','0.55 0.085 195','marks · 4.5:1'], ['--cutting-ink','0.44 0.075 198','text · 6.6:1 on soft'], ['--passing','0.64 0.150 65','marks · 3.3:1 · not text'], ['--passing-ink','0.48 0.110 55','text · 6.1:1 on soft'], ['--unknown','0.60 0.012 238','marks · 3.8:1'], ['--unknown-ink','0.47 0.015 238','text · 6.0:1 on soft'], ['--error','0.55 0.190 27','marks · 5.1:1'], ['--error-ink','0.49 0.180 27','text · 6.0:1 on soft'],
+      ['Tints'], ['--cutting-soft','0.955 0.025 195','behind cutting-ink'], ['--passing-soft','0.965 0.040 80','behind passing-ink'], ['--unknown-soft','0.955 0.005 238','behind unknown-ink'], ['--error-soft','0.955 0.025 25','behind error-ink']
+    ],
+    dark: [
+      ['Surfaces'], ['--bg','0.185 0.025 238','night sea'], ['--surface','0.225 0.027 238','cards'], ['--surface-2','0.265 0.028 238','sidebar, track'], ['--border','0.340 0.028 238','hairline · decorative'],
+      ['Text and structure'], ['--text','0.94 0.008 230','15.6:1 · 14.3:1 surface'], ['--text-muted','0.75 0.020 232','8.4:1 · 6.9:1 surface-2'], ['--accent','0.80 0.070 215','10.2:1 · 10.2:1 with contrast'], ['--accent-contrast','0.185 0.025 238','text on accent · 10.2:1'], ['--focus','0.76 0.110 232','ring · 8.9:1'], ['--images','0.70 0.070 265','chart series · 6.4:1'],
+      ['States'], ['--cutting','0.76 0.090 190','marks · 9.0:1'], ['--cutting-ink','0.84 0.080 190','text · 8.8:1 on soft'], ['--passing','0.80 0.140 72','marks · 9.7:1 · not text'], ['--passing-ink','0.87 0.120 80','text · 9.2:1 on soft'], ['--unknown','0.66 0.012 235','marks · 6.0:1'], ['--unknown-ink','0.82 0.010 235','text · 8.1:1 on soft'], ['--error','0.70 0.170 25','marks · 6.5:1'], ['--error-ink','0.82 0.100 25','text · 7.7:1 on soft'],
+      ['Tints'], ['--cutting-soft','0.29 0.045 200','behind cutting-ink'], ['--passing-soft','0.30 0.045 65','behind passing-ink'], ['--unknown-soft','0.29 0.012 238','behind unknown-ink'], ['--error-soft','0.30 0.060 25','behind error-ink']
+    ]
+  };
+
+  function panel(theme, label, id) {
+    var p = document.createElement('div');
+    p.className = 'panel'; p.setAttribute('data-theme', theme);
+    p.innerHTML = '<div class="tag"><span>' + label + '</span><span>' + (theme === 'light' ? 'light' : 'dark · night sea') + '</span></div>';
+    return p;
+  }
+
+  /* palette */
+  var pp = document.getElementById('palettePair');
+  ['light', 'dark'].forEach(function (t) {
+    var p = panel(t, 'Palette', 'palette');
+    var g = document.createElement('div'); g.className = 'sw-grid';
+    PAL[t].forEach(function (r) {
+      if (r.length === 1) { g.insertAdjacentHTML('beforeend', '<div class="sw-group">' + r[0] + '</div>'); return; }
+      g.insertAdjacentHTML('beforeend', '<div class="sw"><i style="background:var(' + r[0] + ')"></i><div><b>' + r[0] + '</b><span class="mono">oklch(' + r[1] + ')</span><span>' + r[2] + '</span></div></div>');
+    });
+    p.appendChild(g); pp.appendChild(p);
+  });
+
+  /* type scale */
+  var TS = [['--fs-2xl','32 / 1.2','Every request is cut.', 'semi'], ['--fs-xl','24 / 1.2','1 284', 'mono'], ['--fs-lg','18 / 1.2','Accounts', 'semi'], ['--fs-md','15 / 1.35','Passing requests through', 'semi'],
+    ['--fs-base','13 / 1.5','Every request goes to CLIProxyAPI untouched, at full price.', ''], ['--fs-sm','12 / 1.5','not every watched account is low', 'mono'], ['--fs-xs','11 / 1.35','resets in 1 h 12 min · 14:32', 'mono']];
+  document.getElementById('typeScale').innerHTML = TS.map(function (r) {
+    var st = 'font-size:var(' + r[0] + ');line-height:var(--lh-' + (r[0] === '--fs-base' || r[0] === '--fs-sm' ? 'body' : 'tight') + ');' +
+      (r[3] === 'semi' ? 'font-weight:600;letter-spacing:-0.01em;' : '') + (r[3] === 'mono' ? 'font-family:var(--font-mono);' : '');
+    return '<div class="type-row"><span class="cap">' + r[0] + '<br>' + r[1] + '</span><span style="' + st + '">' + r[2] + '</span></div>';
+  }).join('');
+
+  /* spacing */
+  document.getElementById('spaceScale').innerHTML = [4, 8, 12, 16, 20, 24, 32, 40].map(function (v, i) {
+    return '<div class="space-row"><span class="cap">--sp-' + (i + 1) + '</span><span class="cap">' + v + ' px</span><i style="width:' + v * 4 + 'px"></i></div>';
+  }).join('');
+
+  /* clone templates into light + dark panels */
+  var TITLES = { 'tpl-icons': 'Icons', 'tpl-mode': 'Mode control', 'tpl-decision': 'Top bar', 'tpl-buttons': 'Buttons', 'tpl-chips': 'Chips', 'tpl-gauge': 'Quota', 'tpl-stats': 'Activity', 'tpl-banners': 'Banners', 'tpl-settings': 'Settings', 'tpl-sidebar': 'Shell' };
+  document.querySelectorAll('.pair[data-tpl]').forEach(function (pair) {
+    var tpl = document.getElementById(pair.dataset.tpl);
+    ['light', 'dark'].forEach(function (t) {
+      var p = panel(t, TITLES[pair.dataset.tpl], pair.dataset.tpl.replace('tpl-', ''));
+      p.appendChild(tpl.content.cloneNode(true));
+      pair.appendChild(p);
+    });
+  });
+
+  /* icon grid */
+  var ICONS = ['home', 'accounts', 'activity', 'settings', 'copy', 'refresh', 'external', 'info', 'check', 'warning', 'error', 'chevron', 'plus', 'close', 'restart', 'lock'];
+  document.querySelectorAll('.icon-grid').forEach(function (g) {
+    g.innerHTML = ICONS.map(function (n) {
+      return '<div class="icon-cell"><span class="big"><svg class="grid" viewBox="0 0 20 20"><use href="#grid20"/></svg><svg class="ic" viewBox="0 0 20 20"><use href="#i-' + n + '"/></svg></span><svg class="ic"><use href="#i-' + n + '"/></svg><span>' + n + '</span></div>';
+    }).join('');
+  });
+
+  /* live mode control */
+  document.querySelectorAll('.mode[data-live]').forEach(function (m) {
+    var sent = m.parentNode.querySelector('[data-sentence]');
+    m.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b || m.getAttribute('aria-busy') === 'true' || b.getAttribute('aria-checked') === 'true') return;
+      m.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', x === b ? 'true' : 'false'); });
+      m.setAttribute('aria-busy', 'true');
+      b.insertAdjacentHTML('afterbegin', '<svg class="ic ic-16" data-sp><use href="#i-spinner"/></svg>');
+      setTimeout(function () {
+        m.removeAttribute('aria-busy'); var s = b.querySelector('[data-sp]'); if (s) s.remove();
+        sent.textContent = SENT[b.dataset.m];
+      }, 700);
+    });
+  });
+
+  /* switches */
+  document.querySelectorAll('[data-toggle]').forEach(function (s) {
+    s.addEventListener('click', function () {
+      var on = s.getAttribute('aria-checked') !== 'true';
+      s.setAttribute('aria-checked', on); s.querySelector('[data-word]').textContent = on ? 'On' : 'Off';
+    });
+  });
+
+  /* sample chart data (deterministic; specimen only) */
+  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; }
+  function series(n, scale) {
+    var r = rng(7 + n), out = [];
+    for (var i = 0; i < n; i++) {
+      var wave = n === 24 ? 0.35 + 0.65 * Math.max(0, Math.sin((i - 5) / 24 * Math.PI * 2 - 0.3) * 0.5 + 0.5) : 0.75 + r() * 0.25;
+      out.push({ relay: Math.round((22 + r() * 30) * wave * scale), pass: Math.round((10 + r() * 22) * wave * scale), img: Math.round(r() * 6 * wave * scale), err: r() > 0.82 ? Math.ceil(r() * 3 * scale / 4) : 0 });
+    }
+    return out;
+  }
+  var DATA = { 24: series(24, 1), 7: series(7, 24) };
+  var KEYS = [['relay', 's-relay', 'Relay', '--cutting'], ['pass', 's-pass', 'Pass-through', '--passing'], ['img', 's-img', 'Images', '--images'], ['err', 's-err', 'Errors', '--error']];
+
+  function drawChart(card, range) {
+    var svg = card.querySelector('svg.chart'), d = DATA[range];
+    var W = 480, H = 170, L = 30, B = 20, T = 6, iw = W - L, ih = H - B - T;
+    var max = Math.max.apply(null, d.map(function (x) { return x.relay + x.pass + x.img + x.err; }));
+    var step = range === 24 ? 20 : 500; var top = Math.ceil(max / step) * step;
+    var h = '<g class="grid">';
+    for (var k = 0; k <= 2; k++) { var v = top * k / 2, y = T + ih - ih * k / 2; h += '<line x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end">' + v + '</text>'; }
+    h += '</g>';
+    var slot = iw / d.length, bw = Math.max(4, slot * (range === 24 ? 0.66 : 0.5));
+    d.forEach(function (x, i) {
+      var y = T + ih, bx = L + i * slot + (slot - bw) / 2;
+      KEYS.forEach(function (k) {
+        var val = x[k[0]]; if (!val) return;
+        var bh = ih * val / top; y -= bh;
+        h += '<rect class="' + k[1] + '" x="' + bx.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.5, bh - 1).toFixed(1) + '" rx="1"><title>' + k[2] + ': ' + val + '</title></rect>';
+      });
+      var lab = range === 24 ? (i % 6 === 0 ? ('−' + (24 - i) + ' h') : (i === 23 ? 'now' : '')) : (i === 6 ? 'today' : '−' + (6 - i) + ' d');
+      if (lab) h += '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">' + lab + '</text>';
+    });
+    svg.innerHTML = h;
+    var sums = {}; KEYS.forEach(function (k) { sums[k[0]] = d.reduce(function (a, x) { return a + x[k[0]]; }, 0); });
+    card.querySelector('.legend').innerHTML = KEYS.map(function (k) { return '<span><i style="background:var(' + k[3] + ')"></i>' + k[2] + ' <b>' + sums[k[0]].toLocaleString('en-US') + '</b></span>'; }).join('');
+    return sums;
+  }
+  document.querySelectorAll('.chart-card').forEach(function (card) {
+    var stats = card.parentNode.querySelector('.stats');
+    var s = drawChart(card, 24);
+    stats.querySelectorAll('[data-sum]').forEach(function (el) { el.textContent = s[el.dataset.sum].toLocaleString('en-US'); });
+    card.querySelectorAll('[data-range]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        card.querySelectorAll('[data-range]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+        drawChart(card, +b.dataset.range);
+      });
+    });
+  });
+
+  /* toolbar */
+  var KEY = 'lokki.system.view';
+  function setView(v) {
+    root.setAttribute('data-view', v);
+    if (v === 'both') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', v);
+    document.querySelectorAll('#viewSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === v); });
+    try { localStorage.setItem(KEY, v); } catch (e) {}
+  }
+  document.getElementById('viewSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setView(b.dataset.view); });
+  var saved = 'both'; try { saved = localStorage.getItem(KEY) || 'both'; } catch (e) {}
+  setView(saved);
+  document.getElementById('forceSel').addEventListener('change', function (e) {
+    if (e.target.value) document.body.setAttribute('data-force', e.target.value); else document.body.removeAttribute('data-force');
+  });
+  document.querySelectorAll('a[href="#"]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+})();
+</script>
+</body>
+</html>

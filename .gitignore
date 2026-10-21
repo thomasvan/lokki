@@ -1,0 +1,25 @@
+auths/
+logs/
+static/
+*.log
+__pycache__/
+.relay_token.local
+core/config.yaml
+.relay-e2e-config*.yaml
+config.yaml
+*.swp
+# The single-writer lock beside the run log (core.acquire_runs_lock): runtime
+# state, not evidence.
+runs.jsonl.lock
+core/runs.jsonl.lock
+
+# A config backup holds the cliproxy key and the client tokens, and the two
+# patterns above match `config.yaml` exactly — not `config.yaml.bak.<stamp>`. A
+# backup written outside the checkout is where the token and the cliproxy key end
+# up, so these lines are a second line of defence rather than the first.
+config.yaml.bak*
+core/config.yaml.bak*
+
+# The host's Tailscale address (TAILSCALE_ADDR), read by deploy/docker-compose.8318.yml and deploy/container-up.sh.
+deploy/.env
+core/*.egg-info/

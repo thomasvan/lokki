@@ -1,0 +1,56 @@
+name: ui
+
+on:
+  push:
+    paths: ["ui/**", ".github/workflows/ui.yml", "core/lokki_core/**", "core/VERSION", "core/test_quota_reader.py"]
+  pull_request:
+    paths: ["ui/**", ".github/workflows/ui.yml", "core/lokki_core/**", "core/VERSION", "core/test_quota_reader.py"]
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+concurrency:
+  group: ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ui:
+    name: UI checks, tests and the browser run on the workstation runner
+    # The e2e starts a real core against a fake CLIProxyAPI on loopback, under RUNNER_TEMP.
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python for the core
+        run: |
+          uv venv --python 3.13 "$RUNNER_TEMP/venv"
+          uv pip install --python "$RUNNER_TEMP/venv/bin/python" pyyaml
+          echo "LOKKI_PYTHON=$RUNNER_TEMP/venv/bin/python" >> "$GITHUB_ENV"
+      - name: Report Node and the load
+        run: |
+          node --version
+          npm --version
+          uptime
+      - name: Install
+        working-directory: ui
+        run: npm ci
+      - name: Check
+        working-directory: ui
+        run: npm run check
+      - name: Component tests
+        working-directory: ui
+        run: npm test
+      - name: Browser
+        working-directory: ui
+        run: npx playwright install chromium
+      - name: Build and the browser run
+        working-directory: ui
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: npm run e2e

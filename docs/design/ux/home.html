@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · Home</title>
+<style>
+/* ═══ tokens.css (inlined verbatim) ═══ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg:             oklch(0.985 0.004 220);
+  --surface:        oklch(1 0 0);
+  --surface-2:      oklch(0.962 0.007 225);
+  --border:         oklch(0.885 0.012 225);
+  --border-strong:  oklch(0.64 0.016 230);
+  --text:           oklch(0.27 0.030 238);
+  --text-muted:     oklch(0.49 0.022 238);
+  --accent:         oklch(0.40 0.060 228);
+  --accent-hover:   oklch(0.33 0.055 228);
+  --accent-contrast:oklch(1 0 0);
+  --accent-soft:    oklch(0.950 0.020 228);
+  --cutting:        oklch(0.55 0.085 195);
+  --cutting-ink:    oklch(0.44 0.075 198);
+  --cutting-soft:   oklch(0.955 0.025 195);
+  --passing:        oklch(0.64 0.150 65);
+  --passing-ink:    oklch(0.48 0.110 55);
+  --passing-soft:   oklch(0.965 0.040 80);
+  --unknown:        oklch(0.60 0.012 238);
+  --unknown-ink:    oklch(0.47 0.015 238);
+  --unknown-soft:   oklch(0.955 0.005 238);
+  --error:          oklch(0.55 0.190 27);
+  --error-ink:      oklch(0.49 0.180 27);
+  --error-soft:     oklch(0.955 0.025 25);
+  --images:         oklch(0.62 0.070 265);
+  --focus:          oklch(0.55 0.140 245);
+  --shadow-1: 0 1px 2px oklch(0.27 0.03 238 / 0.08), 0 1px 1px oklch(0.27 0.03 238 / 0.04);
+  --shadow-2: 0 8px 24px oklch(0.27 0.03 238 / 0.12), 0 2px 6px oklch(0.27 0.03 238 / 0.06);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:             oklch(0.185 0.025 238);
+  --surface:        oklch(0.225 0.027 238);
+  --surface-2:      oklch(0.265 0.028 238);
+  --border:         oklch(0.340 0.028 238);
+  --border-strong:  oklch(0.540 0.025 236);
+  --text:           oklch(0.940 0.008 230);
+  --text-muted:     oklch(0.750 0.020 232);
+  --accent:         oklch(0.800 0.070 215);
+  --accent-hover:   oklch(0.870 0.060 215);
+  --accent-contrast:oklch(0.185 0.025 238);
+  --accent-soft:    oklch(0.300 0.040 228);
+  --cutting:        oklch(0.760 0.090 190);
+  --cutting-ink:    oklch(0.840 0.080 190);
+  --cutting-soft:   oklch(0.290 0.045 200);
+  --passing:        oklch(0.800 0.140 72);
+  --passing-ink:    oklch(0.870 0.120 80);
+  --passing-soft:   oklch(0.300 0.045 65);
+  --unknown:        oklch(0.660 0.012 235);
+  --unknown-ink:    oklch(0.820 0.010 235);
+  --unknown-soft:   oklch(0.290 0.012 238);
+  --error:          oklch(0.700 0.170 25);
+  --error-ink:      oklch(0.820 0.100 25);
+  --error-soft:     oklch(0.300 0.060 25);
+  --images:         oklch(0.700 0.070 265);
+  --focus:          oklch(0.760 0.110 232);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+}
+:root,
+[data-theme] {
+  --font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --numeric:   tabular-nums;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-xl: 24px; --fs-2xl: 32px;
+  --lh-tight: 1.2; --lh-snug: 1.35; --lh-body: 1.5;
+  --fw-regular: 400; --fw-medium: 500; --fw-semi: 600;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-pill: 999px;
+  --control-h: 32px;
+  --sidebar-w: 208px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+/* ═══ end tokens ═══ */
+
+/* ═══ shared: page, toolbar, frame, shell, components ═══ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--surface-2); color: var(--text); min-height: 100vh;
+  font: var(--fs-base)/var(--lh-body) var(--font-ui);
+  font-variant-numeric: var(--numeric); -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+p { margin: 0; text-wrap: pretty; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.lbl { font-size: var(--fs-sm); color: var(--text-muted); }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); font-family: var(--font-mono); }
+[hidden] { display: none !important; }
+
+/* prototype toolbar: outside the frame */
+.toolbar { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.tb-title { font-weight: var(--fw-semi); display: flex; align-items: center; gap: var(--sp-2); margin-right: auto; }
+.tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.tb-title a { color: var(--text-muted); font-weight: var(--fw-regular); text-decoration: none; padding: 2px 6px; border-radius: var(--r-sm); }
+.tb-title a:hover { background: var(--surface-2); color: var(--text); }
+.tb-title a[aria-current="page"] { color: var(--text); font-weight: var(--fw-semi); }
+.tb-title a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.toolbar select { height: 28px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); padding: 0 6px; color: var(--text); }
+.toolbar :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.stage { padding: var(--sp-6); overflow-x: auto; }
+.frame {
+  width: 1100px; height: 760px; margin: 0 auto;
+  display: flex; flex-direction: column;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2); overflow: hidden;
+}
+.frame-cap { width: 1100px; margin: 0 auto var(--sp-2); display: flex; justify-content: space-between; }
+
+/* update banner: the one full-width bar above the shell */
+.update-bar { display: flex; align-items: center; gap: var(--sp-3); padding: 6px var(--sp-2) 6px var(--sp-4); background: var(--accent-soft); border-bottom: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); }
+.update-bar > .ic { color: var(--accent); }
+.update-bar p { flex: 1; }
+.update-bar .acts { display: flex; gap: var(--sp-1); }
+
+.shell { flex: 1; display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 0; }
+.sidebar { background: var(--surface-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3); min-height: 0; }
+.brand { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) var(--sp-5); font-size: 17px; font-weight: var(--fw-semi); letter-spacing: -0.02em; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); }
+.nav { display: grid; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 var(--sp-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; font-weight: var(--fw-medium); }
+.nav a .ic { color: var(--text-muted); }
+.nav a:hover { background: color-mix(in oklch, var(--text) 7%, var(--surface-2)); }
+.nav a[aria-current="page"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.nav a[aria-current="page"] .ic { color: var(--accent); }
+.nav a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.side-foot { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border); display: grid; gap: 4px; font-size: var(--fs-sm); }
+.side-foot .st { display: flex; align-items: center; gap: var(--sp-2); }
+.side-foot .dot { width: 8px; height: 8px; box-shadow: none; }
+.dot-run { background: var(--accent); }
+
+.main { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; }
+.content { overflow: auto; padding: var(--sp-4) var(--sp-6) var(--sp-6); display: grid; gap: var(--sp-4); align-content: start; min-height: 0; }
+
+/* icons */
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic-16 { width: 16px; height: 16px; }
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* mode control */
+.mode { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--border); }
+.mode button { height: 28px; padding: 0 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text); font-weight: var(--fw-medium); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.mode button:hover { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.mode button[aria-checked="true"] { background: var(--accent); color: var(--accent-contrast); box-shadow: var(--shadow-1); }
+.mode button[aria-checked="true"]:hover { background: var(--accent-hover); }
+.mode button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.mode button:active { transform: translateY(1px); }
+.mode[aria-busy="true"] button { cursor: progress; }
+.mode[aria-busy="true"] button:not([aria-checked="true"]) { color: var(--text-muted); }
+.mode button[data-pending] { color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }   /* a choice waiting or being written */
+
+/* decision line */
+.decision { display: grid; grid-template-columns: 10px auto; column-gap: var(--sp-2); align-items: baseline; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.decision .dot { align-self: center; }
+.dot-cutting { background: var(--cutting); box-shadow: 0 0 0 3px var(--cutting-soft); }
+.dot-passing { background: var(--passing); box-shadow: 0 0 0 3px var(--passing-soft); }
+.decision-head { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); }
+.decision-reason { grid-column: 2; font-size: var(--fs-sm); color: var(--text-muted); font-family: var(--font-mono); }
+.note { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3); min-height: 36px; border-radius: var(--r-md); background: var(--cutting-soft); color: var(--cutting-ink); font-size: var(--fs-sm); }
+.note .btn { margin-left: auto; }
+
+/* buttons */
+.btn { height: var(--control-h); padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap; font-weight: var(--fw-medium); line-height: 1; text-decoration: none; transition: background-color .12s, border-color .12s; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); }
+.btn-primary { background: var(--accent); color: var(--accent-contrast); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-quiet { background: transparent; color: var(--text); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--text-muted); }
+.btn-quiet:hover { background: color-mix(in oklch, var(--text) 8%, transparent); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn[aria-busy="true"] { opacity: 1; cursor: progress; }
+.linkbtn { border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: var(--r-sm); color: var(--accent); font-weight: var(--fw-medium); cursor: pointer; display: inline-flex; gap: 2px; align-items: center; text-decoration: none; font-size: var(--fs-sm); }
+.linkbtn:hover { background: var(--accent-soft); }
+.linkbtn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* chips */
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }
+.chip .dot { width: 7px; height: 7px; box-shadow: none; }
+.chip .ic { width: 14px; height: 14px; stroke-width: 1.75; }
+.chip-cutting { background: var(--cutting-soft); color: var(--cutting-ink); }
+.chip-unknown { background: var(--unknown-soft); color: var(--unknown-ink); }
+.chip-ok      { background: var(--surface-2); color: var(--text); }
+.chip-off     { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; display: inline-block; }
+
+/* quota bar */
+.bar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-pill); }
+.bar .tick { position: absolute; left: 30%; top: -4px; width: 2px; height: 16px; margin-left: -1px; background: var(--text-muted); border-radius: 1px; }
+.bar.noread { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+/* banners */
+.banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); border-radius: var(--r-lg); border: 1px solid; min-height: 44px; }
+.banner p { flex: 1 1 200px; min-width: 0; }
+.banner-error { background: var(--error-soft); border-color: color-mix(in oklch, var(--error) 40%, transparent); color: var(--text); }
+.banner-error > .ic { color: var(--error-ink); }
+
+/* cards, sections */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.sh { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-2); min-height: 20px; }
+.sh h2 { font-size: var(--fs-base); font-weight: var(--fw-semi); line-height: var(--lh-snug); }
+.sh .end { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); }
+
+/* switch */
+.switch { display: inline-flex; align-items: center; gap: var(--sp-2); border: 0; background: none; padding: 2px; border-radius: var(--r-pill); cursor: pointer; font-size: var(--fs-sm); color: var(--text); }
+.switch .trk { width: 32px; height: 18px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-strong); position: relative; transition: background-color .12s; flex: none; }
+.switch .trk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .12s; }
+.switch[aria-checked="true"] .trk { background: var(--accent); box-shadow: none; }
+.switch[aria-checked="true"] .trk::after { transform: translateX(14px); background: var(--accent-contrast); }
+.switch:hover:not(:disabled) .trk { box-shadow: inset 0 0 0 1px var(--text-muted); }
+.switch[aria-checked="true"]:hover:not(:disabled) .trk { background: var(--accent-hover); box-shadow: none; }
+.switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.switch:disabled { cursor: not-allowed; color: var(--text-muted); }
+.switch:disabled .trk { opacity: .5; }
+
+/* empty state */
+.empty { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-4); align-items: center; padding: var(--sp-4) var(--sp-5); }
+.empty .em-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--text-muted); }
+.empty h3 { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); margin-bottom: 2px; }
+.empty p { color: var(--text-muted); }
+/* ═══ end shared ═══ */
+
+/* ─── Home: the top bar at full size: the three choices and the decision, then the mode slider ─── */
+.hero { padding: var(--sp-3) var(--sp-6) var(--sp-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+.hero-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5); min-height: 36px; }
+.hero-top .decision-head { font-size: var(--fs-lg); }
+.hero .slider { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.mode-wrap { position: relative; }
+.tip { position: absolute; top: calc(100% + 8px); left: 0; z-index: 10; width: 264px; padding: var(--sp-2) var(--sp-3); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-2); font-size: var(--fs-sm); line-height: var(--lh-body); pointer-events: none; }
+.tip b { display: block; font-weight: var(--fw-semi); }
+
+/* mode slider (ModeSlider): one range, 0 = Direct, 100 = Relay, between = Auto at that threshold */
+.slider { display: grid; gap: 4px; }
+.slider-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.slider-read { display: inline-flex; align-items: center; gap: 6px; font: var(--fw-semi) var(--fs-md)/1.2 var(--font-mono); }
+.slider-read .ic { color: var(--text-muted); }
+.range { --p: 30; -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer; }
+.range::-webkit-slider-runnable-track { height: 8px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--border);
+  background: linear-gradient(to right, var(--cutting) 0 calc(10px + (100% - 20px) * var(--p) / 100), var(--surface-2) 0); }
+.range::-moz-range-track { height: 8px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--border);
+  background: linear-gradient(to right, var(--cutting) 0 calc(10px + (100% - 20px) * var(--p) / 100), var(--surface-2) 0); }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); box-shadow: var(--shadow-1); }
+.range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); box-shadow: var(--shadow-1); }
+.range:hover::-webkit-slider-thumb { border-color: var(--accent-hover); }
+.range:focus-visible { outline: none; }
+.range:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus-ring); }
+.range:focus-visible::-moz-range-thumb { box-shadow: var(--focus-ring); }
+.range[aria-busy="true"] { cursor: progress; }
+.range[aria-busy="true"]::-webkit-slider-thumb { border-color: var(--text-muted); }
+.range:disabled { cursor: not-allowed; }
+.range:disabled::-webkit-slider-thumb { border-color: var(--border-strong); box-shadow: none; }
+.slider-scale { display: grid; grid-template-columns: 1fr auto 1fr; font: var(--fs-xs)/1.4 var(--font-mono); color: var(--text-muted); }
+.slider-scale :last-child { text-align: right; }
+.slider-words { min-height: 20px; }
+.slider-words[data-rule] { font-family: var(--font-mono); font-size: var(--fs-sm); line-height: 20px; }
+.slider-refused { display: flex; align-items: center; gap: 6px; color: var(--error-ink); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+
+/* compact gauges */
+.gstrip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.gmini { padding: 10px; display: grid; gap: 6px; min-width: 0; align-content: start; }
+.gmini .em { font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gmini .r2 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px var(--sp-2); min-height: 22px; }
+.gmini .v { font: var(--fw-semi) var(--fs-md)/1 var(--font-mono); }
+.gmini .v.nr { font: var(--fs-sm)/1 var(--font-ui); color: var(--text-muted); }
+.gmini .bar { height: 6px; margin-top: 4px; }
+.gmini .bar .tick { top: -3px; height: 12px; }
+.gmini .rs { font-size: var(--fs-xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gmini.unwatched { background: transparent; box-shadow: none; border-style: dashed; }
+.off-panel { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px dashed var(--border-strong); border-radius: var(--r-lg); color: var(--text-muted); min-height: 58px; }
+.off-panel .ic { color: var(--text-muted); }
+.off-panel b { color: var(--text); font-weight: var(--fw-medium); }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stat { padding: var(--sp-3) var(--sp-4); }
+.stat + .stat { border-left: 1px solid var(--border); }
+.stat .lbl { display: flex; align-items: center; gap: 6px; }
+.stat .sw { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.stat .big { font: var(--fw-semi) var(--fs-xl)/1.15 var(--font-mono); letter-spacing: -0.01em; margin: 4px 0 2px; }
+.run { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); }
+.run .dot { width: 8px; height: 8px; box-shadow: none; }
+
+/* chart */
+.chart-card { padding: var(--sp-3) var(--sp-4) var(--sp-3); }
+.chart-wrap { position: relative; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid line { stroke: var(--border); }
+.chart text { fill: var(--text-muted); font: 10px var(--font-mono); }
+.s-relay { fill: var(--cutting); } .s-pass { fill: var(--passing); } .s-img { fill: var(--images); } .s-err { fill: var(--error); }
+.chart-empty { position: absolute; inset: 0 0 18px 28px; display: grid; place-items: center; color: var(--text-muted); font-size: var(--fs-sm); }
+.chart-empty span { background: var(--surface); padding: 2px 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin-top: var(--sp-2); font-size: var(--fs-sm); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.legend b { font-family: var(--font-mono); font-weight: var(--fw-semi); }
+
+/* endpoint */
+.endpoint { display: grid; grid-template-columns: 1fr auto auto; gap: var(--sp-6); align-items: center; padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4); }
+.ep { display: grid; gap: 2px; }
+.ep .val { font: var(--fw-medium) var(--fs-md)/1.3 var(--font-mono); }
+#copyKey { min-width: 104px; }
+#copyKey[data-done] { color: var(--cutting-ink); border-color: var(--cutting); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64"><path fill="currentColor" stroke="none" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 20 20"><path d="M3.25 9.25 10 3.5l6.75 5.75"/><path d="M5 8v8.25h3.5V12h3v4.25H15V8"/></symbol>
+    <symbol id="i-accounts" viewBox="0 0 20 20"><circle cx="8" cy="7" r="3"/><path d="M2.75 16.25c.55-2.85 2.65-4.5 5.25-4.5s4.7 1.65 5.25 4.5"/><path d="M12.75 4.15a3 3 0 0 1 0 5.7"/><path d="M14.75 11.9c1.4.6 2.3 2.1 2.5 4.35"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 20 20"><path d="M4.75 16.25V11M8.25 16.25V6M11.75 16.25V9M15.25 16.25V3.75"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20"><path d="M3.25 6H9m4 0h3.75"/><circle cx="11" cy="6" r="2"/><path d="M3.25 14H7m4 0h5.75"/><circle cx="9" cy="14" r="2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 20 20"><rect x="7" y="7" width="9.25" height="9.25" rx="1.75"/><path d="M13 7V5a1.25 1.25 0 0 0-1.25-1.25H5A1.25 1.25 0 0 0 3.75 5v6.75A1.25 1.25 0 0 0 5 13h2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 20 20"><path d="M4 8.5a6.25 6.25 0 0 1 11.6-1.25"/><path d="M15.75 3.75V7.5H12"/><path d="M16 11.5a6.25 6.25 0 0 1-11.6 1.25"/><path d="M4.25 16.25V12.5H8"/></symbol>
+    <symbol id="i-external" viewBox="0 0 20 20"><path d="M11 3.75h5.25V9"/><path d="M16.25 3.75 9.5 10.5"/><path d="M14 11.75v3.5a1 1 0 0 1-1 1H4.75a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="M10 9.25V14"/><path d="M10 6.5v.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m4.5 10.5 3.75 3.75L15.5 6"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 20 20"><path d="M10 3.25 17.25 16H2.75Z"/><path d="M10 8.25v3.5"/><path d="M10 13.75v.01"/></symbol>
+    <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="m7.5 7.5 5 5m0-5-5 5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 20 20"><path d="m8 5 5 5-5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></symbol>
+    <symbol id="i-spinner" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5" stroke-dasharray="28 13" class="spin" style="transform-origin:10px 10px"/></symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki prototype
+    <a href="home.html" aria-current="page">Home</a><a href="accounts.html">Accounts</a><a href="activity.html">Activity</a><a href="settings.html">Settings</a><a href="tray.html">Tray</a></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="themeSeg">
+      <button type="button" data-t="light" aria-pressed="true">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+  <label class="tbl">State
+    <select id="stateSel">
+      <option value="auto-cut">Auto, cutting</option>
+      <option value="auto-pass">Auto, passing through</option>
+      <option value="auto-unread">Auto, passing with one account unread</option>
+      <option value="relay">Relay (100)</option>
+      <option value="direct">Direct (0)</option>
+      <option value="writing">The slider writing (let go at 45)</option>
+      <option value="waiting">The slider writing, Relay chosen meanwhile (waiting)</option>
+      <option value="refused">The slider's write refused</option>
+      <option value="refused-waiting">Refused, then the waiting choice in flight</option>
+      <option value="refuse-one">Try it: the next write is refused</option>
+      <option value="refuse-two">Try it: the next two writes refused</option>
+      <option value="first-run">First run (Auto, no account)</option>
+      <option value="read-error">The quota cannot be read</option>
+      <option value="no-secret">No management secret set (server deployment, Auto)</option>
+      <option value="update">Update available</option>
+    </select>
+  </label>
+</div>
+
+<div class="stage">
+  <div class="frame-cap"><span class="cap">home.html · app window 1100 × 760</span><span class="cap" id="stateCap"></span></div>
+  <div class="frame">
+    <div class="update-bar" id="updateBar" role="status" hidden>
+      <svg class="ic"><use href="#i-info"/></svg>
+      <p><b>lokki 0.2.0 is available</b></p>
+      <div class="acts">
+        <button type="button" class="btn btn-quiet btn-sm">Release notes<svg class="ic ic-16"><use href="#i-external"/></svg></button>
+        <button type="button" class="btn btn-secondary btn-sm" id="checkNow">Check now</button>
+        <button type="button" class="btn btn-primary btn-sm">Install and restart</button>
+      </div>
+    </div>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki</div>
+        <nav class="nav" aria-label="Destinations">
+          <a href="home.html" aria-current="page"><svg class="ic"><use href="#i-home"/></svg>Home</a>
+          <a href="accounts.html"><svg class="ic"><use href="#i-accounts"/></svg>Accounts</a>
+          <a href="activity.html"><svg class="ic"><use href="#i-activity"/></svg>Activity</a>
+          <a href="settings.html"><svg class="ic"><use href="#i-settings"/></svg>Settings</a>
+        </nav>
+        <div class="side-foot"><span class="st"><span class="dot dot-run"></span>CLIProxyAPI running</span><span class="cap">lokki 0.1.0</span></div>
+      </aside>
+
+      <div class="main">
+        <!-- top bar on Home, full size: the three one-click choices and the decision line, as on every
+             screen, then the mode slider (ModeSlider, shared with Settings › Mode) -->
+        <header class="hero">
+          <div class="hero-top">
+            <div class="mode-wrap">
+              <div class="mode" role="radiogroup" aria-label="Mode" id="mode">
+                <button type="button" role="radio" aria-checked="false" data-m="direct" aria-describedby="modeTip">Direct</button>
+                <button type="button" role="radio" aria-checked="false" data-m="auto" aria-describedby="modeTip">Auto</button>
+                <button type="button" role="radio" aria-checked="false" data-m="relay" aria-describedby="modeTip">Relay</button>
+              </div>
+              <div class="tip" role="tooltip" id="modeTip" hidden></div>
+            </div>
+            <div class="decision" role="status" aria-live="polite">
+              <span class="dot" id="decDot"></span><span class="decision-head" id="decHead"></span><span class="decision-reason" id="decReason"></span>
+            </div>
+          </div>
+          <div class="slider" id="slider">
+            <div class="slider-head"><span class="lbl" id="sliderName">Mode and threshold</span><span class="slider-read" id="sliderRead"></span></div>
+            <input class="range" type="range" min="0" max="100" step="1" id="range" aria-labelledby="sliderName" aria-describedby="sliderWords">
+            <div class="slider-scale" aria-hidden="true"><span>Direct · 0 %</span><span>% left</span><span>100 % · Relay</span></div>
+            <p class="slider-words" id="sliderWords"></p>
+            <p class="slider-refused" id="sliderRefused" role="alert" hidden><svg class="ic ic-16"><use href="#i-error"/></svg><span></span></p>
+          </div>
+        </header>
+
+        <main class="content" id="content">
+          <div class="banner banner-error" id="readErr" role="alert" hidden>
+            <svg class="ic"><use href="#i-error"/></svg>
+            <p><b>The last quota read failed:</b> CLIProxyAPI did not answer (timeout)<span id="readErrAuto">; Auto counts an account it cannot read as not low, and passes requests through at full price for it</span></p>
+            <button type="button" class="btn btn-secondary btn-sm" id="readNow"><svg class="ic ic-16"><use href="#i-refresh"/></svg><span>Read now</span></button>
+          </div>
+
+          <section>
+            <div class="sh"><h2>Endpoint</h2><span class="lbl">point your coding client at this address, with this key</span></div>
+            <div class="card endpoint">
+              <div class="ep"><span class="lbl">Address</span><span class="val">http://127.0.0.1:8381/v1</span></div>
+              <div class="ep"><span class="lbl">Key</span><span class="val" aria-label="key ending 3f9a">…3f9a</span></div>
+              <button type="button" class="btn btn-secondary btn-sm" id="copyKey"><svg class="ic ic-16"><use href="#i-copy"/></svg><span>Copy key</span></button>
+            </div>
+          </section>
+
+          <section>
+            <div class="sh"><h2>Accounts</h2><span class="lbl" id="gMeta"></span>
+              <span class="end"><a class="linkbtn" href="accounts.html">View accounts<svg class="ic ic-16"><use href="#i-chevron"/></svg></a></span></div>
+            <div id="gaugeSlot"></div>
+          </section>
+
+          <section>
+            <div class="sh"><h2>Requests</h2>
+              <span class="end"><span class="run"><span class="dot dot-run"></span>CLIProxyAPI running</span></span></div>
+            <div class="card stats">
+              <div class="stat"><div class="lbl">Since start</div><div class="big" data-n="total"></div><div class="cap">relay + pass-through + images</div></div>
+              <div class="stat"><div class="lbl"><span class="sw" style="background:var(--cutting)"></span>Relay</div><div class="big" data-n="relay"></div><div class="cap">through the relay</div></div>
+              <div class="stat"><div class="lbl"><span class="sw" style="background:var(--passing)"></span>Pass-through</div><div class="big" data-n="pass"></div><div class="cap">at full price</div></div>
+              <div class="stat"><div class="lbl"><span class="sw" style="background:var(--images)"></span>Images</div><div class="big" data-n="img"></div><div class="cap">image requests</div></div>
+            </div>
+          </section>
+
+          <section>
+            <div class="sh"><h2>Last 24 h</h2><span class="lbl">requests per hour, by route</span>
+              <span class="end"><a class="linkbtn" href="activity.html">Open Activity<svg class="ic ic-16"><use href="#i-chevron"/></svg></a></span></div>
+            <div class="card chart-card">
+              <div class="chart-wrap">
+                <svg class="chart" id="chart" viewBox="0 0 812 100" role="img" aria-label="Requests per hour over the last 24 hours, stacked by route"></svg>
+                <div class="chart-empty" id="chartEmpty" hidden><span>No requests yet</span></div>
+              </div>
+              <div class="legend" id="legend"></div>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* sample accounts (masked); w: watched under "only the ones I pick" */
+  var ACC = [
+    { em: 'o***@example.invalid', rem: 20, st: 'low', w: true, rs: 'resets in 1 h 12 min' },
+    { em: 't***@example.invalid', rem: 90, st: 'ok', w: true, rs: 'resets in 3 h 40 min' },
+    { em: 's***@example.invalid', rem: null, st: 'unknown', w: false, rs: 'reset time not read yet' },
+    { em: 'f***@example.invalid', rem: 64, st: 'ok', w: false, rs: 'resets in 2 h 05 min' }
+  ];
+  /* g: which accounts are shown and how; who and models: the parts of Auto's rule line that are not the
+     threshold; held: a position let go and being written; refused: the core's sentence for a refused write */
+  var S = {
+    'auto-cut':    { mode: 'auto',   dec: 'cut',  reason: 'every watched account is low', g: 'cut', who: 'one', models: 'every model' },
+    'auto-pass':   { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models' },
+    'auto-unread': { mode: 'auto',   dec: 'pass', reason: 'a watched account could not be read', g: 'unread', who: 'every', models: 'every model' },
+    'relay':       { mode: 'relay',  dec: 'cut',  reason: 'routing: relay', g: 'plain' },
+    'direct':      { mode: 'direct', dec: 'pass', reason: 'routing: direct', g: 'plain' },
+    'writing':     { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models', held: 45 },
+    'waiting':     { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models', held: 45, waiting: 'relay' },
+    'refused':     { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models',
+                     refused: 'the settings file names no client token; the reload would refuse it, so nothing is written' },
+    'refused-waiting': { mode: 'auto', dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models',
+                     refused: 'the settings file names no client token; the reload would refuse it, so nothing is written', flightBar: 'relay' },
+    'refuse-one':  { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models', refuse: 1 },
+    'refuse-two':  { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', who: 'every', models: '2 models', refuse: 2 },
+    'first-run':   { mode: 'auto',   dec: 'pass', reason: 'no account to watch', g: 'none', zero: true, who: 'every', models: 'every model' },
+    'read-error':  { mode: 'auto',   dec: 'pass', reason: 'the quota cannot be read', g: 'error', err: true, who: 'every', models: 'every model' },
+    'no-secret':   { mode: 'auto',   dec: 'pass', reason: 'the quota cannot be read', g: 'nosecret', who: 'every', models: 'every model' },
+    'update':      { mode: 'auto',   dec: 'pass', reason: 'not every watched account is low', g: 'pick', update: true, who: 'every', models: '2 models' }
+  };
+
+  /* mode.ts: the modes' words, in the slider's order */
+  var SENT = {
+    direct: 'Every request goes to CLIProxyAPI untouched, at full price.',
+    auto: 'Cut when the watched accounts run low; otherwise pass through at full price.',
+    relay: 'Every request is cut: lokki ends the answer early so it costs less.'
+  };
+  var NO_SECRET = 'lokki does not read the quota here: no management secret file is set';
+  var NO_SECRET_AUTO = '; Auto passes every request through at full price';
+  function ruleLine(t, s) {
+    var who = s.who === 'one' ? 'the watched account' : s.who === 'any' ? 'any watched account' : 'every watched account';
+    return 'Cut when ' + who + ' has less than ' + t + ' % left · ' + s.models;
+  }
+  function label(pos) { return pos === 0 ? 'Direct' : pos === 100 ? 'Relay' : 'Auto ' + pos + ' %'; }
+  function words(pos, s) { return pos === 0 ? SENT.direct : pos === 100 ? SENT.relay : ruleLine(pos, s); }
+  /* the threshold the core stores: an end leaves it, Auto returns to it */
+  var T = 30;
+
+  /* Auto: "not watched" first, by in_scope, whatever the account's own state; then its state */
+  function chip(st, auto, watched) {
+    if (auto && !watched) return '<span class="chip chip-off"><span class="ring"></span>not watched</span>';
+    if (st === 'unknown') return '<span class="chip chip-unknown"><span class="dot" style="background:var(--unknown)"></span>unknown</span>';
+    if (!auto) return '';                                  /* Relay and Direct: the threshold decides nothing */
+    if (st === 'low') return '<span class="chip chip-cutting"><svg class="ic"><use href="#i-warning"/></svg>low</span>';
+    return '<span class="chip chip-ok"><svg class="ic"><use href="#i-check"/></svg>ok</span>';
+  }
+  var FILL = { low: 'var(--cutting)', ok: 'var(--accent)', off: 'var(--unknown)' };
+
+  function gauges(kind, mode, t) {
+    /* no snapshot: the last read failed before any read answered, so there is no row to draw */
+    if (kind === 'error') return '<div class="off-panel"><svg class="ic"><use href="#i-info"/></svg><span><b>No quota read yet:</b> the last read failed (above)</span></div>';
+    if (kind === 'nosecret') return '<div class="off-panel"><svg class="ic"><use href="#i-info"/></svg><span>' + NO_SECRET + (mode === 'auto' ? NO_SECRET_AUTO : '') + '</span></div>';
+    if (kind === 'none') return '<div class="card empty"><span class="em-ic"><svg class="ic"><use href="#i-accounts"/></svg></span>' +
+      '<div><h3>No Codex account yet</h3><p>Add the account your coding client uses; lokki reads its quota in every mode.</p></div>' +
+      '<a class="btn btn-primary" href="accounts.html" id="addAcc"><svg class="ic ic-16"><use href="#i-plus"/></svg>Add a Codex account</a></div>';
+    var auto = kind !== 'plain';
+    var rows = ACC.map(function (a, i) {
+      var st = a.st, rem = a.rem, watched = true;
+      if (kind === 'cut') { watched = i === 0; }                       /* only o***, which is low */
+      if (kind === 'pick') { watched = a.w; }                          /* o*** low, t*** ok */
+      if (kind === 'unread') { watched = i === 0 || i === 2; }         /* o*** low, s*** unread */
+      return { a: a, st: st, rem: rem, watched: watched || !auto };
+    });
+    if (auto) rows.sort(function (x, y) { return (y.watched ? 1 : 0) - (x.watched ? 1 : 0); });   /* the watched ones first */
+    return '<div class="gstrip">' + rows.map(function (r) {
+      var val = r.rem == null ? '<span class="v nr">no reading</span>' : '<span class="v" title="' + r.rem + ' % left">' + r.rem + ' %</span>';
+      var tick = auto && r.watched ? '<span class="tick" style="left:' + t + '%"></span>' : '';
+      var fill = !auto ? 'var(--accent)' : !r.watched ? FILL.off : FILL[r.st] || 'var(--accent)';
+      var bar = r.rem == null
+        ? '<div class="bar noread" role="meter" aria-label="no reading">' + tick + '</div>'
+        : '<div class="bar" role="meter" aria-valuenow="' + r.rem + '" aria-valuemin="0" aria-valuemax="100" aria-label="' + r.rem + ' % remaining' + (tick ? ', cut below ' + t + ' %' : '') + '"><span class="fill" style="width:' + r.rem + '%;background:' + fill + '"></span>' + tick + '</div>';
+      return '<div class="card gmini' + (auto && !r.watched ? ' unwatched' : '') + '"><span class="em" title="' + r.a.em + '">' + r.a.em + '</span>' +
+        '<div class="r2">' + val + chip(r.st, auto, r.watched) + '</div>' + bar + '<span class="rs">' + r.a.rs + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  /* last 24 h: hourly sample totalling relay 42, pass-through 17, images 1, errors 0 */
+  var H = { relay: [], pass: [], img: [], err: [] };
+  var R = [3, 6, 8, 5, 4, 7, 5, 3, 1], P = [1, 2, 3, 2, 1, 3, 2, 2, 1];
+  for (var i = 0; i < 24; i++) {
+    var k = i - 15;
+    H.relay.push(k >= 0 ? R[k] : 0); H.pass.push(k >= 0 ? P[k] : 0); H.img.push(i === 20 ? 1 : 0); H.err.push(0);
+  }
+  /* Bars stack the three routes; errors are counted inside them and marked above the bar. */
+  var KEYS = [['relay', 's-relay', 'Relay', '--cutting'], ['pass', 's-pass', 'Pass-through', '--passing'], ['img', 's-img', 'Images', '--images']];
+  var ERR = ['err', 's-err', 'Errors, inside the bars', '--error'];
+  /* Bucket k starts at from + k·1 h, from = now − 24 h; labels are the starts in local time (now = 16:30). */
+  var NOW_MIN = 16 * 60 + 30;
+  function hhmm(min) { min = ((min % 1440) + 1440) % 1440; return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
+
+  function drawChart(zero) {
+    var W = 812, Ht = 100, L = 28, B = 18, T = 4, iw = W - L, ih = Ht - B - T, top = 12;
+    var h = '<g class="grid">';
+    for (var g = 0; g <= 2; g++) {
+      var y = T + ih - ih * g / 2;
+      h += '<line x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end">' + (top * g / 2) + '</text>';
+    }
+    h += '</g>';
+    var slot = iw / 24, bw = slot * 0.62;
+    for (var j = 0; j < 24; j++) {
+      var yy = T + ih, bx = L + j * slot + (slot - bw) / 2;
+      if (!zero) KEYS.forEach(function (kk) {
+        var v = H[kk[0]][j]; if (!v) return;
+        var bh = ih * v / top; yy -= bh;
+        h += '<rect class="' + kk[1] + '" x="' + bx.toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.5, bh - 1).toFixed(1) + '" rx="1.5"><title>' + kk[2] + ': ' + v + '</title></rect>';
+      });
+      if (!zero && H.err[j]) h += '<circle class="err-mark" cx="' + (bx + bw / 2).toFixed(1) + '" cy="' + (yy - 4).toFixed(1) + '" r="2.5" style="fill:var(--error)"><title>Errors: ' + H.err[j] + '</title></circle>';
+      var lab = j % 6 === 0 ? hhmm(NOW_MIN - 24 * 60 + j * 60) : '';
+      if (lab) h += '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (Ht - 4) + '" text-anchor="middle">' + lab + '</text>';
+    }
+    $('chart').innerHTML = h;
+    $('chartEmpty').hidden = !zero;
+    $('legend').innerHTML = KEYS.concat([ERR]).map(function (kk) {
+      var sum = zero ? 0 : H[kk[0]].reduce(function (a, b) { return a + b; }, 0);
+      return '<span><i style="background:var(' + kk[3] + ')"></i>' + kk[2] + ' <b>' + sum + '</b></span>';
+    }).join('');
+    var n = { relay: zero ? 0 : 42, pass: zero ? 0 : 17, img: zero ? 0 : 1 };
+    n.total = n.relay + n.pass + n.img;
+    document.querySelectorAll('[data-n]').forEach(function (el) { el.textContent = n[el.dataset.n]; });
+  }
+
+  var current, range = $('range'), mode = $('mode'), tip = $('modeTip');
+  /* where the core puts the slider: Direct at 0, Relay at 100, Auto at its threshold */
+  function reported() { var s = S[current]; return s.mode === 'direct' ? 0 : s.mode === 'relay' ? 100 : T; }
+  function posOf(m) { return m === 'direct' ? 0 : m === 'relay' ? 100 : T; }
+
+  /* One mode write at a time for every mode control (spec 3.7), held here and not in each control: the write in
+     flight, and the latest choice waiting, which replaces any choice waiting before it. A choice from the top bar
+     is {from: 'bar', m} and writes {routing} alone, so Auto lands on the threshold stored when it is sent; one from
+     the slider is {from: 'slider', pos}. held: a slider position stepped or dragged to and not yet chosen. */
+  var W = { flight: null, waiting: null }, held = null, keyT = null, dragging = false, frozen = false;
+  /* the refusal line: set where a write lands and kept until the next one lands (spec 3.7); refuseLeft: how many of
+     the next writes the sample core refuses, for the try-it states. lokkiProto.writes: each body sent, as it would PUT */
+  var refusal = null, refuseLeft = 0, REFUSALS = ['the settings file names no client token; the reload would refuse it, so nothing is written',
+    'settings are read-only here: /srv/lokki/config.yaml is not writable'];
+  window.lokkiProto = { writes: [] };
+  function sliderChoice() { return W.waiting && W.waiting.from === 'slider' ? W.waiting : W.flight && W.flight.from === 'slider' ? W.flight : null; }
+
+  /* every mode control at once: the slider's thumb, fill, readout, words and aria-valuetext; both controls busy while
+     a write is in flight; each waiting or sent choice marked pending on the control it came from */
+  function paint() {
+    var s = S[current], mine = sliderChoice();
+    var pos = held != null ? held : mine ? mine.pos : reported();
+    range.value = pos; range.style.setProperty('--p', pos);
+    $('sliderRead').innerHTML = (held == null && mine ? '<svg class="ic ic-16"><use href="#i-spinner"/></svg>' : '') + label(pos);
+    $('sliderWords').textContent = words(pos, s);
+    if (pos > 0 && pos < 100) $('sliderWords').setAttribute('data-rule', ''); else $('sliderWords').removeAttribute('data-rule');
+    range.setAttribute('aria-valuetext', label(pos) + ': ' + words(pos, s));
+    [range, mode].forEach(function (el) { if (W.flight) el.setAttribute('aria-busy', 'true'); else el.removeAttribute('aria-busy'); });
+    document.querySelectorAll('#mode button').forEach(function (b) {
+      var pending = [W.flight, W.waiting].some(function (c) { return c && c.from === 'bar' && c.m === b.dataset.m; });
+      b.innerHTML = (pending ? '<svg class="ic ic-16"><use href="#i-spinner"/></svg>' : '') + (b.dataset.m === 'auto' ? 'Auto ' + T + ' %' : b.dataset.m === 'direct' ? 'Direct' : 'Relay');
+      if (pending) b.setAttribute('data-pending', ''); else b.removeAttribute('data-pending');
+    });
+  }
+
+  function render(id) {
+    var s = S[id]; current = id;
+    $('stateSel').value = id;
+    $('stateCap').textContent = 'state: ' + $('stateSel').selectedOptions[0].text;
+    document.querySelectorAll('#mode button').forEach(function (b) { b.setAttribute('aria-checked', b.dataset.m === s.mode); });
+    $('decDot').className = 'dot ' + (s.dec === 'cut' ? 'dot-cutting' : 'dot-passing');
+    $('decHead').textContent = s.dec === 'cut' ? 'Cutting every request' : 'Passing requests through';
+    $('decReason').textContent = s.reason;
+    paint();
+    $('sliderRefused').hidden = !refusal;
+    $('sliderRefused').querySelector('span').textContent = refusal || '';
+    $('readErrAuto').hidden = s.mode !== 'auto';
+    $('updateBar').hidden = !s.update;
+    $('readErr').hidden = !s.err;
+    $('gaugeSlot').innerHTML = gauges(s.g, s.mode, T);
+    $('gMeta').textContent = s.g === 'error' ? 'not read yet'
+      : s.g === 'none' || s.g === 'nosecret' ? ''
+      : s.mode !== 'auto' ? 'last read 12 s ago'
+      : 'last read 12 s ago · Auto watches ' + (s.g === 'pick' || s.g === 'unread' ? '2 of 4' : s.g === 'cut' ? '1 of 4' : 'every enabled account');
+    drawChart(!!s.zero);
+    try { localStorage.setItem('lokki.home.state', id); } catch (e) {}
+    var add = $('addAcc');
+    if (add) add.addEventListener('click', function () { try { localStorage.setItem('lokki.accounts.state', 'login-wait'); } catch (e) {} });
+  }
+
+  /* a state picked from the toolbar or the address: the writing states are frozen mid-write, for their picture */
+  function enter(id) {
+    var s = S[id];
+    T = 30; held = null; clearTimeout(keyT); keyT = null;
+    W = { flight: s.held != null ? { from: 'slider', pos: s.held } : s.flightBar ? { from: 'bar', m: s.flightBar } : null,
+          waiting: s.waiting ? { from: 'bar', m: s.waiting } : null };
+    frozen = !!W.flight;
+    refusal = s.refused || null; refuseLeft = s.refuse || 0; window.lokkiProto.writes = [];
+    render(id);
+  }
+
+  /* after a write, the read back decides: the state the core would now report */
+  function landed(pos) {
+    if (pos > 0 && pos < 100) T = pos;                          /* an end leaves the stored threshold */
+    var s = S[current], stays = s.mode === 'auto' && s.held == null && !s.refused;
+    render(pos === 0 ? 'direct' : pos === 100 ? 'relay' : stays ? current : 'auto-pass');
+  }
+
+  /* every choice comes through here: a held slider position goes into the queue first, then the choice, so the order
+     never rests on a blur or a focus change (WebKit does not focus a button on click) */
+  function choose(c) {
+    if (held != null) {
+      var pos = held; held = null; clearTimeout(keyT); keyT = null;
+      enqueue({ from: 'slider', pos: pos });
+    }
+    enqueue(c);
+  }
+  function enqueue(c) {
+    if (W.flight) { W.waiting = c; paint(); return; }          /* the latest choice waits for the write in flight */
+    send(c);
+  }
+  function send(c) {
+    var pos = c.from === 'bar' ? posOf(c.m) : c.pos;
+    if (pos === reported()) { paint(); return; }                /* nothing to write */
+    window.lokkiProto.writes.push(c.from === 'bar' ? { routing: c.m }
+      : pos === 0 ? { routing: 'direct' } : pos === 100 ? { routing: 'relay' } : { routing: 'auto', low_quota: { threshold_percent: pos } });
+    W.flight = c; paint();                                      /* the refusal line stays while this write runs */
+    if (frozen) return;
+    setTimeout(function () {
+      var next = W.waiting;
+      W = { flight: null, waiting: null };
+      if (refuseLeft > 0) {                                     /* refused: its own reason, the core unchanged */
+        refusal = REFUSALS[REFUSALS.length - refuseLeft]; refuseLeft--;
+        render(current);
+      } else {                                                  /* written: the line clears */
+        refusal = null;
+        landed(pos);
+      }
+      if (next) send(next);                                     /* then the choice that waited */
+    }, 600);
+  }
+
+  /* the top bar's three choices: a click is never swallowed; while a write is in flight it waits */
+  mode.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    choose({ from: 'bar', m: b.dataset.m });
+  });
+  mode.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    var bs = Array.prototype.slice.call(mode.querySelectorAll('button')), i = bs.indexOf(document.activeElement);
+    if (i < 0) return; e.preventDefault();
+    bs[(i + (e.key === 'ArrowRight' ? 1 : 2)) % 3].focus();
+  });
+  function showTip(b) { tip.innerHTML = '<b>' + b.textContent.trim() + '</b>' + SENT[b.dataset.m]; tip.style.left = Math.max(0, b.offsetLeft - 2) + 'px'; tip.hidden = false; }
+  mode.addEventListener('mouseover', function (e) { var b = e.target.closest('button'); if (b) showTip(b); });
+  mode.addEventListener('mouseleave', function () { if (!mode.contains(document.activeElement)) tip.hidden = true; });
+  mode.addEventListener('focusin', function (e) { if (e.target.matches(':focus-visible')) showTip(e.target); });
+  mode.addEventListener('focusout', function () { tip.hidden = true; });
+
+  /* the slider: a drag is chosen when let go; key steps 500 ms after the last one, or on blur, or when another
+     control chooses (choose, above) */
+  function flush() {
+    clearTimeout(keyT); keyT = null;
+    if (held == null) return;
+    var pos = held; held = null;
+    enqueue({ from: 'slider', pos: pos });
+  }
+  range.addEventListener('pointerdown', function () { dragging = true; });
+  range.addEventListener('input', function () { held = Number(range.value); paint(); });
+  range.addEventListener('change', function () { if (dragging) { dragging = false; flush(); } });
+  range.addEventListener('keydown', function (e) {
+    var step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 }[e.key];
+    var to = e.key === 'Home' ? 0 : e.key === 'End' ? 100 : step == null ? null : Number(range.value) + step;
+    if (to == null) return;
+    e.preventDefault();
+    held = Math.max(0, Math.min(100, to)); paint();
+    clearTimeout(keyT); keyT = setTimeout(flush, 500);
+  });
+  range.addEventListener('blur', function () { if (keyT) flush(); });
+
+  /* Read now and Check now: their own busy state, not the mode write's */
+  function buttonBusy(btn, label, ms) {
+    var span = btn.querySelector('span') || btn, old = span.textContent, ic = btn.querySelector('use');
+    if (btn.getAttribute('aria-busy') === 'true') return;
+    btn.setAttribute('aria-busy', 'true'); span.textContent = label;
+    if (ic) ic.setAttribute('href', '#i-spinner');
+    setTimeout(function () { btn.removeAttribute('aria-busy'); span.textContent = old; if (ic) ic.setAttribute('href', '#i-refresh'); }, ms);
+  }
+  $('readNow').addEventListener('click', function () { buttonBusy($('readNow'), 'Reading…', 1600); });
+  $('checkNow').addEventListener('click', function () { buttonBusy($('checkNow'), 'Checking…', 1200); });
+
+  var copyT;
+  $('copyKey').addEventListener('click', function () {
+    var b = $('copyKey');
+    b.setAttribute('data-done', ''); b.querySelector('span').textContent = 'copied'; b.querySelector('use').setAttribute('href', '#i-check');
+    clearTimeout(copyT);
+    copyT = setTimeout(function () { b.removeAttribute('data-done'); b.querySelector('span').textContent = 'Copy key'; b.querySelector('use').setAttribute('href', '#i-copy'); }, 3000);
+  });
+
+  document.querySelectorAll('a[href="#"]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+
+  /* toolbar */
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    document.querySelectorAll('#themeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === t); });
+    try { localStorage.setItem('lokki.proto.theme', t); } catch (e) {}
+  }
+  $('themeSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTheme(b.dataset.t); });
+  $('stateSel').addEventListener('change', function (e) { enter(e.target.value); });
+
+  /* a state and a scheme can be named in the address: home.html#writing/dark */
+  var t0 = 'light', s0 = 'auto-cut', h = location.hash.slice(1).split('/');
+  try { t0 = localStorage.getItem('lokki.proto.theme') || t0; s0 = localStorage.getItem('lokki.home.state') || s0; } catch (e) {}
+  if (S[h[0]]) s0 = h[0];
+  if (h[1] === 'light' || h[1] === 'dark') t0 = h[1];
+  setTheme(t0); enter(S[s0] ? s0 : 'auto-cut');
+})();
+</script>
+</body>
+</html>

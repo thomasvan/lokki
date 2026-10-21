@@ -1,0 +1,61 @@
+# The cliproxy of the live pair (docs/relay/live-8381.md): container `cli-proxy-api-8318`, published
+# on the Tailscale address only, in front of the Plus codex account.
+#
+# This file is the container's definition. A container made from it carries the compose project label
+# `clisaving-8318`, which the harness's nightly update (~/Sites/AI/harness/bin/cliproxy-update.sh: its :8318 step was
+# merged on 2026-10-09 and has not run on this pair yet) looks for before it pulls and recreates. Run it from the main checkout (`~/Sites/TOOL/lokki`, where the untracked mounts are, and
+# which has to be on a commit that has this file's `image:` line), never from a worktree:
+#
+#   docker rm -f cli-proxy-api-8318          # only to replace one made another way (its state is in the mounts)
+#   docker compose -f deploy/docker-compose.8318.yml up -d
+#   deploy/container-up.sh --check           # 0: up with its port published
+#
+# Run `up -d` only while the Tailscale address (TAILSCALE_ADDR, in the untracked deploy/.env) is on an interface
+# (`ip -4 -o addr show up | grep -F " $TAILSCALE_ADDR/"`): before
+# that, at boot, the start fails on the bind and poisons the container (below); `deploy/container-up.sh` waits for
+# the address and is the way to start it at boot. A recreate is a few seconds of refused connections on :8318, which
+# the relay retries.
+#
+# The mounts are this repository's untracked `auths/`, `logs/`, `plugins/`, `static/` and
+# `config.yaml`, the clone's own (they hold OAuth tokens and the management password's hash: never
+# commit them).
+#
+# The image follows `eceasy/cli-proxy-api:latest`, as the earlier pair's does: decided by the Human on 2026-10-09
+# (relayed to this repository by the harness session), with the risk of an unattended `:latest` accepted as it is for
+# :8317 (no canary, no rollback: ~/Sites/AI/harness/docs/OPS-RISKS.md). The container was moved to this file on
+# 2026-10-09 (03:30Z, with the Human's go-ahead) from a `docker run` container on the local build of 2026-10-04 (CLIProxyAPI
+# v8.0.15, image `cli-proxy-api-8318:20261004`) to v8.0.21. The local image stays on
+# the host as the way back: put that tag on the `image:` line of a COPY of this file made beside it, in deploy/ (the mounts are
+# relative to that directory), run `docker compose -f <the copy> up -d` (a compose-made container needs no `rm -f`) and
+# remove the copy. The harness's nightly step (merged 2026-10-09) pulls `:latest` from THIS file, not from the copy, and
+# its `up -d` recreates the container again when the image has changed, so a rollback that is to last needs the step paused
+# or this file changed (a PR). If this file named that local tag, the step's `compose pull` would find no registry to pull
+# it from and fail; since the harness's PR #92 the step logs that as an ERROR and still runs `up -d` on the image already on
+# the host, which would recreate the container on that local image (read in the step's code, not tried). A plain `docker image prune` keeps a tagged image;
+# `docker image prune -a` removes it once no container uses it.
+#
+# `restart: "no"` on purpose: Docker's own start at boot comes before tailscale0 has the address this
+# publishes on, and a container whose start fails on the bind is poisoned (it later "starts" without
+# its port). `deploy/container-up.sh` starts it once the address exists
+# (docs/relay/live-8381.md).
+#
+# Do not use the top-level docker-compose.yml for this: it is the earlier pair's (port 8317).
+name: clisaving-8318
+services:
+  cli-proxy-api-8318:
+    image: eceasy/cli-proxy-api:latest
+    container_name: cli-proxy-api-8318
+    user: "1000:1000"
+    environment:
+      MANAGEMENT_STATIC_PATH: /static
+      TZ: Asia/Shanghai
+    ports:
+      - "${TAILSCALE_ADDR:?set TAILSCALE_ADDR in deploy/.env}:8318:8317"
+    volumes:
+      - ../config.yaml:/CLIProxyAPI/config.yaml
+      - ../auths:/auths
+      - ../logs:/CLIProxyAPI/logs
+      - ../plugins:/CLIProxyAPI/plugins
+      - ../static:/static
+      - ./cpa-passwd:/etc/passwd:ro
+    restart: "no"

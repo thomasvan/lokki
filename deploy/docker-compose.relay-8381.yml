@@ -1,0 +1,70 @@
+# The relay of the live pair (docs/relay/live-8381.md) as a container: docs/relay/docker.md is the runbook.
+#
+#   RELAY_SHA=<commit> docker compose -f deploy/docker-compose.relay-8381.yml up -d     # from the main checkout
+#
+# RELAY_SHA names the image `deploy/relay/build.sh` built (clisaving-relay:<commit>); there is no default, so an
+# upgrade is always a named commit. Settings live in config.yaml, one file for the native relay and this
+# container (see "conf" below); the environment sets only what is below, because a RELAY_* variable overrides the file
+# and would make a SIGHUP reload of an edit do nothing.
+#
+# Host networking, on purpose. The relay listens on 127.0.0.1 and on the Tailscale address (listen: in config.yaml)
+# and refuses a wildcard bind, so there is no published port to poison at boot the way the cliproxy's is
+# (deploy/docker-compose.8318.yml): while tailscale0 has no address the relay exits at once ("cannot bind", a
+# required address), and `restart: unless-stopped` starts it again until the address exists. `docker stop` leaves it
+# stopped across a reboot; `docker rm relay-8381` removes it (`compose down` does too, with RELAY_SHA set).
+name: clisaving-relay-8381
+services:
+  relay:
+    image: clisaving-relay:${RELAY_SHA:?set RELAY_SHA to the commit deploy/relay/build.sh built}
+    container_name: ${RELAY_NAME:-relay-8381}
+    network_mode: host
+    user: "1000:1000"
+    init: true
+    restart: unless-stopped
+    # SIGTERM drains in-flight streams for 15 s (drain_seconds) and refuses new work with a 503; Docker's default
+    # of 10 s would SIGKILL inside the drain. An image being generated takes 28 to 38 s and is cut by a restart.
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    # Not measured at the time of writing: the relay held 29 MB; an image answer is up to 128 MiB per image slot.
+    mem_limit: 768m
+    environment:
+      RELAY_CONFIG: /etc/relay/config.yaml
+      # A directory that does not exist, on purpose. If config.yaml named no `runs_log:` (or wrote it with a `~`),
+      # the relay would put its run log under $HOME, and with HOME=/tmp it starts and writes the evidence chain to
+      # a tmpfs that a restart empties. With this it cannot create the directory and stops at start-up, loudly.
+      # The run log must be an absolute path under the state directory below.
+      HOME: /nonexistent
+      HEALTHCHECK_URL: http://127.0.0.1:${RELAY_PORT:-8381}/healthz
+    volumes:
+      # state: the run log (a hash chain) and its lock, mounted at the SAME absolute path as on the host, because
+      # `runs_log:` in config.yaml is that path and the same file serves the native relay (rollback). The directory
+      # also holds the dated copies of config.yaml and the relay's old log, so the container can read them.
+      - ${RELAY_STATE_DIR:-${HOME}/.local/state/cliproxy-8381}:${RELAY_STATE_DIR:-${HOME}/.local/state/cliproxy-8381}
+      # conf: a DIRECTORY, read-only, so an edit that replaces the file (an editor, `sed -i`) reaches the container
+      # on the next SIGHUP; a single-file mount would keep the old inode. It is NOT inside the state directory, or
+      # the read-write mount above would let the container rewrite it. core/config.yaml is a symlink to
+      # conf/config.yaml, so the native relay reads the same file. Created at the cutover (docs/relay/docker.md).
+      - ${RELAY_CONF_DIR:-${HOME}/.local/state/cliproxy-8381-conf}:/etc/relay:ro
+    healthcheck:
+      # The code is under /app/core in an image built at or after 5192923 and under /app/midstream-abort before it;
+      # the script is whichever of the two exists, and a relay that does not answer /healthz still exits non-zero.
+      test: ["CMD-SHELL", "f=/app/core/healthcheck.py; [ -f $$f ] || f=/app/midstream-abort/healthcheck.py; exec python3 $$f"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    labels:
+      com.clisaving.component: relay
+      com.clisaving.revision: ${RELAY_SHA}

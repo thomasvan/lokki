@@ -1,0 +1,44 @@
+# NOTE (2026-10-07): this file defines the earlier pair's cliproxy (container `cli-proxy-api`,
+# port 8317), as it was before this repository's pair went live. Do not `up` it from this
+# checkout while the earlier pair runs; the live cliproxy here is `cli-proxy-api-8318`
+# (deploy/docker-compose.8318.yml, docs/relay/live-8381.md).
+#
+# Published on **every** interface, by Human decision, with the blast radius stated:
+# the direct path (:8317) is reachable from the LAN as well as the tailnet, and the
+# management panel and management API share that port, so the management password is
+# the only thing in front of the accounts. See docs/relay/relay-8371.md (exposure and
+# what is open) and WORKSPACE_PROTOCOL.md (the decision). The relay itself reaches
+# cliproxy on 127.0.0.1. Runs as the ubuntu user so the OAuth
+# tokens under auths/ are readable by the backup. Management web UI: the panel is
+# downloaded into ./static (MANAGEMENT_STATIC_PATH; regenerable, not backed up);
+# the management password is held by the Human (config.yaml keeps only its hash).
+services:
+  cli-proxy-api:
+    image: eceasy/cli-proxy-api:latest
+    container_name: cli-proxy-api
+    user: "1000:1000"
+    environment:
+      MANAGEMENT_STATIC_PATH: /static
+    ports:
+      - "0.0.0.0:8317:8317"
+    volumes:
+      - ./config.yaml:/CLIProxyAPI/config.yaml
+      - ./auths:/auths
+      - ./logs:/CLIProxyAPI/logs
+      - ./plugins:/CLIProxyAPI/plugins
+      - ./static:/static
+      # The usage-report plugin (the token oracle, docs/relay/usage-oracle.md)
+      # cannot be told where to put its database. cliproxy passes the plugin
+      # config in a `[]byte` field, so `config_yaml` reaches the plugin
+      # base64-encoded and the plugin's text scan for a `db_path:` line never
+      # matches: `plugins.configs.usage-report.db_path` is inert. The plugin
+      # then falls back to `user.Current()`, and this image has no passwd entry
+      # for uid 1000, so the fallback is the *relative* path `usage.sqlite`
+      # under a root-owned /CLIProxyAPI / CWD: it opened no database at all and
+      # reported `sqlite migrate: unable to open database file (14)`.
+      # This entry gives uid 1000 a home inside the already-mounted logs
+      # directory, where the plugin's database lives and survives a recreate.
+      # `db_path` in config.yaml names the same file, so the two routes agree if
+      # cliproxy ever starts passing the config through.
+      - ./deploy/cpa-passwd:/etc/passwd:ro
+    restart: unless-stopped

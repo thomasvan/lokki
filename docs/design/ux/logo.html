@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · logo</title>
+<style>
+/* tokens: the subset of tokens.css this page uses */
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --bg: oklch(0.985 0.004 220); --surface: oklch(1 0 0); --surface-2: oklch(0.962 0.007 225);
+  --border: oklch(0.885 0.012 225); --border-strong: oklch(0.64 0.016 230);
+  --text: oklch(0.27 0.030 238); --text-muted: oklch(0.49 0.022 238);
+  --accent: oklch(0.40 0.060 228); --accent-hover: oklch(0.33 0.055 228); --accent-contrast: oklch(1 0 0); --accent-soft: oklch(0.950 0.020 228);
+  --cutting: oklch(0.55 0.085 195); --cutting-ink: oklch(0.44 0.075 198); --cutting-soft: oklch(0.955 0.025 195);
+  --passing: oklch(0.64 0.150 65); --passing-ink: oklch(0.48 0.110 55); --passing-soft: oklch(0.965 0.040 80);
+  --focus: oklch(0.55 0.140 245);
+  --shadow-2: 0 8px 24px oklch(0.27 0.03 238 / 0.12), 0 2px 6px oklch(0.27 0.03 238 / 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: oklch(0.185 0.025 238); --surface: oklch(0.225 0.027 238); --surface-2: oklch(0.265 0.028 238);
+    --border: oklch(0.340 0.028 238); --border-strong: oklch(0.540 0.025 236);
+    --text: oklch(0.940 0.008 230); --text-muted: oklch(0.750 0.020 232);
+    --accent: oklch(0.800 0.070 215); --accent-hover: oklch(0.870 0.060 215); --accent-contrast: oklch(0.185 0.025 238); --accent-soft: oklch(0.300 0.040 228);
+    --cutting: oklch(0.760 0.090 190); --cutting-ink: oklch(0.840 0.080 190); --cutting-soft: oklch(0.290 0.045 200);
+    --passing: oklch(0.800 0.140 72); --passing-ink: oklch(0.870 0.120 80); --passing-soft: oklch(0.300 0.045 65);
+    --focus: oklch(0.760 0.110 232);
+    --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+  }
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.185 0.025 238); --surface: oklch(0.225 0.027 238); --surface-2: oklch(0.265 0.028 238);
+  --border: oklch(0.340 0.028 238); --border-strong: oklch(0.540 0.025 236);
+  --text: oklch(0.940 0.008 230); --text-muted: oklch(0.750 0.020 232);
+  --accent: oklch(0.800 0.070 215); --accent-hover: oklch(0.870 0.060 215); --accent-contrast: oklch(0.185 0.025 238); --accent-soft: oklch(0.300 0.040 228);
+  --cutting: oklch(0.760 0.090 190); --cutting-ink: oklch(0.840 0.080 190); --cutting-soft: oklch(0.290 0.045 200);
+  --passing: oklch(0.800 0.140 72); --passing-ink: oklch(0.870 0.120 80); --passing-soft: oklch(0.300 0.045 65);
+  --focus: oklch(0.760 0.110 232);
+  --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+}
+:root, [data-theme] {
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-2xl: 32px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-pill: 999px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+  /* app-icon field: fixed in both schemes, it is a picture */
+  --icon-sky:  oklch(0.46 0.065 228);
+  --icon-sea:  oklch(0.36 0.060 212);
+  --icon-gull: oklch(0.985 0.004 220);
+  /* menu-bar strips, as the OS draws them */
+  --bar-light: oklch(0.93 0.004 240);
+  --bar-dark:  oklch(0.24 0.006 240);
+  --tmpl-on-light: oklch(0.15 0 0);
+  --tmpl-on-dark:  oklch(0.98 0 0);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: var(--fs-base)/1.5 var(--font-ui); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+.mono, .cap { font-family: var(--font-mono); }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); letter-spacing: .02em; }
+svg { display: block; }
+
+.toolbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.toolbar .tb-title { font-weight: 600; margin-right: auto; display: flex; align-items: center; gap: var(--sp-2); }
+.toolbar .tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); font: inherit; }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.tb-seg button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.page { max-width: 1200px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) 80px; }
+.page-head { padding-bottom: var(--sp-7); border-bottom: 1px solid var(--border); }
+.page-head h1 { font-size: var(--fs-2xl); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.page-head p { color: var(--text-muted); margin-top: var(--sp-2); font-size: var(--fs-md); max-width: 64ch; }
+.sec { padding: var(--sp-8) 0 var(--sp-6); border-bottom: 1px solid var(--border); }
+.sec:last-child { border-bottom: 0; }
+.sec-head { display: grid; grid-template-columns: 240px 1fr; gap: var(--sp-6); margin-bottom: var(--sp-5); }
+.sec-head h2 { font-size: var(--fs-lg); font-weight: 600; line-height: 1.2; display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
+.sec-head .idx { display: block; font: var(--fs-xs)/1 var(--font-mono); color: var(--text-muted); margin-bottom: var(--sp-2); }
+.sec-head p { color: var(--text-muted); max-width: 72ch; }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--r-pill); background: var(--accent); color: var(--accent-contrast); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .02em; }
+.badge svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.panel { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-4); min-width: 0; }
+.panel .tag { display: flex; justify-content: space-between; font: var(--fs-xs)/1 var(--font-mono); color: var(--text-muted); margin-bottom: var(--sp-3); text-transform: uppercase; letter-spacing: .06em; }
+.art { color: var(--accent); }
+.art-512 { width: 512px; height: 512px; max-width: 100%; aspect-ratio: 1; height: auto; margin: 0 auto; background-color: var(--surface); border: 1px dashed var(--border); border-radius: var(--r-md); }
+.sizes { display: flex; align-items: flex-end; gap: var(--sp-6); margin-top: var(--sp-4); flex-wrap: wrap; }
+.sizes figure { margin: 0; display: grid; justify-items: center; gap: 6px; }
+.dir { margin-bottom: var(--sp-7); }
+.dir-head { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+.dir-head h3 { font-size: var(--fs-md); font-weight: 600; }
+.dir-head p { color: var(--text-muted); }
+
+.why { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); align-items: center; }
+.why .statement { font-size: var(--fs-lg); line-height: 1.45; max-width: 44ch; }
+.why .spec { margin-top: var(--sp-4); display: grid; grid-template-columns: auto 1fr; gap: 6px var(--sp-4); font-size: var(--fs-sm); color: var(--text-muted); }
+.why .spec b { color: var(--text); font-weight: 600; font-family: var(--font-mono); }
+.construct { width: 100%; max-width: 448px; aspect-ratio: 1; height: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); color: var(--accent); }
+.construct .g { stroke: var(--border); stroke-width: .12; fill: none; }
+.construct .k { stroke: var(--cutting); stroke-width: .2; fill: none; stroke-dasharray: .8 .6; }
+.construct .pt { fill: var(--surface); stroke: var(--text-muted); stroke-width: .25; }
+
+.icons-row { display: flex; align-items: flex-end; gap: var(--sp-6); flex-wrap: wrap; }
+.icons-row figure { margin: 0; display: grid; justify-items: center; gap: 8px; }
+.ai-512 { width: 512px; max-width: 100%; height: auto; aspect-ratio: 1; }
+.ai-shadow { filter: drop-shadow(0 6px 10px oklch(0.2 0.03 238 / 0.22)); }
+
+.wm { display: flex; align-items: center; color: var(--text); font-family: var(--font-ui); font-weight: 600; line-height: 1; }
+.wm svg { color: var(--accent); flex: none; }
+.wm-xl { font-size: 64px; letter-spacing: -0.035em; gap: 16px; }
+.wm-xl svg { width: 84px; height: 84px; margin: -10px -2px -10px -8px; }
+.wm-md { font-size: 28px; letter-spacing: -0.025em; gap: 8px; }
+.wm-md svg { width: 38px; height: 38px; margin: -4px -1px -4px -4px; }
+.wm-sm { font-size: 15px; letter-spacing: -0.01em; gap: 5px; }
+.wm-sm svg { width: 22px; height: 22px; margin: -3px 0 -3px -3px; }
+.wm .kk { letter-spacing: -0.06em; }
+.wm-stack { display: grid; gap: var(--sp-6); padding: var(--sp-4) var(--sp-2); }
+
+.strip { display: flex; align-items: center; justify-content: flex-end; gap: 14px; height: 24px; padding: 0 12px; border-radius: var(--r-sm); font: 13px/1 var(--font-ui); }
+.strip.light { background: var(--bar-light); color: var(--tmpl-on-light); }
+.strip.dark  { background: var(--bar-dark); color: var(--tmpl-on-dark); }
+.strip.x2 { height: 48px; font-size: 26px; gap: 28px; padding: 0 24px; border-radius: var(--r-md); }
+.strip .tray { width: 16px; height: 16px; }
+.strip.x2 .tray { width: 32px; height: 32px; }
+.tray-grid { display: grid; grid-template-columns: 120px 1fr 1fr; gap: var(--sp-3) var(--sp-4); align-items: center; }
+.tray-grid .h { font-size: var(--fs-sm); color: var(--text-muted); }
+.zoom { display: grid; grid-template-columns: repeat(2, auto); gap: var(--sp-5); justify-content: start; }
+.zoom figure { margin: 0; display: grid; gap: 6px; }
+.zoom svg { width: 160px; height: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text); }
+.zoom .px { stroke: var(--border); stroke-width: .04; fill: none; }
+
+.live { display: grid; grid-template-columns: 1fr; gap: 0; max-width: 420px; }
+.menu { margin: 4px 0 0 auto; width: 240px; padding: 5px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-2); font-size: var(--fs-base); }
+.menu .head { padding: 4px 8px 6px; color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.35; }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+.menu .item { display: grid; grid-template-columns: 16px 1fr; gap: 6px; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--r-sm); }
+.menu .item:hover { background: var(--accent); color: var(--accent-contrast); }
+.menu .item svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+.tabbar { display: flex; align-items: flex-end; gap: 2px; height: 40px; padding: 0 10px; border-radius: var(--r-md) var(--r-md) 0 0; background: var(--surface-2); border: 1px solid var(--border); border-bottom: 0; }
+.tab { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border-radius: 8px 8px 0 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.tab.on { background: var(--surface); color: var(--text); }
+.tab svg { width: 16px; height: 16px; }
+.addr { height: 36px; display: flex; align-items: center; padding: 0 14px; background: var(--surface); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 var(--r-md) var(--r-md); font: var(--fs-sm) var(--font-mono); color: var(--text-muted); }
+
+@media (max-width: 1000px) { .pair, .sec-head, .why { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- the mark: two crescent wings that meet in a short point of body -->
+    <symbol id="dir-a" viewBox="0 0 64 64"><path fill="currentColor" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <!-- tray template forms, built on the 16 px grid -->
+    <symbol id="tray-solid" viewBox="0 0 16 16"><path fill="currentColor" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/></symbol>
+    <symbol id="tray-line" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M1.5 10C3.5 5 6 4.5 8 9C10 4.5 12.5 5 14.5 10"/></symbol>
+    <!-- app icon: macOS grid, 824/1024 body with continuous corners, sky over a sea band -->
+    <clipPath id="sq-body"><path d="M28 10H72C84.5 10 90 15.5 90 28V72C90 84.5 84.5 90 72 90H28C15.5 90 10 84.5 10 72V28C10 15.5 15.5 10 28 10Z"/></clipPath>
+    <symbol id="app-icon" viewBox="0 0 100 100">
+      <g clip-path="url(#sq-body)">
+        <rect x="10" y="10" width="80" height="80" style="fill:var(--icon-sky)"/>
+        <rect x="10" y="68" width="80" height="22" style="fill:var(--icon-sea)"/>
+      </g>
+      <g transform="translate(50 46) scale(.9) translate(-32 -32)"><path style="fill:var(--icon-gull)" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></g>
+    </symbol>
+    <!-- 32 / 16 px app icon: the 16 px drawing of the gull, so the wings keep a full pixel -->
+    <symbol id="app-icon-sm" viewBox="0 0 100 100">
+      <g clip-path="url(#sq-body)">
+        <rect x="10" y="10" width="80" height="80" style="fill:var(--icon-sky)"/>
+        <rect x="10" y="70" width="80" height="20" style="fill:var(--icon-sea)"/>
+      </g>
+      <g transform="translate(14 13) scale(4.5)"><path style="fill:var(--icon-gull)" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/></g>
+    </symbol>
+    <!-- favicon: full-bleed tile, no padding -->
+    <clipPath id="sq-full"><path d="M22 0H78C93 0 100 7 100 22V78C100 93 93 100 78 100H22C7 100 0 93 0 78V22C0 7 7 0 22 0Z"/></clipPath>
+    <symbol id="favicon" viewBox="0 0 100 100">
+      <g clip-path="url(#sq-full)"><rect width="100" height="100" style="fill:var(--icon-sky)"/><rect y="74" width="100" height="26" style="fill:var(--icon-sea)"/></g>
+      <g transform="translate(6 1) scale(5.5)"><path style="fill:var(--icon-gull)" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/></g>
+    </symbol>
+    <symbol id="favicon-16" viewBox="0 0 16 16">
+      <g clip-path="url(#sq-full16)"><rect width="16" height="16" style="fill:var(--icon-sky)"/></g>
+      <path style="fill:var(--icon-gull)" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z" transform="translate(0 -.5)"/>
+    </symbol>
+    <clipPath id="sq-full16"><path d="M4 0H12C14.8 0 16 1.2 16 4V12C16 14.8 14.8 16 12 16H4C1.2 16 0 14.8 0 12V4C0 1.2 1.2 0 4 0Z"/></clipPath>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m4.5 10.5 3.75 3.75L15.5 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64"><use href="#dir-a"/></svg>lokki · logo <span class="cap">prototype toolbar</span></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="themeSeg">
+      <button type="button" data-t="light" aria-pressed="true">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+  <div class="tbl" role="group" aria-label="Tray state">Tray state
+    <span class="tb-seg" id="traySeg">
+      <button type="button" data-s="cutting" aria-pressed="true">Cutting</button>
+      <button type="button" data-s="passing" aria-pressed="false">Passing through</button>
+    </span>
+  </div>
+</div>
+
+<main class="page">
+  <header class="page-head">
+    <h1>lokki — the mark</h1>
+    <p>“lokki” is Finnish for seagull. A gull in flight, reduced to two wing curves and the small point where they meet. Every drawing on this page is made for lokki.</p>
+  </header>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">01</span><h2>The mark</h2></div>
+      <p>At 512, 128, 32 and 16 px, in the structure colour on light and dark. The 512 artboard is outlined so its edge is visible.</p></div>
+    <div id="dirs"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">02</span><h2>Construction</h2></div>
+      <p>The mark ships as <span class="mono">ui/src/components/Mark.svelte</span>: one filled path on a 64 grid, no text, filter, gradient or image.</p></div>
+    <div class="why">
+      <div>
+        <p class="statement">One solid shape, so it stays a gull from 512 px down to a 16 px menu bar and works as a template image with nothing to fill in.</p>
+        <div class="spec">
+          <span>grid</span><b>64 × 64, wings span 4 → 60</b>
+          <span>wing</span><b>tip angle ≈ 30°, shoulder 8 units thick</b>
+          <span>body</span><b>the wings meet in a point 8 units deep</b>
+          <span>16 px</span><b>redrawn heavier for the tray and favicon</b>
+        </div>
+      </div>
+      <svg class="construct" viewBox="0 0 64 64" role="img" aria-label="Construction of the mark on a 64 unit grid">
+        <path class="g" d="M0 8H64M0 16H64M0 24H64M0 32H64M0 40H64M0 48H64M0 56H64M8 0V64M16 0V64M24 0V64M32 0V64M40 0V64M48 0V64M56 0V64"/>
+        <path class="k" d="M4 36H60M32 20V46"/>
+        <use href="#dir-a" width="64" height="64"/>
+        <circle class="pt" cx="4" cy="36" r=".9"/><circle class="pt" cx="60" cy="36" r=".9"/><circle class="pt" cx="32" cy="34" r=".9"/><circle class="pt" cx="32" cy="42" r=".9"/>
+      </svg>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">03</span><h2>App icon</h2></div>
+      <p>The mark in white over a dusk sky with a sea band, on a continuous-corner square at macOS proportions (an 824 body on a 1024 canvas). At 32 and 16 px the gull is swapped for its 16 px drawing so each wing keeps a full pixel.</p></div>
+    <div class="pair" id="appIconPair"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">04</span><h2>Wordmark</h2></div>
+      <p>Always lower case, in the system face at semibold. Tracking tightens as the size grows; the double k is set closer still. The mark sits on the x-height, a little wider than the “l”.</p></div>
+    <div class="pair" id="wordPair"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">05</span><h2>Tray</h2></div>
+      <p>Template images: black on transparent, shape only; the OS tints them for the menu bar. <b>Solid</b> while the relay is cutting; the <b>line</b>, the same wings with no fill, while requests pass through. An outline of the solid wings blurs to grey at 16 px, so the open form is a 1.5 px line on the 16 px grid; the 32 px row is the @2x.</p></div>
+    <div class="pair" id="trayPair"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">06</span><h2>Favicon</h2></div>
+      <p>For the browser tab. Full-bleed tile; at 16 px the sea band is dropped and the gull fills the width.</p></div>
+    <div class="pair" id="favPair"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  function panel(theme, label, id) {
+    var p = document.createElement('div');
+    p.className = 'panel'; p.setAttribute('data-theme', theme);
+    p.innerHTML = '<div class="tag"><span>' + label + '</span><span>' + theme + '</span></div>';
+    return p;
+  }
+  function use(id, size, cls) { return '<svg ' + (cls ? 'class="' + cls + '" ' : '') + 'width="' + size + '" height="' + size + '" viewBox="0 0 ' + (id.indexOf('tray') === 0 || id === 'favicon-16' ? 16 : id.indexOf('dir') === 0 ? 64 : 100) + ' ' + (id.indexOf('tray') === 0 || id === 'favicon-16' ? 16 : id.indexOf('dir') === 0 ? 64 : 100) + '" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  function both(host, label, id, fill) { ['light', 'dark'].forEach(function (t) { var p = panel(t, label, id); p.insertAdjacentHTML('beforeend', fill(t)); host.appendChild(p); }); }
+
+  /* 01 the mark at four sizes */
+  var DIRS = [
+    ['dir-a', 'Four sizes', 'Two filled crescent wings that meet in a short point of body.']
+  ];
+  var dirs = document.getElementById('dirs');
+  DIRS.forEach(function (d, i) {
+    var wrap = document.createElement('div'); wrap.className = 'dir';
+    wrap.innerHTML = '<div class="dir-head"><h3>' + d[1] + '</h3><p>' + d[2] + '</p></div>';
+    var pair = document.createElement('div'); pair.className = 'pair'; wrap.appendChild(pair);
+    both(pair, d[1], 'dir-' + i, function () {
+      return '<div class="art">' + use(d[0], 512, 'art-512') +
+        '<div class="sizes">' + [128, 32, 16].map(function (s) { return '<figure>' + use(d[0], s) + '<figcaption class="cap">' + s + '</figcaption></figure>'; }).join('') + '</div></div>';
+    });
+    dirs.appendChild(wrap);
+  });
+
+  /* 03 app icon */
+  both(document.getElementById('appIconPair'), 'App icon', 'app-icon', function () {
+    return '<div class="icons-row"><figure>' + use('app-icon', 512, 'ai-512 ai-shadow') + '<figcaption class="cap">512</figcaption></figure></div>' +
+      '<div class="icons-row" style="margin-top:var(--sp-4)">' +
+      '<figure>' + use('app-icon', 128, 'ai-shadow') + '<figcaption class="cap">128</figcaption></figure>' +
+      '<figure>' + use('app-icon-sm', 32) + '<figcaption class="cap">32</figcaption></figure>' +
+      '<figure>' + use('app-icon-sm', 16) + '<figcaption class="cap">16</figcaption></figure></div>';
+  });
+
+  /* 04 wordmark */
+  function wm(cls) { return '<div class="wm ' + cls + '" aria-label="lokki"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#dir-a"/></svg><span>lo<span class="kk">k</span>ki</span></div>'; }
+  both(document.getElementById('wordPair'), 'Wordmark', 'wordmark', function () {
+    return '<div class="wm-stack">' + wm('wm-xl') + '<div style="display:flex;gap:var(--sp-7);align-items:center">' + wm('wm-md') + wm('wm-sm') + '</div>' +
+      '<p class="cap">64 px · −0.035em &nbsp;·&nbsp; 28 px · −0.025em &nbsp;·&nbsp; 15 px · −0.01em (sidebar)</p></div>';
+  });
+
+  /* 05 tray */
+  function strip(kind, form, x2) { return '<div class="strip ' + kind + (x2 ? ' x2' : '') + '">' + use('tray-' + form, x2 ? 32 : 16, 'tray') + '<span class="mono">14:32</span></div>'; }
+  both(document.getElementById('trayPair'), 'Menu bar', 'tray', function (t) {
+    var h = '<div class="tray-grid"><span></span><span class="h">Cutting · solid</span><span class="h">Passing through · line</span>';
+    [['16 px · light bar', 'light', false], ['16 px · dark bar', 'dark', false], ['32 px · light bar', 'light', true], ['32 px · dark bar', 'dark', true]].forEach(function (r) {
+      h += '<span class="h">' + r[0] + '</span>' + strip(r[1], 'solid', r[2]) + strip(r[1], 'line', r[2]);
+    });
+    h += '</div>';
+    h += '<div class="zoom" style="margin-top:var(--sp-5)">' + ['solid', 'line'].map(function (f) {
+      var grid = ''; for (var k = 1; k < 16; k++) grid += 'M' + k + ' 0V16M0 ' + k + 'H16';
+      return '<figure><svg viewBox="0 0 16 16" role="img" aria-label="' + f + ' tray form on the 16 px grid"><use href="#tray-' + f + '"/><path class="px" d="' + grid + '"/></svg><figcaption class="cap">logo-template-' + f + '.svg · 16 px grid</figcaption></figure>';
+    }).join('') + '</div>';
+    if (t === 'light') h += '<div class="live" style="margin-top:var(--sp-5)" data-live-tray><div class="strip light" style="justify-content:flex-end"><svg class="tray" width="16" height="16" viewBox="0 0 16 16"><use data-tray-use href="#tray-solid"/></svg><span class="mono">14:32</span></div>' +
+      '<div class="menu" role="menu"><div class="head" data-tray-head>Cutting every request<br>routing: relay</div><hr>' +
+      [['Direct', 'Direct'], ['Auto', 'Auto (below 30 %)'], ['Relay', 'Relay']].map(function (m) { return '<div class="item" role="menuitemradio" data-mode="' + m[0] + '"><span data-chk></span>' + m[1] + '</div>'; }).join('') +
+      '<hr><div class="item"><span></span>Open lokki</div><div class="item"><span></span>Quit lokki</div></div>' +
+      '<p class="cap" style="margin-top:8px">Live tray · switch with the toolbar’s Tray state</p></div>';
+    return h;
+  });
+
+  /* 06 favicon */
+  both(document.getElementById('favPair'), 'Favicon', 'favicon', function () {
+    return '<div class="icons-row" style="margin-bottom:var(--sp-4)"><figure>' + use('favicon', 32) + '<figcaption class="cap">32</figcaption></figure><figure>' + use('favicon-16', 16) + '<figcaption class="cap">16</figcaption></figure></div>' +
+      '<div class="tabbar"><div class="tab on">' + use('favicon-16', 16) + 'lokki</div><div class="tab">' + use('favicon-16', 16) + 'lokki · Settings</div></div>' +
+      '<div class="addr">http://127.0.0.1:8381/v1</div>';
+  });
+
+  /* toolbar */
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    document.querySelectorAll('#themeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === t); });
+    try { localStorage.setItem('lokki.logo.theme', t); } catch (e) {}
+  }
+  function setTray(s) {
+    document.querySelectorAll('#traySeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.s === s); });
+    var live = document.querySelector('[data-live-tray]'); if (!live) return;
+    live.querySelector('[data-tray-use]').setAttribute('href', s === 'cutting' ? '#tray-solid' : '#tray-line');
+    live.querySelector('[data-tray-head]').innerHTML = s === 'cutting' ? 'Cutting every request<br>routing: relay' : 'Passing requests through<br>not every watched account is low';
+    var on = s === 'cutting' ? 'Relay' : 'Auto';
+    live.querySelectorAll('[data-mode]').forEach(function (it) {
+      it.setAttribute('aria-checked', it.dataset.mode === on);
+      it.querySelector('[data-chk]').innerHTML = it.dataset.mode === on ? '<svg viewBox="0 0 20 20"><use href="#i-check"/></svg>' : '';
+    });
+  }
+  document.getElementById('themeSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTheme(b.dataset.t); });
+  document.getElementById('traySeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTray(b.dataset.s); });
+  var t0 = null; try { t0 = localStorage.getItem('lokki.logo.theme'); } catch (e) {}
+  setTheme(t0 || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  setTray('cutting');
+})();
+</script>
+</body>
+</html>

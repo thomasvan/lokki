@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · Accounts</title>
+<style>
+/* ═══ tokens.css (inlined verbatim) ═══ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg:             oklch(0.985 0.004 220);
+  --surface:        oklch(1 0 0);
+  --surface-2:      oklch(0.962 0.007 225);
+  --border:         oklch(0.885 0.012 225);
+  --border-strong:  oklch(0.64 0.016 230);
+  --text:           oklch(0.27 0.030 238);
+  --text-muted:     oklch(0.49 0.022 238);
+  --accent:         oklch(0.40 0.060 228);
+  --accent-hover:   oklch(0.33 0.055 228);
+  --accent-contrast:oklch(1 0 0);
+  --accent-soft:    oklch(0.950 0.020 228);
+  --cutting:        oklch(0.55 0.085 195);
+  --cutting-ink:    oklch(0.44 0.075 198);
+  --cutting-soft:   oklch(0.955 0.025 195);
+  --passing:        oklch(0.64 0.150 65);
+  --passing-ink:    oklch(0.48 0.110 55);
+  --passing-soft:   oklch(0.965 0.040 80);
+  --unknown:        oklch(0.60 0.012 238);
+  --unknown-ink:    oklch(0.47 0.015 238);
+  --unknown-soft:   oklch(0.955 0.005 238);
+  --error:          oklch(0.55 0.190 27);
+  --error-ink:      oklch(0.49 0.180 27);
+  --error-soft:     oklch(0.955 0.025 25);
+  --images:         oklch(0.62 0.070 265);
+  --focus:          oklch(0.55 0.140 245);
+  --shadow-1: 0 1px 2px oklch(0.27 0.03 238 / 0.08), 0 1px 1px oklch(0.27 0.03 238 / 0.04);
+  --shadow-2: 0 8px 24px oklch(0.27 0.03 238 / 0.12), 0 2px 6px oklch(0.27 0.03 238 / 0.06);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:             oklch(0.185 0.025 238);
+  --surface:        oklch(0.225 0.027 238);
+  --surface-2:      oklch(0.265 0.028 238);
+  --border:         oklch(0.340 0.028 238);
+  --border-strong:  oklch(0.540 0.025 236);
+  --text:           oklch(0.940 0.008 230);
+  --text-muted:     oklch(0.750 0.020 232);
+  --accent:         oklch(0.800 0.070 215);
+  --accent-hover:   oklch(0.870 0.060 215);
+  --accent-contrast:oklch(0.185 0.025 238);
+  --accent-soft:    oklch(0.300 0.040 228);
+  --cutting:        oklch(0.760 0.090 190);
+  --cutting-ink:    oklch(0.840 0.080 190);
+  --cutting-soft:   oklch(0.290 0.045 200);
+  --passing:        oklch(0.800 0.140 72);
+  --passing-ink:    oklch(0.870 0.120 80);
+  --passing-soft:   oklch(0.300 0.045 65);
+  --unknown:        oklch(0.660 0.012 235);
+  --unknown-ink:    oklch(0.820 0.010 235);
+  --unknown-soft:   oklch(0.290 0.012 238);
+  --error:          oklch(0.700 0.170 25);
+  --error-ink:      oklch(0.820 0.100 25);
+  --error-soft:     oklch(0.300 0.060 25);
+  --images:         oklch(0.700 0.070 265);
+  --focus:          oklch(0.760 0.110 232);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+}
+:root,
+[data-theme] {
+  --font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --numeric:   tabular-nums;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-xl: 24px; --fs-2xl: 32px;
+  --lh-tight: 1.2; --lh-snug: 1.35; --lh-body: 1.5;
+  --fw-regular: 400; --fw-medium: 500; --fw-semi: 600;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-pill: 999px;
+  --control-h: 32px;
+  --sidebar-w: 208px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+/* ═══ end tokens ═══ */
+
+/* ═══ shared: page, toolbar, frame, shell, components ═══ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--surface-2); color: var(--text); min-height: 100vh;
+  font: var(--fs-base)/var(--lh-body) var(--font-ui);
+  font-variant-numeric: var(--numeric); -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+p { margin: 0; text-wrap: pretty; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.lbl { font-size: var(--fs-sm); color: var(--text-muted); }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); font-family: var(--font-mono); }
+[hidden] { display: none !important; }
+
+/* prototype toolbar: outside the frame */
+.toolbar { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.tb-title { font-weight: var(--fw-semi); display: flex; align-items: center; gap: var(--sp-2); margin-right: auto; }
+.tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.tb-title a { color: var(--text-muted); font-weight: var(--fw-regular); text-decoration: none; padding: 2px 6px; border-radius: var(--r-sm); }
+.tb-title a:hover { background: var(--surface-2); color: var(--text); }
+.tb-title a[aria-current="page"] { color: var(--text); font-weight: var(--fw-semi); }
+.tb-title a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.toolbar select { height: 28px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); padding: 0 6px; color: var(--text); }
+.toolbar :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.stage { padding: var(--sp-6); overflow-x: auto; }
+.frame {
+  width: 1100px; height: 760px; margin: 0 auto;
+  display: flex; flex-direction: column;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2); overflow: hidden;
+}
+.frame-cap { width: 1100px; margin: 0 auto var(--sp-2); display: flex; justify-content: space-between; }
+
+.shell { flex: 1; display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 0; }
+.sidebar { background: var(--surface-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3); min-height: 0; }
+.brand { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) var(--sp-5); font-size: 17px; font-weight: var(--fw-semi); letter-spacing: -0.02em; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); }
+.nav { display: grid; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 var(--sp-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; font-weight: var(--fw-medium); }
+.nav a .ic { color: var(--text-muted); }
+.nav a:hover { background: color-mix(in oklch, var(--text) 7%, var(--surface-2)); }
+.nav a[aria-current="page"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.nav a[aria-current="page"] .ic { color: var(--accent); }
+.nav a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.side-foot { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border); display: grid; gap: 4px; font-size: var(--fs-sm); }
+.side-foot .st { display: flex; align-items: center; gap: var(--sp-2); }
+.side-foot .dot { width: 8px; height: 8px; box-shadow: none; }
+.dot-run { background: var(--accent); }
+
+.main { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; }
+.content { overflow: auto; padding: var(--sp-4) var(--sp-6) var(--sp-6); display: grid; gap: var(--sp-4); align-content: start; min-height: 0; }
+
+/* icons */
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic-16 { width: 16px; height: 16px; }
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* mode control */
+.mode { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--border); }
+.mode button { height: 28px; padding: 0 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text); font-weight: var(--fw-medium); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.mode button:hover { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.mode button[aria-checked="true"] { background: var(--accent); color: var(--accent-contrast); box-shadow: var(--shadow-1); }
+.mode button[aria-checked="true"]:hover { background: var(--accent-hover); }
+.mode button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.mode button:active { transform: translateY(1px); }
+.mode[aria-busy="true"] button { cursor: progress; }
+.mode[aria-busy="true"] button:not([aria-checked="true"]) { color: var(--text-muted); }
+
+/* decision line */
+.decision { display: grid; grid-template-columns: 10px auto; column-gap: var(--sp-2); align-items: baseline; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.decision .dot { align-self: center; }
+.dot-cutting { background: var(--cutting); box-shadow: 0 0 0 3px var(--cutting-soft); }
+.dot-passing { background: var(--passing); box-shadow: 0 0 0 3px var(--passing-soft); }
+.decision-head { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); }
+.decision-reason { grid-column: 2; font-size: var(--fs-sm); color: var(--text-muted); font-family: var(--font-mono); }
+.note { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3); min-height: 36px; border-radius: var(--r-md); background: var(--cutting-soft); color: var(--cutting-ink); font-size: var(--fs-sm); }
+.note .btn { margin-left: auto; }
+
+/* buttons */
+.btn { height: var(--control-h); padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap; font-weight: var(--fw-medium); line-height: 1; transition: background-color .12s, border-color .12s; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); }
+.btn-primary { background: var(--accent); color: var(--accent-contrast); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-quiet { background: transparent; color: var(--text); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--text-muted); }
+.btn-quiet:hover { background: color-mix(in oklch, var(--text) 8%, transparent); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn[aria-busy="true"] { opacity: 1; cursor: progress; }
+.icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border: 0; border-radius: var(--r-md); background: transparent; color: var(--text); cursor: pointer; flex: none; }
+.icon-btn:hover { background: color-mix(in oklch, var(--text) 9%, transparent); }
+.icon-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* chips */
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }
+.chip .dot { width: 7px; height: 7px; box-shadow: none; }
+.chip .ic { width: 14px; height: 14px; stroke-width: 1.75; }
+.chip-cutting { background: var(--cutting-soft); color: var(--cutting-ink); }
+.chip-unknown { background: var(--unknown-soft); color: var(--unknown-ink); }
+.chip-ok      { background: var(--surface-2); color: var(--text); }
+.chip-off     { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; display: inline-block; }
+
+/* quota bar */
+.bar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-pill); }
+.bar .tick { position: absolute; left: 30%; top: -4px; width: 2px; height: 16px; margin-left: -1px; background: var(--text-muted); border-radius: 1px; }
+.bar.noread { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+/* cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+
+/* switch */
+.switch { display: inline-flex; align-items: center; gap: var(--sp-2); border: 0; background: none; padding: 2px; border-radius: var(--r-pill); cursor: pointer; font-size: var(--fs-sm); color: var(--text); }
+.switch .trk { width: 32px; height: 18px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-strong); position: relative; transition: background-color .12s; flex: none; }
+.switch .trk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .12s; }
+.switch[aria-checked="true"] .trk { background: var(--accent); box-shadow: none; }
+.switch[aria-checked="true"] .trk::after { transform: translateX(14px); background: var(--accent-contrast); }
+.switch:hover:not(:disabled) .trk { box-shadow: inset 0 0 0 1px var(--text-muted); }
+.switch[aria-checked="true"]:hover:not(:disabled) .trk { background: var(--accent-hover); box-shadow: none; }
+.switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.switch:disabled { cursor: not-allowed; color: var(--text-muted); }
+.switch:disabled .trk { opacity: .5; }
+
+/* empty state */
+.empty { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-4); align-items: center; padding: var(--sp-4) var(--sp-5); }
+.empty .em-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--text-muted); }
+.empty h3 { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); margin-bottom: 2px; }
+.empty p { color: var(--text-muted); }
+/* ═══ end shared ═══ */
+
+/* ─── Accounts: compact top bar with sentence popovers ─── */
+.topbar { position: relative; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5); padding: var(--sp-3) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar .note { flex-basis: 100%; }
+.mode button[data-tip] { position: relative; }
+.mode button[data-tip]::after {
+  content: attr(data-tip); position: absolute; top: calc(100% + 10px); left: -2px; width: 250px;
+  padding: var(--sp-2) 10px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-2);
+  font-size: var(--fs-sm); font-weight: var(--fw-regular); line-height: 1.45; text-align: left; white-space: normal;
+  opacity: 0; visibility: hidden; transition: opacity .12s; pointer-events: none;
+}
+.mode button[data-tip]:hover::after, .mode button[data-tip]:focus-visible::after { opacity: 1; visibility: visible; transition-delay: .25s; }
+
+/* page head */
+.phead { display: flex; align-items: flex-start; gap: var(--sp-4); }
+.phead h1 { font-size: var(--fs-lg); font-weight: var(--fw-semi); line-height: 32px; }
+.fresh { display: flex; align-items: center; gap: var(--sp-3); height: 32px; }
+.addbox { margin-left: auto; display: grid; justify-items: end; gap: 4px; }
+.addbox .help { font-size: var(--fs-sm); color: var(--text-muted); }
+.addbox .fail { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--error-ink); font-weight: var(--fw-medium); }
+
+/* the scope strip */
+.strip { display: grid; grid-template-columns: minmax(0, 1fr); }
+.strip .seg { max-width: 420px; }
+.strip .cell { padding: var(--sp-3) var(--sp-4); min-width: 0; }
+.strip .cell + .cell { border-left: 1px solid var(--border); }
+.strip .t { font-weight: var(--fw-semi); }
+.strip .h { font-size: var(--fs-sm); color: var(--text-muted); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; padding: 2px; gap: 2px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); margin-top: 6px; }
+.seg button { height: 28px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text); cursor: pointer; font-weight: var(--fw-medium); }
+.seg button:hover { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.seg button[aria-checked="true"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border-strong); font-weight: var(--fw-semi); }
+.seg button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.seg-note { font-size: var(--fs-sm); color: var(--text-muted); margin-top: 6px; padding-left: 2px; }
+.stale { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-2); padding: 6px var(--sp-2) 6px var(--sp-4); border-top: 1px solid color-mix(in oklch, var(--passing) 45%, transparent); background: var(--passing-soft); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+.stale > .ic { color: var(--passing-ink); }
+.stale .btn { margin-left: auto; }
+
+/* login panel */
+.login { padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-5); display: grid; gap: var(--sp-3); border-color: color-mix(in oklch, var(--accent) 35%, transparent); }
+.lg-top { display: grid; grid-template-columns: 24px 1fr auto; gap: var(--sp-3); align-items: start; }
+.lg-top > .ic { color: var(--accent); margin-top: 1px; }
+.lg-top h3 { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-snug); }
+.lg-top .acts { display: flex; align-items: center; gap: var(--sp-2); }
+.ok-ic { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.lg-fb { margin-left: 36px; padding-top: var(--sp-3); border-top: 1px solid var(--border); display: grid; gap: 6px; }
+.lg-fb .row { display: flex; align-items: center; gap: var(--sp-2); }
+.linkbox { font: var(--fs-sm)/26px var(--font-mono); height: 28px; padding: 0 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 400px; user-select: all; }
+.lg-fb .row .btn-quiet { margin-left: auto; }
+#copyLink { min-width: 128px; }
+#copyLink[data-done] { color: var(--cutting-ink); border-color: var(--cutting); }
+
+/* account cards */
+.acards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.acard { padding: 14px var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ah { display: flex; align-items: center; gap: var(--sp-2); min-height: 24px; }
+.ah h3 { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ah .chip { margin-left: auto; }
+.an { display: flex; align-items: baseline; gap: 6px; }
+.huge { font: var(--fw-semi) 30px/1 var(--font-mono); letter-spacing: -0.02em; }
+.an .used { margin-left: auto; font-size: var(--fs-sm); color: var(--text-muted); font-family: var(--font-mono); }
+.acard .bar { height: 10px; }
+.acard .bar .tick { top: -4px; height: 18px; }
+.under { position: relative; height: 18px; margin-top: 2px; font-size: var(--fs-sm); color: var(--text-muted); }
+.under .tl { position: absolute; left: 30%; transform: translateX(-50%); font: var(--fs-xs)/18px var(--font-mono); white-space: nowrap; }
+.under .rs { position: absolute; right: 0; top: 0; line-height: 18px; }
+.under.past { height: 36px; }
+.under.past .rs { top: 18px; }
+.aerr { display: flex; align-items: center; gap: var(--sp-2); padding: 6px 10px; border-radius: var(--r-md); background: var(--error-soft); color: var(--error-ink); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+.af { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: var(--sp-2); min-height: 33px; }
+.af .lbl { margin-left: auto; }
+/* the paste field of a login finished on another device */
+.lg-paste { margin-left: 36px; padding-top: var(--sp-3); border-top: 1px solid var(--border); display: grid; gap: 6px; }
+.lg-paste .row { display: flex; align-items: center; gap: var(--sp-2); }
+.pastebox { flex: 1; min-width: 0; height: 28px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); font: var(--fs-sm) var(--font-mono); }
+.pastebox:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.pastebox[aria-invalid="true"] { border-color: var(--error); }
+.lg-paste .fail { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--error-ink); font-weight: var(--fw-medium); margin: 0; }
+.lg-paste .sent { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-muted); margin: 0; }
+.autonly { padding: var(--sp-3) var(--sp-4); display: flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-sm); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64"><path fill="currentColor" stroke="none" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 20 20"><path d="M3.25 9.25 10 3.5l6.75 5.75"/><path d="M5 8v8.25h3.5V12h3v4.25H15V8"/></symbol>
+    <symbol id="i-accounts" viewBox="0 0 20 20"><circle cx="8" cy="7" r="3"/><path d="M2.75 16.25c.55-2.85 2.65-4.5 5.25-4.5s4.7 1.65 5.25 4.5"/><path d="M12.75 4.15a3 3 0 0 1 0 5.7"/><path d="M14.75 11.9c1.4.6 2.3 2.1 2.5 4.35"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 20 20"><path d="M4.75 16.25V11M8.25 16.25V6M11.75 16.25V9M15.25 16.25V3.75"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20"><path d="M3.25 6H9m4 0h3.75"/><circle cx="11" cy="6" r="2"/><path d="M3.25 14H7m4 0h5.75"/><circle cx="9" cy="14" r="2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 20 20"><rect x="7" y="7" width="9.25" height="9.25" rx="1.75"/><path d="M13 7V5a1.25 1.25 0 0 0-1.25-1.25H5A1.25 1.25 0 0 0 3.75 5v6.75A1.25 1.25 0 0 0 5 13h2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 20 20"><path d="M4 8.5a6.25 6.25 0 0 1 11.6-1.25"/><path d="M15.75 3.75V7.5H12"/><path d="M16 11.5a6.25 6.25 0 0 1-11.6 1.25"/><path d="M4.25 16.25V12.5H8"/></symbol>
+    <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="M10 9.25V14"/><path d="M10 6.5v.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m4.5 10.5 3.75 3.75L15.5 6"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 20 20"><path d="M10 3.25 17.25 16H2.75Z"/><path d="M10 8.25v3.5"/><path d="M10 13.75v.01"/></symbol>
+    <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="m7.5 7.5 5 5m0-5-5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></symbol>
+    <symbol id="i-close" viewBox="0 0 20 20"><path d="m5.5 5.5 9 9m0-9-9 9"/></symbol>
+    <symbol id="i-spinner" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5" stroke-dasharray="28 13" class="spin" style="transform-origin:10px 10px"/></symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki prototype
+    <a href="home.html">Home</a><a href="accounts.html" aria-current="page">Accounts</a><a href="activity.html">Activity</a><a href="settings.html">Settings</a><a href="tray.html">Tray</a></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="themeSeg">
+      <button type="button" data-t="light" aria-pressed="true">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+  <label class="tbl">State
+    <select id="stateSel">
+      <option value="every">Auto, every enabled account</option>
+      <option value="pick">Auto, only the ones I pick</option>
+      <option value="relay">Relay (no scope, no switches)</option>
+      <option value="empty">No account yet</option>
+      <option value="login-wait">Login waiting, with the paste field</option>
+      <option value="login-refused">Paste refused: another login</option>
+      <option value="login-refused-addr">Paste refused: not the callback address</option>
+      <option value="login-refused-gone">Paste refused: the login is no longer waiting</option>
+      <option value="login-refused-twice">Paste refused: already answered</option>
+      <option value="login-refused-expired">Paste refused: CLIProxyAPI says expired</option>
+      <option value="login-refused-cpa">Paste refused: CLIProxyAPI did not take it</option>
+      <option value="login-empty">Send with an empty field</option>
+      <option value="login-sent">Address sent, finishing the login</option>
+      <option value="login-done">Login done</option>
+      <option value="login-failed">Login failed</option>
+      <option value="stale">Watched scope with a stale entry</option>
+      <option value="reset">A window reset since the last read</option>
+    </select>
+  </label>
+</div>
+
+<div class="stage">
+  <div class="frame-cap"><span class="cap">accounts.html · app window 1100 × 760</span><span class="cap" id="stateCap"></span></div>
+  <div class="frame">
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki</div>
+        <nav class="nav" aria-label="Destinations">
+          <a href="home.html"><svg class="ic"><use href="#i-home"/></svg>Home</a>
+          <a href="accounts.html" aria-current="page"><svg class="ic"><use href="#i-accounts"/></svg>Accounts</a>
+          <a href="activity.html"><svg class="ic"><use href="#i-activity"/></svg>Activity</a>
+          <a href="settings.html"><svg class="ic"><use href="#i-settings"/></svg>Settings</a>
+        </nav>
+        <div class="side-foot"><span class="st"><span class="dot dot-run"></span>CLIProxyAPI running</span><span class="cap">lokki 0.1.0</span></div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div class="mode" role="radiogroup" aria-label="Mode" id="mode">
+            <button type="button" role="radio" aria-checked="false" data-m="direct" data-tip="Every request goes to CLIProxyAPI untouched, at full price.">Direct</button>
+            <button type="button" role="radio" aria-checked="true" data-m="auto" data-tip="Cut when the watched accounts run low; otherwise pass through at full price.">Auto 30 %</button>
+            <button type="button" role="radio" aria-checked="false" data-m="relay" data-tip="Every request is cut: lokki ends the answer early so it costs less.">Relay</button>
+          </div>
+          <div class="decision" role="status" aria-live="polite">
+            <span class="dot" id="decDot"></span><span class="decision-head" id="decHead"></span><span class="decision-reason" id="decReason"></span>
+          </div>
+        </header>
+
+        <main class="content" id="content"></main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* Sample data only. f*** is enabled and read, but not watched under "Only the ones I pick". */
+  var ACC = [
+    { id: 'o', em: 'o***@example.invalid', rem: 20, st: 'low', reset: 'resets in 1 h 12 min · 14:32', w: true },
+    { id: 't', em: 't***@example.invalid', rem: 90, st: 'ok', reset: 'resets in 3 h 40 min · 17:00', w: true },
+    { id: 's', em: 's***@example.invalid', rem: null, st: 'unknown', reset: null, err: 'HTTP 401', w: true },
+    { id: 'f', em: 'f***@example.invalid', rem: 64, st: 'ok', reset: 'resets in 2 h 05 min · 15:25', w: false }
+  ];
+  var PRESET = {
+    'every':         { scope: 'every' },
+    'pick':          { scope: 'pick' },
+    'relay':         { scope: 'every', mode: 'relay' },
+    'empty':         { scope: 'every', none: true },
+    'login-wait':    { scope: 'every', login: 'wait' },
+    'login-refused': { scope: 'every', login: 'wait', paste: 'refused', why: 'another' },
+    'login-refused-addr': { scope: 'every', login: 'wait', paste: 'refused', why: 'addr' },
+    'login-refused-gone': { scope: 'every', login: 'wait', paste: 'refused', why: 'gone' },
+    'login-refused-twice': { scope: 'every', login: 'wait', paste: 'refused', why: 'twice' },
+    'login-refused-expired': { scope: 'every', login: 'wait', paste: 'refused', why: 'expired' },
+    'login-refused-cpa': { scope: 'every', login: 'wait', paste: 'refused', why: 'cpa' },
+    'login-empty':   { scope: 'every', login: 'wait', paste: 'empty' },
+    'login-sent':    { scope: 'every', login: 'wait', paste: 'sent' },
+    'login-done':    { scope: 'every', login: 'done' },
+    'login-failed':  { scope: 'every', login: 'failed' },
+    'stale':         { scope: 'pick', stale: true },
+    'reset':         { scope: 'every', reset: true }
+  };
+  /* the paste route's refusals, word for word (spec 4.4) */
+  var REFUSED = {
+    addr: 'this is not the address the login ended on: it starts http://localhost:1455/auth/callback?',
+    gone: 'this login is no longer waiting; start again',
+    another: 'this address is from another login; paste the address of the login started last',
+    twice: 'lokki already has this login\u2019s answer; wait for it to finish',
+    expired: 'this login expired; start again',
+    cpa: 'CLIProxyAPI did not take this login; start again'
+  };
+  var M;
+
+  function load(id) {
+    var p = PRESET[id];
+    M = { id: id, mode: p.mode || 'auto', scope: p.scope, login: p.login || null, paste: p.paste || null, why: p.why || null, busy: false,
+          pasted: p.why === 'addr' ? 'http://localhost:1455/?code=…' : p.paste === 'refused' ? 'http://localhost:1455/auth/callback?code=…&state=…' : '', stale: !!p.stale,
+          accts: p.none ? [] : ACC.map(function (a) { return Object.assign({}, a); }), fresh: 'last read 12 s ago' };
+    /* o***'s reset_at has passed since the read: policy.state_of counts it as 100 % left, so the gauge does too */
+    if (p.reset) Object.assign(M.accts[0], { rem: 100, st: 'ok', past: true, reset: 'reset; the next read shows the new window' });
+    if (p.reset) M.fresh = 'last read 50 s ago';
+    $('stateSel').value = id;
+    $('stateCap').textContent = 'state: ' + $('stateSel').selectedOptions[0].text;
+    try { localStorage.setItem('lokki.accounts.state', id); } catch (e) {}
+    render();
+  }
+
+  var auto = function () { return M.mode === 'auto'; };
+  /* what a card shows: the account's own state, and whether Auto watches it */
+  function watched(a) { return M.scope === 'every' || a.w; }
+  function decision() {
+    if (M.mode === 'relay') return ['cut', 'routing: relay'];
+    if (M.mode === 'direct') return ['pass', 'routing: direct'];
+    var sc = M.accts.filter(watched).map(function (a) { return a.st; });
+    if (!sc.length) return ['pass', 'no account to watch'];
+    if (sc.every(function (s) { return s === 'unknown'; })) return ['pass', 'no watched account could be read'];
+    if (sc.every(function (s) { return s === 'low'; })) return ['cut', 'every watched account is low'];
+    if (sc.every(function (s) { return s !== 'ok'; })) return ['pass', 'a watched account could not be read'];
+    return ['pass', 'not every watched account is low'];
+  }
+
+  /* Auto: "not watched" first, by in_scope, whatever the account's own state; then its state */
+  function chip(a) {
+    if (auto() && !watched(a)) return '<span class="chip chip-off"><span class="ring"></span>not watched</span>';
+    if (a.st === 'unknown') return '<span class="chip chip-unknown"><span class="dot" style="background:var(--unknown)"></span>unknown</span>';
+    if (!auto()) return '';                                   /* Relay and Direct: the threshold decides nothing */
+    if (a.st === 'low') return '<span class="chip chip-cutting"><svg class="ic"><use href="#i-warning"/></svg>low</span>';
+    return '<span class="chip chip-ok"><svg class="ic"><use href="#i-check"/></svg>ok</span>';
+  }
+  var ic = function (n, c) { return '<svg class="ic' + (c ? ' ' + c : '') + '"><use href="#i-' + n + '"/></svg>'; };
+
+  function card(a) {
+    var rem = a.rem, tick = auto() ? '<span class="tick"></span>' : '';
+    var fill = !auto() ? 'var(--accent)' : !watched(a) ? 'var(--unknown)' : a.st === 'low' ? 'var(--cutting)' : 'var(--accent)';
+    var bar = rem == null
+      ? '<div class="bar noread" role="meter" aria-label="no reading">' + tick + '</div>'
+      : '<div class="bar" role="meter" aria-valuenow="' + rem + '" aria-valuemin="0" aria-valuemax="100" aria-label="' + rem + ' % of the 5-hour quota remaining"><span class="fill" style="width:' + rem + '%;background:' + fill + '"></span>' + tick + '</div>';
+    var live = auto() && M.scope === 'pick';
+    return '<article class="card acard">' +
+      '<div class="ah"><h3 title="' + a.em + '">' + a.em + '</h3>' + chip(a) + '</div>' +
+      '<div class="an"><span class="huge">' + (rem == null ? '—' : rem + ' %') + '</span><span class="lbl">' + (rem == null ? 'no reading' : a.past ? 'window reset' : 'left') + '</span>' +
+        '<span class="used">used ' + (rem == null || a.past ? '—' : (100 - rem) + ' %') + '</span></div>' +
+      '<div>' + bar + '<div class="under' + (a.past ? ' past' : '') + '">' + (auto() ? '<span class="tl">cut below 30 %</span>' : '') + '<span class="rs">' + (a.reset || 'reset time not read yet') + '</span></div></div>' +
+      (a.err ? '<div class="aerr" role="alert">' + ic('error', 'ic-16') + '<span>The last read failed: <span class="mono">' + a.err + '</span></span></div>' : '') +
+      (auto() ? '<div class="af"><button type="button" class="switch" role="switch" data-act="watch" data-id="' + a.id + '" aria-checked="' + watched(a) + '"' +
+        (live ? '' : ' disabled title="the switches apply once you pick accounts"') + '><span class="trk"></span>Watched</button>' +
+        (live ? '' : '<span class="lbl">set by the scope above</span>') + '</div>' : '') +
+      '</article>';
+  }
+
+  function head() {
+    var none = !M.accts.length, waiting = M.login === 'wait';
+    var add = '<button type="button" class="btn btn-primary" id="addAcct" data-act="add"' + (waiting ? ' aria-busy="true"' : '') + '>' +
+        ic(waiting ? 'spinner' : 'plus', 'ic-16') + (waiting ? 'Waiting for the login…' : 'Add a Codex account') + '</button>' +
+      (M.login === 'failed'
+        ? '<span class="fail" role="alert">' + ic('error', 'ic-16') + 'the login timed out; start again</span>'
+        : '<span class="help">Opens the provider’s login page in a browser</span>');
+    return '<div class="phead"><h1>Accounts</h1>' +
+      (none ? '' : '<span class="fresh"><span class="lbl" id="fresh">' + M.fresh + '</span>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="readNow" data-act="read">' + ic('refresh', 'ic-16') + '<span>Read now</span></button></span>') +
+      (none && !M.login ? '' : '<div class="addbox">' + add + '</div>') + '</div>';
+  }
+
+  function strip() {
+    if (!auto()) return '<div class="card autonly">' + ic('info', 'ic-16') + 'Auto watches accounts; choose Auto to pick them</div>';
+    var every = M.scope === 'every';
+    return '<div class="card strip">' +
+      '<div class="cell"><div class="t" id="scopeLbl">Auto watches these accounts</div>' +
+        '<div class="seg" role="radiogroup" aria-labelledby="scopeLbl">' +
+          '<button type="button" role="radio" data-act="scope" data-v="every" aria-checked="' + every + '">Every enabled account</button>' +
+          '<button type="button" role="radio" data-act="scope" data-v="pick" aria-checked="' + !every + '">Only the ones I pick</button></div>' +
+        (every ? '<p class="seg-note">the switches apply once you pick accounts</p>' : '') + '</div>' +
+      (M.stale ? '<div class="stale">' + ic('warning', 'ic-16') + '<span>Watched but not found: <span class="mono">acct-7</span></span>' +
+        '<button type="button" class="btn btn-secondary btn-sm" data-act="stale-remove">Remove</button></div>' : '') +
+      '</div>';
+  }
+
+  function pasteRow() {
+    var sent = M.paste === 'sent';
+    return '<div class="lg-paste"><label class="lbl" for="pasteBox">When the login ends, that browser shows a page that does not load, at an address that starts <span class="mono">http://localhost:1455/auth/callback</span>. Paste that address here:</label>' +
+      '<div class="row"><input id="pasteBox" class="pastebox" type="text" autocomplete="off" spellcheck="false" inputmode="url"' +
+        ' placeholder="http://localhost:1455/auth/callback?code=…&amp;state=…"' + (M.paste === 'refused' ? ' aria-invalid="true" aria-describedby="pasteErr"' : '') + '>' +
+        '<button type="button" class="btn btn-primary btn-sm" id="pasteSend" data-act="send"' + (M.busy ? ' aria-busy="true"' : '') + '>' + (M.busy ? ic('spinner', 'ic-16') + 'Sending…' : 'Send') + '</button></div>' +
+      (M.paste === 'refused' ? '<p class="fail" role="alert" id="pasteErr">' + ic('error', 'ic-16') + REFUSED[M.why] + '</p>' : '') +
+      (M.paste === 'empty' ? '<p class="fail" role="alert">' + ic('error', 'ic-16') + 'paste the address first</p>' : '') +
+      (sent ? '<p class="sent" role="status">' + ic('spinner', 'ic-16') + 'Sent; finishing the login…</p>' : '') + '</div>';
+  }
+
+  function loginPanel() {
+    if (M.login === 'wait') return '<section class="card login" aria-live="polite">' +
+      '<div class="lg-top">' + ic('spinner') + '<div><h3>Finish the login in a browser</h3>' +
+        '<p class="lbl">lokki opened the login page in this computer’s browser, and waits up to 5 minutes.</p></div><span></span></div>' +
+      '<div class="lg-fb"><span class="lbl">Logging in from another device? Open this link there:</span>' +
+        '<div class="row"><code class="linkbox">https&#58;//auth.example.invalid/oauth/authorize?…</code>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="copyLink" data-act="copylink">' + ic('copy', 'ic-16') + '<span>Copy login link</span></button>' +
+        '<button type="button" class="btn btn-quiet btn-sm" data-act="cancel">Cancel</button></div></div>' +
+      pasteRow() + '</section>';
+    if (M.login === 'done') return '<section class="card login" role="status">' +
+      '<div class="lg-top"><span class="ok-ic">' + ic('check', 'ic-16') + '</span><div><h3>Account added</h3></div>' +
+        '<div class="acts"><button type="button" class="icon-btn" data-act="dismiss" aria-label="Dismiss">' + ic('close', 'ic-16') + '</button></div></div></section>';
+    return '';
+  }
+
+  function render() {
+    var d = decision(), keep = $('pasteBox') ? $('pasteBox').value : M.pasted;
+    document.querySelectorAll('#mode button').forEach(function (b) { b.setAttribute('aria-checked', b.dataset.m === M.mode); });
+    $('decDot').className = 'dot ' + (d[0] === 'cut' ? 'dot-cutting' : 'dot-passing');
+    $('decHead').textContent = d[0] === 'cut' ? 'Cutting every request' : 'Passing requests through';
+    $('decReason').textContent = d[1];
+
+    var h = head() + loginPanel();
+    if (!M.accts.length) {
+      if (!M.login) h += '<div class="card empty"><span class="em-ic">' + ic('accounts') + '</span>' +
+        '<div><h3>No Codex account yet</h3><p>Add the account your coding client uses; lokki reads its quota in every mode.</p></div>' +
+        '<button type="button" class="btn btn-primary" data-act="add">' + ic('plus', 'ic-16') + 'Add a Codex account</button></div>';
+    } else {
+      h += strip() + '<div class="acards">' + M.accts.map(card).join('') + '</div>';
+    }
+    var focused = document.activeElement && document.activeElement.id;
+    $('content').innerHTML = h;
+    if ($('pasteBox')) { $('pasteBox').value = M.paste === 'sent' ? '' : keep; }
+    if (focused && $(focused)) $(focused).focus();
+  }
+
+  /* interactions */
+  var copyT;
+  $('content').addEventListener('click', act);
+  function act(e) {
+    var b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+    var a = b.dataset.act;
+    if (a === 'add') { if (M.login === 'wait') return; M.login = 'wait'; M.paste = null; M.pasted = ''; render(); }
+    else if (a === 'cancel' || a === 'dismiss') { M.login = null; M.paste = null; M.pasted = ''; render(); }
+    else if (a === 'scope') { M.scope = b.dataset.v; render(); }
+    else if (a === 'stale-remove') { M.stale = false; render(); }
+    else if (a === 'watch') { var x = M.accts.filter(function (y) { return y.id === b.dataset.id; })[0]; x.w = !x.w; render(); }
+    else if (a === 'send') {
+      if (M.busy) return;                                     /* busy, not disabled: a press while it runs sends nothing */
+      var v = $('pasteBox').value.trim();
+      if (!v) { M.paste = 'empty'; render(); return; }
+      M.busy = true; M.paste = null; render();
+      setTimeout(function () {
+        M.busy = false;
+        /* the prototype accepts an address with a code and a state; anything else shows a refusal */
+        var ok = /^http:\/\/(localhost|127\.0\.0\.1):1455\/auth\/callback\?.*code=.*state=/.test(v);
+        M.paste = ok ? 'sent' : 'refused'; M.why = ok ? null : 'addr';
+        render();
+        if (M.paste === 'sent') setTimeout(function () { if (M.paste === 'sent') { M.login = 'done'; M.paste = null; render(); } }, 1800);
+      }, 700);
+    }
+    else if (a === 'read') {
+      if (b.getAttribute('aria-busy') === 'true') return;
+      b.setAttribute('aria-busy', 'true'); b.querySelector('span').textContent = 'Reading…';
+      b.querySelector('use').setAttribute('href', '#i-spinner');
+      setTimeout(function () { M.fresh = 'last read just now'; render(); }, 1500);
+    } else if (a === 'copylink') {
+      b.setAttribute('data-done', ''); b.querySelector('span').textContent = 'Copied'; b.querySelector('use').setAttribute('href', '#i-check');
+      clearTimeout(copyT);
+      copyT = setTimeout(function () { var c = $('copyLink'); if (!c) return; c.removeAttribute('data-done'); c.querySelector('span').textContent = 'Copy login link'; c.querySelector('use').setAttribute('href', '#i-copy'); }, 3000);
+    }
+  }
+
+  var mode = $('mode');
+  mode.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b || mode.getAttribute('aria-busy') === 'true' || b.getAttribute('aria-checked') === 'true') return;
+    /* busy, not changed: the old mode stays checked until the read back */
+    mode.setAttribute('aria-busy', 'true');
+    b.insertAdjacentHTML('afterbegin', '<svg class="ic ic-16" data-sp><use href="#i-spinner"/></svg>');
+    setTimeout(function () { mode.removeAttribute('aria-busy'); var sp = b.querySelector('[data-sp]'); if (sp) sp.remove(); M.mode = b.dataset.m; render(); }, 600);
+  });
+
+  document.querySelectorAll('a[href="#"]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    document.querySelectorAll('#themeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === t); });
+    try { localStorage.setItem('lokki.proto.theme', t); } catch (e) {}
+  }
+  $('themeSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTheme(b.dataset.t); });
+  $('stateSel').addEventListener('change', function (e) { load(e.target.value); });
+
+  var t0 = 'light', s0 = 'every';
+  try { t0 = localStorage.getItem('lokki.proto.theme') || t0; s0 = localStorage.getItem('lokki.accounts.state') || s0; } catch (e) {}
+  setTheme(t0); load(PRESET[s0] ? s0 : 'every');
+})();
+</script>
+</body>
+</html>

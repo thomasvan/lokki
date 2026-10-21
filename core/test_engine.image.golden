@@ -1,0 +1,4 @@
+response.output_item.added {"item": {"id": "ig1", "revised_prompt": "a pelican", "status": "in_progress", "type": "image_generation_call"}, "output_index": 0, "sequence_number": 0, "type": "response.output_item.added"}
+response.output_item.done {"item": {"id": "ig1", "revised_prompt": "a pelican", "status": "incomplete", "type": "image_generation_call"}, "output_index": 0, "sequence_number": 1, "type": "response.output_item.done"}
+response.completed {"response": {"id": "resp_synthetic", "model": "test-model", "object": "response", "output": [{"id": "ig1", "revised_prompt": "a pelican", "status": "incomplete", "type": "image_generation_call"}], "status": "completed", "synthetic": true, "usage": "<estimate>"}, "sequence_number": 2, "type": "response.completed"}
+relay.summary "<record>"

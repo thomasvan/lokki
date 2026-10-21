@@ -1,0 +1,107 @@
+# lokki core settings. Generated from lokki_core/schema.py: edit that, then
+# `python3 -m lokki_core schema --example > core/config.example.yaml`.
+# Environment variables named here win over the file, except for capture_dir,
+# where the file wins. A SIGHUP or POST /api/reload re-reads every key but
+# the startup-only ones.
+
+# addresses the core listens on; every one is required (a bind failure refuses start); a wildcard needs allow_public_bind; the app writes one loopback address; env RELAY_LISTEN; applied at start, not on reload
+listen: ["127.0.0.1:8371"]
+
+auth:
+  # client and operator tokens: [{name, token, operator}]; env RELAY_TOKENS; not settable through the API
+  tokens: []
+  # the legacy single operator token; env RELAY_TOKEN; not settable through the API
+  token: ""
+
+# the key CLIProxyAPI accepts from the core; env CLI_PROXY_API_KEY; not settable through the API
+cli_proxy_api_key: ""
+
+# a server deployment's upstream URL, any path or credentials; the app writes cliproxy.url instead; env CLIPROXY_URL; not settable through the API
+upstream: ""
+
+cliproxy:
+  # the local CLIProxyAPI the app runs; the upstream is http://127.0.0.1:<port> unless cliproxy.url is set; range 1..65535; applied at start, not on reload
+  port: 8317
+  # a remote CLIProxyAPI instead of the local one; empty = derived from cliproxy.port
+  url: ""
+  # serve CLIProxyAPI's management panel at /management.html on its port (it downloads the page from GitHub); a CLIProxyAPI restart applies it; applied at start, not on reload
+  panel: false
+  # the CLIProxyAPI version init pinned; empty on a server deployment (the management-route check is then skipped); not settable through the API
+  version: ""
+  # path of the file holding CLIProxyAPI's management secret; never the secret; not settable through the API
+  management_secret_file: ""
+
+# relay: cut every request; auto: cut when the watched accounts are low; direct: pass every request through; one of relay, auto, direct
+routing: "relay"
+
+low_quota:
+  # Auto cuts when an account has less than this share of its 5-hour window left; range 1..99
+  threshold_percent: 30
+  # with several watched accounts: all = cut when every one is low; any = when one is; one of all, any
+  rule: "all"
+  # the accounts Auto watches, as CLIProxyAPI numbers them; empty = every enabled Codex account
+  accounts: []
+  # the models Auto cuts when the quota is low; empty = every model; any other model always passes through
+  models: []
+  # how often the accounts' quota is read, in every mode; range 30..600
+  poll_seconds: 60
+
+# characters of answer text one upstream request may produce; at least 1; env RELAY_SEG_BUDGET
+seg_budget: 1500
+
+# characters after which an answer is cut for good; at least 1; env RELAY_TOTAL_CAP
+total_cap: 8000
+
+# upstream requests one answer may take; at least 1; env RELAY_MAX_SEGMENTS
+max_segments: 6
+
+# characters of the answer so far a continuation is given; at least 1; env RELAY_TAIL_CHARS
+tail_chars: 1500
+
+# a continued text answer is one message; env RELAY_MERGE_TEXT
+merge_text: true
+
+# send a session id of lokki's own, one per client; env RELAY_SESSION_PIN
+session_pin: false
+
+# the model writes its exec call as text, and lokki makes the call and cuts there; env RELAY_TEXT_CALLS
+text_calls: true
+
+# with text_calls: still carry the padding tool; env RELAY_TEXT_CALLS_PAD
+text_calls_pad: true
+
+# end the run when the provider names an image item; env RELAY_IMAGEGEN_CUT
+imagegen_cut: true
+
+# characters of a provider payload field delivered; 0 = no cap; at least 0; env RELAY_PAYLOAD_CAP
+payload_cap: 65536
+
+# minimum seconds between upstream calls; 0 disables; at least 0; env RELAY_PACING
+pacing_seconds: 1.0
+
+# upstream streams open at once; at least 1; env RELAY_MAX_CONCURRENT
+max_concurrent_upstream: 2
+
+# attempts for a request that has produced no output; a value under 1 is read as 1; env RELAY_RETRIES
+retries: 6
+
+# seconds a stop waits for in-flight streams; at least 0; env RELAY_DRAIN_SECONDS
+drain_seconds: 15
+
+# refuse a request that chains onto a stored response; env RELAY_REJECT_PREVIOUS_RESPONSE_ID; not settable through the API
+reject_previous_response_id: true
+
+# where a deliberate capture of a client body goes; outside the repository; the file wins over the environment here; env RELAY_CAPTURE_DIR; not settable through the API
+capture_dir: ""
+
+# the diagnostic trace file; outside the repository; env RELAY_DEBUG_LOG; applied at start, not on reload; not settable through the API
+debug_log: ""
+
+# the evidence file; outside the repository; empty = <state dir>/cliproxy/runs.jsonl; env RELAY_RUNS_LOG; applied at start, not on reload; not settable through the API
+runs_log: ""
+
+# allow a wildcard listen address (the owner's decision); env RELAY_ALLOW_PUBLIC_BIND; applied at start, not on reload; not settable through the API
+allow_public_bind: false
+
+# let a client set the relay's own knobs; env RELAY_ALLOW_CLIENT_TUNING; not settable through the API
+allow_client_tuning: false

@@ -1,0 +1,18 @@
+# An allowlist for a DIRECTORY build context. deploy/relay/build.sh builds from `git archive` (tracked files only) on
+# stdin, where Docker did not apply this file (the test stage's /src held docs/ too), and none of the untracked files
+# named here can reach an image that way anyway. These lines are for the next person who runs `docker build .` by
+# hand, from a checkout that holds the cliproxy's OAuth tokens (auths/), its config.yaml and the relay's own (client
+# token and upstream key). The runtime stage copies only server.py, lokki_core/ and healthcheck.py.
+*
+!core
+!deploy/relay
+core/config.yaml
+core/config.yaml.*
+core/runs.jsonl*
+core/e2e_evidence.jsonl
+core/billing_*.json*
+**/__pycache__
+**/*.pyc
+**/*.log
+**/.relay_token.local
+**/.relay-e2e-config*.yaml

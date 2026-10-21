@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · Tray menu</title>
+<style>
+/* ═══ tokens.css (inlined verbatim) ═══ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg:             oklch(0.985 0.004 220);
+  --surface:        oklch(1 0 0);
+  --surface-2:      oklch(0.962 0.007 225);
+  --border:         oklch(0.885 0.012 225);
+  --border-strong:  oklch(0.64 0.016 230);
+  --text:           oklch(0.27 0.030 238);
+  --text-muted:     oklch(0.49 0.022 238);
+  --accent:         oklch(0.40 0.060 228);
+  --accent-hover:   oklch(0.33 0.055 228);
+  --accent-contrast:oklch(1 0 0);
+  --accent-soft:    oklch(0.950 0.020 228);
+  --cutting:        oklch(0.55 0.085 195);
+  --cutting-ink:    oklch(0.44 0.075 198);
+  --cutting-soft:   oklch(0.955 0.025 195);
+  --passing:        oklch(0.64 0.150 65);
+  --passing-ink:    oklch(0.48 0.110 55);
+  --passing-soft:   oklch(0.965 0.040 80);
+  --unknown:        oklch(0.60 0.012 238);
+  --unknown-ink:    oklch(0.47 0.015 238);
+  --unknown-soft:   oklch(0.955 0.005 238);
+  --error:          oklch(0.55 0.190 27);
+  --error-ink:      oklch(0.49 0.180 27);
+  --error-soft:     oklch(0.955 0.025 25);
+  --images:         oklch(0.62 0.070 265);
+  --focus:          oklch(0.55 0.140 245);
+  --shadow-1: 0 1px 2px oklch(0.27 0.03 238 / 0.08), 0 1px 1px oklch(0.27 0.03 238 / 0.04);
+  --shadow-2: 0 8px 24px oklch(0.27 0.03 238 / 0.12), 0 2px 6px oklch(0.27 0.03 238 / 0.06);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:             oklch(0.185 0.025 238);
+  --surface:        oklch(0.225 0.027 238);
+  --surface-2:      oklch(0.265 0.028 238);
+  --border:         oklch(0.340 0.028 238);
+  --border-strong:  oklch(0.540 0.025 236);
+  --text:           oklch(0.940 0.008 230);
+  --text-muted:     oklch(0.750 0.020 232);
+  --accent:         oklch(0.800 0.070 215);
+  --accent-hover:   oklch(0.870 0.060 215);
+  --accent-contrast:oklch(0.185 0.025 238);
+  --accent-soft:    oklch(0.300 0.040 228);
+  --cutting:        oklch(0.760 0.090 190);
+  --cutting-ink:    oklch(0.840 0.080 190);
+  --cutting-soft:   oklch(0.290 0.045 200);
+  --passing:        oklch(0.800 0.140 72);
+  --passing-ink:    oklch(0.870 0.120 80);
+  --passing-soft:   oklch(0.300 0.045 65);
+  --unknown:        oklch(0.660 0.012 235);
+  --unknown-ink:    oklch(0.820 0.010 235);
+  --unknown-soft:   oklch(0.290 0.012 238);
+  --error:          oklch(0.700 0.170 25);
+  --error-ink:      oklch(0.820 0.100 25);
+  --error-soft:     oklch(0.300 0.060 25);
+  --images:         oklch(0.700 0.070 265);
+  --focus:          oklch(0.760 0.110 232);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+}
+:root,
+[data-theme] {
+  --font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --numeric:   tabular-nums;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-xl: 24px; --fs-2xl: 32px;
+  --lh-tight: 1.2; --lh-snug: 1.35; --lh-body: 1.5;
+  --fw-regular: 400; --fw-medium: 500; --fw-semi: 600;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-pill: 999px;
+  --control-h: 32px;
+  --sidebar-w: 208px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+/* ═══ end tokens ═══ */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--surface-2); color: var(--text); min-height: 100vh;
+  font: var(--fs-base)/var(--lh-body) var(--font-ui);
+  font-variant-numeric: var(--numeric); -webkit-font-smoothing: antialiased;
+}
+button, select { font: inherit; color: inherit; }
+p { margin: 0; }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); font-family: var(--font-mono); }
+[hidden] { display: none !important; }
+
+/* prototype toolbar (as on Home) */
+.toolbar { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.tb-title { font-weight: var(--fw-semi); display: flex; align-items: center; gap: var(--sp-2); margin-right: auto; }
+.tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.tb-title a { color: var(--text-muted); font-weight: var(--fw-regular); text-decoration: none; padding: 2px 6px; border-radius: var(--r-sm); }
+.tb-title a:hover { background: var(--surface-2); color: var(--text); }
+.tb-title a[aria-current="page"] { color: var(--text); font-weight: var(--fw-semi); }
+.tb-title a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.tb-seg button:disabled { cursor: not-allowed; color: var(--text-muted); }
+.toolbar select { height: 28px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); padding: 0 6px; color: var(--text); }
+.toolbar :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.stage { padding: var(--sp-6); overflow-x: auto; }
+.board { width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6) var(--sp-5); }
+.fig { margin: 0; display: grid; gap: var(--sp-2); }
+.fig figcaption { display: flex; justify-content: space-between; gap: var(--sp-3); }
+.fig figcaption b { font-size: var(--fs-sm); font-weight: var(--fw-semi); color: var(--text); }
+body > .stage .fig figcaption .cap { color: var(--text-muted); }
+
+/* desktop backdrop: sky over sea, flat, mixed from the tokens */
+.desk { position: relative; height: 360px; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-1); color: var(--text); font: var(--fs-base)/1.3 var(--font-ui);
+  background: color-mix(in oklch, var(--accent) 30%, var(--bg)); }
+.board.all .desk { height: 300px; }
+.desk .sea { position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: color-mix(in oklch, var(--cutting) 42%, var(--bg)); }
+.desk .sea::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: color-mix(in oklch, var(--bg) 55%, transparent); }
+.desk .far { position: absolute; left: 0; right: 0; bottom: 38%; height: 10%; background: color-mix(in oklch, var(--accent) 22%, var(--bg)); }
+.desk svg.tmpl { width: 16px; height: 16px; display: block; }
+.ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ── macOS menu bar ── */
+.mbar { position: absolute; left: 0; right: 0; top: 0; height: 26px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 8px;
+  background: color-mix(in oklch, var(--surface) 78%, transparent); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-bottom: 1px solid color-mix(in oklch, var(--text) 8%, transparent); font-weight: var(--fw-medium); }
+.mbar .it { height: 22px; min-width: 28px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; }
+.mbar .it.open { background: color-mix(in oklch, var(--text) 16%, transparent); }
+.mbar .clock { padding: 0 6px 0 8px; white-space: nowrap; }
+.mmenu { position: absolute; top: 30px; min-width: 232px; padding: 5px; border-radius: 8px;
+  background: color-mix(in oklch, var(--surface) 92%, transparent); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in oklch, var(--text) 14%, transparent); box-shadow: var(--shadow-2); }
+.mmenu .mi { display: grid; grid-template-columns: 18px 1fr; align-items: center; width: 100%; height: 22px; padding: 0 10px 0 4px; border: 0; border-radius: 4px; background: none; text-align: left; color: var(--text); font: inherit; cursor: default; }
+.mmenu .mi.flush { grid-template-columns: 0 1fr; padding-left: 10px; }
+.mmenu .mi.head { color: var(--text-muted); font-weight: var(--fw-medium); }
+.mmenu .mi.reason { color: var(--text-muted); font-size: var(--fs-sm); height: 18px; margin-top: -2px; }
+.mmenu button.mi:hover, .mmenu button.mi:focus-visible { background: var(--accent); color: var(--accent-contrast); outline: none; }
+.mmenu .sep { height: 1px; margin: 5px 10px; background: color-mix(in oklch, var(--text) 14%, transparent); }
+.mmenu .chk { width: 12px; height: 12px; stroke-width: 2; margin-left: 2px; }
+
+/* ── Windows 11 taskbar + tray context menu ── */
+.tbar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px;
+  background: color-mix(in oklch, var(--surface-2) 86%, transparent); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid color-mix(in oklch, var(--text) 10%, transparent); }
+.tbar .it { height: 34px; min-width: 30px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 5px; }
+.tbar .it.open { background: color-mix(in oklch, var(--text) 10%, transparent); }
+.tbar .clock { flex-direction: column; gap: 0; align-items: flex-end; font-size: var(--fs-sm); line-height: 1.3; padding: 0 8px; }
+.wmenu { position: absolute; bottom: 52px; min-width: 236px; padding: 4px; border-radius: 8px;
+  background: color-mix(in oklch, var(--surface) 96%, transparent); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  border: 1px solid color-mix(in oklch, var(--text) 12%, transparent); box-shadow: var(--shadow-2); }
+.wmenu .mi { display: grid; grid-template-columns: 22px 1fr; align-items: center; column-gap: 6px; width: 100%; height: 32px; padding: 0 12px 0 8px; border: 0; border-radius: 4px; background: none; text-align: left; color: var(--text); font: inherit; cursor: default; }
+.wmenu .mi.flush { grid-template-columns: 0 1fr; column-gap: 0; padding-left: 12px; }
+.wmenu .mi.head { color: var(--text-muted); font-weight: var(--fw-medium); height: 30px; }
+.wmenu .mi.reason { color: var(--text-muted); font-size: var(--fs-sm); height: 22px; margin-top: -6px; }
+.wmenu button.mi:hover { background: color-mix(in oklch, var(--text) 7%, var(--surface)); }
+.wmenu button.mi:active { background: color-mix(in oklch, var(--text) 4%, var(--surface)); }
+.wmenu button.mi:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus); }
+.wmenu .sep { height: 1px; margin: 4px 0; background: color-mix(in oklch, var(--text) 12%, transparent); }
+.wmenu .chk { width: 14px; height: 14px; stroke-width: 1.75; margin-left: 4px; }
+
+.legend-row { width: 1100px; margin: var(--sp-5) auto 0; display: flex; gap: var(--sp-6); font-size: var(--fs-sm); color: var(--text-muted); }
+.legend-row span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.legend-row svg { width: 16px; height: 16px; color: var(--text); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64"><path fill="currentColor" stroke="none" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <!-- logo-template-solid.svg · cutting -->
+    <symbol id="tm-solid" viewBox="0 0 16 16"><path fill="currentColor" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/></symbol>
+    <!-- logo-template-line.svg · passing through -->
+    <symbol id="tm-line" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M1.5 10C3.5 5 6 4.5 8 9C10 4.5 12.5 5 14.5 10"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m4.5 10.5 3.75 3.75L15.5 6"/></symbol>
+    <symbol id="g-wifi" viewBox="0 0 16 16"><path d="M2 6.25a8.5 8.5 0 0 1 12 0"/><path d="M4.25 8.75a5.25 5.25 0 0 1 7.5 0"/><path d="M6.5 11.25a2 2 0 0 1 3 0"/><circle cx="8" cy="13.25" r=".6" fill="currentColor"/></symbol>
+    <symbol id="g-batt" viewBox="0 0 24 16"><rect x="1.5" y="4" width="18" height="8.5" rx="2.25"/><rect x="3.25" y="5.75" width="11" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M21.5 7v2.5"/></symbol>
+    <symbol id="g-speaker" viewBox="0 0 16 16"><path d="M2.5 6h2.25L8 3.25v9.5L4.75 10H2.5Z"/><path d="M10.5 5.75a3.25 3.25 0 0 1 0 4.5"/><path d="M12.25 4a5.75 5.75 0 0 1 0 8"/></symbol>
+    <symbol id="g-up" viewBox="0 0 16 16"><path d="m4 10 4-4 4 4"/></symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki prototype
+    <a href="home.html">Home</a><a href="accounts.html">Accounts</a><a href="activity.html">Activity</a><a href="settings.html">Settings</a><a href="tray.html" aria-current="page">Tray</a></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="themeSeg">
+      <button type="button" data-t="light" aria-pressed="true">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+  <label class="tbl">State
+    <select id="stateSel">
+      <option value="auto">Auto, cutting</option>
+      <option value="direct">Direct, passing through</option>
+      <option value="relay">Relay, cutting</option>
+      <option value="all">Overview: every state, both schemes</option>
+    </select>
+  </label>
+</div>
+
+<div class="stage">
+  <div class="board" id="board"></div>
+  <div class="legend-row">
+    <span><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#tm-solid"/></svg>solid mark: lokki is cutting</span>
+    <span><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#tm-line"/></svg>line mark: lokki is passing requests through</span>
+    <span>Menus are drawn the way each OS draws them; the items are lokki's.</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var ST = {
+    auto:   { mode: 'auto',   cut: true,  head: 'Cutting every request',    reason: 'every account in scope is low' },
+    direct: { mode: 'direct', cut: false, head: 'Passing requests through', reason: 'routing: direct' },
+    relay:  { mode: 'relay',  cut: true,  head: 'Cutting every request',    reason: 'routing: relay' }
+  };
+  var NAMES = { auto: 'Auto, cutting', direct: 'Direct, passing through', relay: 'Relay, cutting' };
+
+  function items(s, os, live) {
+    var chk = '<svg class="ic chk" viewBox="0 0 20 20"><use href="#i-check"/></svg>';
+    function radio(m, label) {
+      var on = s.mode === m;
+      return '<button type="button" class="mi" role="menuitemradio" aria-checked="' + on + '" data-m="' + m + '"' + (live ? '' : ' tabindex="-1"') + '><span>' + (on ? chk : '') + '</span><span>' + label + '</span></button>';
+    }
+    return '<div class="mi flush head" role="menuitem" aria-disabled="true"><span></span><span>' + s.head + '</span></div>' +
+      '<div class="mi reason" role="menuitem" aria-disabled="true"><span></span><span>' + s.reason + '</span></div>' +
+      '<div class="sep" role="separator"></div>' +
+      /* the slider's order; Auto says the threshold it returns to, from /api/status.low_quota.threshold_percent */
+      radio('direct', 'Direct') + radio('auto', 'Auto (below 30 %)') + radio('relay', 'Relay') +
+      '<div class="sep" role="separator"></div>' +
+      '<button type="button" class="mi flush" role="menuitem"' + (live ? '' : ' tabindex="-1"') + '><span></span><span>Open lokki</span></button>' +
+      '<button type="button" class="mi flush" role="menuitem"' + (live ? '' : ' tabindex="-1"') + '><span></span><span>Quit lokki</span></button>';
+  }
+  function icon(s) {
+    return '<svg class="tmpl" viewBox="0 0 16 16" role="img" aria-label="lokki, ' + (s.cut ? 'cutting' : 'passing through') + '"><use href="#' + (s.cut ? 'tm-solid' : 'tm-line') + '"/></svg>';
+  }
+
+  function mac(key, theme, live) {
+    var s = ST[key];
+    return '<figure class="fig"><figcaption><b>macOS · menu bar · ' + theme + '</b><span class="cap">' + NAMES[key] + '</span></figcaption>' +
+      '<div class="desk mac" data-theme="' + theme + '"><div class="far"></div><div class="sea"></div>' +
+      '<div class="mbar"><span class="it open" data-anchor>' + icon(s) + '</span>' +
+      '<span class="it"><svg class="ic" viewBox="0 0 16 16"><use href="#g-wifi"/></svg></span>' +
+      '<span class="it"><svg class="ic" viewBox="0 0 24 16" style="width:24px"><use href="#g-batt"/></svg></span>' +
+      '<span class="clock">Wed 14 Oct  16:30</span></div>' +
+      '<div class="mmenu" role="menu" aria-label="lokki">' + items(s, 'mac', live) + '</div></div></figure>';
+  }
+  function win(key, theme, live) {
+    var s = ST[key];
+    return '<figure class="fig"><figcaption><b>Windows 11 · system tray · ' + theme + '</b><span class="cap">' + NAMES[key] + '</span></figcaption>' +
+      '<div class="desk win" data-theme="' + theme + '"><div class="far"></div><div class="sea"></div>' +
+      '<div class="wmenu" role="menu" aria-label="lokki">' + items(s, 'win', live) + '</div>' +
+      '<div class="tbar"><span class="it"><svg class="ic" viewBox="0 0 16 16"><use href="#g-up"/></svg></span>' +
+      '<span class="it open" data-anchor>' + icon(s) + '</span>' +
+      '<span class="it"><svg class="ic" viewBox="0 0 16 16"><use href="#g-wifi"/></svg><svg class="ic" viewBox="0 0 16 16"><use href="#g-speaker"/></svg><svg class="ic" viewBox="0 0 24 16" style="width:24px"><use href="#g-batt"/></svg></span>' +
+      '<span class="it clock"><span>16:30</span><span>14/10/2026</span></span></div></div></figure>';
+  }
+
+  /* anchor each menu to its tray icon, kept inside the desktop as the OS would */
+  function place() {
+    document.querySelectorAll('.desk').forEach(function (d) {
+      var a = d.querySelector('[data-anchor]'), m = d.querySelector('.mmenu, .wmenu');
+      var dr = d.getBoundingClientRect(), ar = a.getBoundingClientRect();
+      var left = ar.left - dr.left - (m.classList.contains('wmenu') ? 24 : 0);
+      left = Math.min(left, dr.width - m.offsetWidth - 8);
+      m.style.left = Math.max(8, left) + 'px';
+    });
+  }
+
+  var state = 'auto', theme = 'light';
+  function render() {
+    var b = $('board');
+    $('stateSel').value = state;
+    document.querySelectorAll('#themeSeg button').forEach(function (x) { x.disabled = state === 'all'; });
+    if (state === 'all') {
+      b.className = 'board all';
+      b.innerHTML = ['auto', 'direct'].map(function (k) {
+        return ['light', 'dark'].map(function (t) { return mac(k, t, false) + win(k, t, false); }).join('');
+      }).join('');
+    } else {
+      b.className = 'board';
+      b.innerHTML = mac(state, theme, true) + win(state, theme, true);
+    }
+    place();
+    try { localStorage.setItem('lokki.tray.state', state); } catch (e) {}
+  }
+
+  /* picking a mode in the menu changes the mode at once, as in the app */
+  $('board').addEventListener('click', function (e) {
+    var it = e.target.closest('[data-m]');
+    if (!it || state === 'all') return;
+    state = it.dataset.m; render();
+  });
+
+  function setTheme(t) {
+    theme = t; root.setAttribute('data-theme', t);
+    document.querySelectorAll('#themeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === t); });
+    try { localStorage.setItem('lokki.proto.theme', t); } catch (e) {}
+    render();
+  }
+  $('themeSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTheme(b.dataset.t); });
+  $('stateSel').addEventListener('change', function (e) { state = e.target.value; render(); });
+  window.addEventListener('resize', place);
+
+  try { theme = localStorage.getItem('lokki.proto.theme') || theme; var s0 = localStorage.getItem('lokki.tray.state'); if (s0 && (ST[s0] || s0 === 'all')) state = s0; } catch (e) {}
+  /* a state and a scheme can be named in the address: tray.html#auto/dark */
+  var h = location.hash.slice(1).split('/');
+  if (ST[h[0]] || h[0] === 'all') state = h[0];
+  if (h[1] === 'light' || h[1] === 'dark') theme = h[1];
+  setTheme(theme);
+})();
+</script>
+</body>
+</html>

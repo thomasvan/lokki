@@ -1,0 +1,4 @@
+response.created {"response": {"id": "resp_1"}, "sequence_number": 0, "type": "response.created"}
+response.failed {"response": {"error": {"code": "server_error", "message": "x"}, "id": "resp_1", "output": [], "status": "failed"}, "sequence_number": 1, "type": "response.failed"}
+relay.error {"error": "upstream response.failed: server_error"}
+relay.summary "<record>"

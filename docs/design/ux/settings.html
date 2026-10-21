@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · Settings</title>
+<style>
+/* ═══ tokens.css (inlined verbatim) ═══ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg:             oklch(0.985 0.004 220);
+  --surface:        oklch(1 0 0);
+  --surface-2:      oklch(0.962 0.007 225);
+  --border:         oklch(0.885 0.012 225);
+  --border-strong:  oklch(0.64 0.016 230);
+  --text:           oklch(0.27 0.030 238);
+  --text-muted:     oklch(0.49 0.022 238);
+  --accent:         oklch(0.40 0.060 228);
+  --accent-hover:   oklch(0.33 0.055 228);
+  --accent-contrast:oklch(1 0 0);
+  --accent-soft:    oklch(0.950 0.020 228);
+  --cutting:        oklch(0.55 0.085 195);
+  --cutting-ink:    oklch(0.44 0.075 198);
+  --cutting-soft:   oklch(0.955 0.025 195);
+  --passing:        oklch(0.64 0.150 65);
+  --passing-ink:    oklch(0.48 0.110 55);
+  --passing-soft:   oklch(0.965 0.040 80);
+  --unknown:        oklch(0.60 0.012 238);
+  --unknown-ink:    oklch(0.47 0.015 238);
+  --unknown-soft:   oklch(0.955 0.005 238);
+  --error:          oklch(0.55 0.190 27);
+  --error-ink:      oklch(0.49 0.180 27);
+  --error-soft:     oklch(0.955 0.025 25);
+  --images:         oklch(0.62 0.070 265);
+  --focus:          oklch(0.55 0.140 245);
+  --shadow-1: 0 1px 2px oklch(0.27 0.03 238 / 0.08), 0 1px 1px oklch(0.27 0.03 238 / 0.04);
+  --shadow-2: 0 8px 24px oklch(0.27 0.03 238 / 0.12), 0 2px 6px oklch(0.27 0.03 238 / 0.06);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:             oklch(0.185 0.025 238);
+  --surface:        oklch(0.225 0.027 238);
+  --surface-2:      oklch(0.265 0.028 238);
+  --border:         oklch(0.340 0.028 238);
+  --border-strong:  oklch(0.540 0.025 236);
+  --text:           oklch(0.940 0.008 230);
+  --text-muted:     oklch(0.750 0.020 232);
+  --accent:         oklch(0.800 0.070 215);
+  --accent-hover:   oklch(0.870 0.060 215);
+  --accent-contrast:oklch(0.185 0.025 238);
+  --accent-soft:    oklch(0.300 0.040 228);
+  --cutting:        oklch(0.760 0.090 190);
+  --cutting-ink:    oklch(0.840 0.080 190);
+  --cutting-soft:   oklch(0.290 0.045 200);
+  --passing:        oklch(0.800 0.140 72);
+  --passing-ink:    oklch(0.870 0.120 80);
+  --passing-soft:   oklch(0.300 0.045 65);
+  --unknown:        oklch(0.660 0.012 235);
+  --unknown-ink:    oklch(0.820 0.010 235);
+  --unknown-soft:   oklch(0.290 0.012 238);
+  --error:          oklch(0.700 0.170 25);
+  --error-ink:      oklch(0.820 0.100 25);
+  --error-soft:     oklch(0.300 0.060 25);
+  --images:         oklch(0.700 0.070 265);
+  --focus:          oklch(0.760 0.110 232);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-2: 0 10px 28px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.30);
+}
+:root,
+[data-theme] {
+  --font-ui:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --numeric:   tabular-nums;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-xl: 24px; --fs-2xl: 32px;
+  --lh-tight: 1.2; --lh-snug: 1.35; --lh-body: 1.5;
+  --fw-regular: 400; --fw-medium: 500; --fw-semi: 600;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-pill: 999px;
+  --control-h: 32px;
+  --sidebar-w: 208px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+/* ═══ end tokens ═══ */
+
+/* ═══ shared: page, toolbar, frame, shell, components (as on Home) ═══ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--surface-2); color: var(--text); min-height: 100vh;
+  font: var(--fs-base)/var(--lh-body) var(--font-ui);
+  font-variant-numeric: var(--numeric); -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+p { margin: 0; text-wrap: pretty; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.lbl { font-size: var(--fs-sm); color: var(--text-muted); }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); font-family: var(--font-mono); }
+[hidden] { display: none !important; }
+
+.toolbar { display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.tb-title { font-weight: var(--fw-semi); display: flex; align-items: center; gap: var(--sp-2); margin-right: auto; }
+.tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.tb-title a { color: var(--text-muted); font-weight: var(--fw-regular); text-decoration: none; padding: 2px 6px; border-radius: var(--r-sm); }
+.tb-title a:hover { background: var(--surface-2); color: var(--text); }
+.tb-title a[aria-current="page"] { color: var(--text); font-weight: var(--fw-semi); }
+.tb-title a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.toolbar select { height: 28px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); padding: 0 6px; color: var(--text); }
+.toolbar :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.stage { padding: var(--sp-6); overflow-x: auto; }
+.frame {
+  width: 1100px; height: 760px; margin: 0 auto;
+  display: flex; flex-direction: column;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2); overflow: hidden;
+}
+.frame-cap { width: 1100px; margin: 0 auto var(--sp-2); display: flex; justify-content: space-between; }
+
+.shell { flex: 1; display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 0; }
+.sidebar { background: var(--surface-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3); min-height: 0; }
+.brand { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) var(--sp-5); font-size: 17px; font-weight: var(--fw-semi); letter-spacing: -0.02em; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); }
+.nav { display: grid; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 var(--sp-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; font-weight: var(--fw-medium); }
+.nav a .ic { color: var(--text-muted); }
+.nav a:hover { background: color-mix(in oklch, var(--text) 7%, var(--surface-2)); }
+.nav a[aria-current="page"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.nav a[aria-current="page"] .ic { color: var(--accent); }
+.nav a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.side-foot { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border); display: grid; gap: 4px; font-size: var(--fs-sm); }
+.side-foot .st { display: flex; align-items: center; gap: var(--sp-2); }
+.side-foot .dot { width: 8px; height: 8px; box-shadow: none; }
+.dot-run { background: var(--accent); }
+
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic-16 { width: 16px; height: 16px; }
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+.mode { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--border); }
+.mode button { height: 28px; padding: 0 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text); font-weight: var(--fw-medium); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.mode button:hover { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.mode button[aria-checked="true"] { background: var(--accent); color: var(--accent-contrast); box-shadow: var(--shadow-1); }
+.mode button[aria-checked="true"]:hover { background: var(--accent-hover); }
+.mode button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.mode button:active { transform: translateY(1px); }
+.mode[aria-busy="true"] button { cursor: progress; }
+.mode[aria-busy="true"] button:not([aria-checked="true"]) { color: var(--text-muted); }
+.mode button[data-pending] { color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }   /* a choice waiting or being written */
+.mode[aria-disabled="true"] { background: var(--surface-2); }
+.mode[aria-disabled="true"] button { cursor: not-allowed; color: var(--text-muted); }
+.mode[aria-disabled="true"] button:hover { background: transparent; }
+.mode[aria-disabled="true"] button:active { transform: none; }
+.mode[aria-disabled="true"] button[aria-checked="true"],
+.mode[aria-disabled="true"] button[aria-checked="true"]:hover { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+.decision { display: grid; grid-template-columns: 10px auto; column-gap: var(--sp-2); align-items: baseline; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.decision .dot { align-self: center; }
+.dot-cutting { background: var(--cutting); box-shadow: 0 0 0 3px var(--cutting-soft); }
+.dot-passing { background: var(--passing); box-shadow: 0 0 0 3px var(--passing-soft); }
+.decision-head { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); }
+.decision-reason { grid-column: 2; font-size: var(--fs-sm); color: var(--text-muted); font-family: var(--font-mono); }
+
+.btn { height: var(--control-h); padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap; font-weight: var(--fw-medium); line-height: 1; text-decoration: none; transition: background-color .12s, border-color .12s; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: var(--fs-sm); }
+.btn-primary { background: var(--accent); color: var(--accent-contrast); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.btn-quiet { background: transparent; color: var(--text); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--text-muted); }
+.btn-quiet:hover { background: color-mix(in oklch, var(--text) 8%, transparent); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn[aria-busy="true"] { opacity: 1; cursor: progress; }
+.btn-primary:disabled:hover { background: var(--accent); }
+.btn-secondary:disabled:hover { background: var(--surface); border-color: var(--border-strong); }
+.linkbtn { border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: var(--r-sm); color: var(--accent); font-weight: var(--fw-medium); cursor: pointer; display: inline-flex; gap: 2px; align-items: center; text-decoration: none; font-size: var(--fs-sm); }
+.linkbtn:hover { background: var(--accent-soft); }
+.linkbtn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px 0 7px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }
+.chip .ic { width: 14px; height: 14px; stroke-width: 1.75; }
+.chip-error { background: var(--error-soft); color: var(--error-ink); }
+.chip-off   { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+.banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); border-radius: var(--r-lg); border: 1px solid; min-height: 44px; }
+.banner p { flex: 1 1 200px; min-width: 0; }
+.banner-warning { background: var(--passing-soft); border-color: color-mix(in oklch, var(--passing) 45%, transparent); color: var(--text); }
+.banner-warning > .ic { color: var(--passing-ink); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+
+.switch { display: inline-flex; align-items: center; gap: var(--sp-2); border: 0; background: none; padding: 2px; border-radius: var(--r-pill); cursor: pointer; font-size: var(--fs-sm); color: var(--text); }
+.switch .trk { width: 32px; height: 18px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-strong); position: relative; transition: background-color .12s; flex: none; }
+.switch .trk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .12s; }
+.switch[aria-checked="true"] .trk { background: var(--accent); box-shadow: none; }
+.switch[aria-checked="true"] .trk::after { transform: translateX(14px); background: var(--accent-contrast); }
+.switch:hover:not(:disabled) .trk { box-shadow: inset 0 0 0 1px var(--text-muted); }
+.switch[aria-checked="true"]:hover:not(:disabled) .trk { background: var(--accent-hover); box-shadow: none; }
+.switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.switch:disabled { cursor: not-allowed; color: var(--text-muted); }
+.switch:disabled .trk { opacity: .5; }
+.switch [data-word] { min-width: 22px; text-align: left; }
+/* ═══ end shared ═══ */
+
+/* ═══ shared on every screen but Home: compact top bar, mode tooltip ═══ */
+.main { display: grid; grid-template-rows: auto auto 1fr; min-width: 0; min-height: 0; }
+.topbar { position: relative; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5); min-height: 60px; padding: var(--sp-3) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); }
+.note { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3); min-height: 36px; border-radius: var(--r-md); background: var(--cutting-soft); color: var(--cutting-ink); font-size: var(--fs-sm); flex-basis: 100%; }
+.note .btn { margin-left: auto; }
+.mode-wrap { position: relative; }
+.tip { position: absolute; top: calc(100% + 8px); left: 0; z-index: 10; width: 264px; padding: var(--sp-2) var(--sp-3); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-2); font-size: var(--fs-sm); line-height: var(--lh-body); pointer-events: none; }
+.tip b { display: block; font-weight: var(--fw-semi); }
+.tip .lock { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+
+/* ─── Settings ─── */
+.restart { background: var(--accent-soft); border-bottom: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); }
+.rb-line { display: flex; align-items: center; gap: var(--sp-3); min-height: 44px; padding: var(--sp-2) var(--sp-6) var(--sp-2) var(--sp-6); }
+.rb-line + .rb-line { border-top: 1px solid color-mix(in oklch, var(--accent) 22%, transparent); }
+.rb-line > .ic { color: var(--accent); }
+.rb-line p { flex: 1; min-width: 0; }
+.rb-line .rb-err { display: flex; align-items: center; gap: 6px; color: var(--error-ink); font-weight: var(--fw-medium); font-size: var(--fs-sm); margin-top: 2px; }
+.rb-line .btn { min-width: 156px; }
+
+.sbody { grid-row: 3; overflow: auto; min-height: 0; position: relative; }
+.sgrid { display: grid; grid-template-columns: 156px minmax(0, 1fr); column-gap: var(--sp-6); row-gap: var(--sp-4); padding: var(--sp-4) var(--sp-6) var(--sp-8); align-items: start; }
+.sgrid > .page-head, .sgrid > .banner { grid-column: 1 / -1; }
+.page-head { display: flex; align-items: baseline; gap: var(--sp-3); min-height: 32px; }
+.page-head h1 { font-size: var(--fs-lg); font-weight: var(--fw-semi); line-height: var(--lh-tight); letter-spacing: -0.01em; }
+
+.snav { position: sticky; top: var(--sp-4); display: grid; gap: 2px; }
+.snav a { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--r-md); color: var(--text); text-decoration: none; font-weight: var(--fw-medium); }
+.snav a:hover { background: color-mix(in oklch, var(--text) 6%, var(--bg)); }
+.snav a[aria-current="true"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.snav a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.snav .flag { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-xs); font-weight: var(--fw-semi); }
+.snav .flag.err { color: var(--error-ink); }
+.snav .flag.chg { color: var(--text-muted); font-weight: var(--fw-medium); }
+
+.groups { display: grid; gap: var(--sp-5); min-width: 0; }
+.g-head { display: flex; align-items: baseline; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+.g-head h2 { font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: var(--lh-tight); }
+.g-head .end { margin-left: auto; align-self: center; }
+.g-err { display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); background: var(--error-soft); color: var(--error-ink); border-bottom: 1px solid color-mix(in oklch, var(--error) 30%, transparent); font-size: var(--fs-sm); }
+.g-err .mono { font-weight: var(--fw-medium); }
+.g-err .ic { margin-top: 1px; }
+
+.srow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-4); align-items: center; padding: var(--sp-3) var(--sp-4); min-height: 56px; }
+.srow + .srow, .sg-h + .srow { border-top: 1px solid var(--border); }
+.srow .t { font-weight: var(--fw-medium); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.srow .h { font-size: var(--fs-sm); color: var(--text-muted); }
+.srow .why { display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-muted); margin-top: 2px; }
+.srow.dirty .t::after { content: "edited"; font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--text-muted); padding: 0 6px; border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--border-strong); line-height: 18px; }
+.srow.sub { padding-top: 0; min-height: 0; border-top: 0; padding-left: var(--sp-7); }
+.srow.sub .acts { display: flex; gap: var(--sp-2); }
+.srow .ro { font-family: var(--font-mono); padding: 0 2px; }
+.ctl-right { display: flex; align-items: center; gap: var(--sp-2); justify-content: flex-end; }
+.sg-h { padding: var(--sp-2) var(--sp-4); background: var(--surface-2); border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: var(--fw-semi); color: var(--text); }
+summary + .sg-h { border-top: 0; }
+
+.card-foot { display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); background: var(--surface-2); border-radius: 0 0 var(--r-lg) var(--r-lg); min-height: 48px; }
+.card-foot .lbl { margin-right: auto; display: inline-flex; align-items: center; gap: 6px; }
+.card-foot [data-save] { min-width: 116px; }
+
+/* fields */
+.uf { display: inline-flex; align-items: center; height: var(--control-h); border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); }
+.uf:hover { border-color: var(--text-muted); }
+.uf:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in oklch, var(--focus) 25%, transparent); }
+.uf input { width: 76px; height: 30px; border: 0; background: transparent; padding: 0 6px 0 10px; font-family: var(--font-mono); text-align: right; color: var(--text); outline: none; }
+.uf .u { padding-right: 10px; font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap; }
+.uf.txt input { width: 200px; text-align: left; padding-right: 10px; }
+.uf.txt.short input { width: 150px; }
+.uf.bad { border-color: var(--error); box-shadow: 0 0 0 1px var(--error); }
+.uf:has(input:disabled) { background: var(--surface-2); border-color: var(--border); }
+.uf input:disabled { color: var(--text-muted); cursor: not-allowed; }
+.uf input::placeholder { color: var(--text-muted); }
+.sel { position: relative; display: inline-flex; }
+.sel select { appearance: none; -webkit-appearance: none; height: var(--control-h); min-width: 236px; padding: 0 32px 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface); color: var(--text); cursor: pointer; }
+.sel select:hover { border-color: var(--text-muted); }
+.sel select:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in oklch, var(--focus) 25%, transparent); }
+.sel select:disabled { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); cursor: not-allowed; }
+.sel .ic { position: absolute; right: 8px; top: 8px; transform: rotate(90deg); pointer-events: none; color: var(--text-muted); }
+
+/* folded groups */
+details.card > summary { list-style: none; cursor: pointer; border-radius: var(--r-lg); }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+details.card > summary:hover { background: color-mix(in oklch, var(--text) 3%, var(--surface)); }
+details.card:not([open]) > summary .g-head { border-bottom: 0; }
+details.card > summary .chev { align-self: center; color: var(--text-muted); transition: transform .12s; }
+details.card[open] > summary .chev { transform: rotate(90deg); }
+.kvlist { display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.kvlist > * { padding: 10px var(--sp-4); border-top: 1px solid var(--border); min-width: 0; }
+.kvlist > :nth-child(-n+2) { border-top: 0; }
+.kvlist dt { font-weight: var(--fw-medium); }
+.kvlist dd { margin: 0; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text); overflow-wrap: anywhere; display: flex; align-items: center; gap: 6px; }
+.kvlist dd.none { color: var(--text-muted); }
+.ro-note { display: flex; align-items: center; gap: 6px; padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-sm); background: var(--surface-2); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+/* Auto's rule rows, the models picker and the Advanced fold */
+.seg { display: grid; grid-template-columns: 1fr 1fr; padding: 2px; gap: 2px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); min-width: 280px; }
+.seg button { height: 28px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text); cursor: pointer; font-weight: var(--fw-medium); padding: 0 var(--sp-2); }
+.seg button:hover { background: color-mix(in oklch, var(--text) 8%, var(--surface-2)); }
+.seg button[aria-checked="true"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border-strong); font-weight: var(--fw-semi); }
+.seg button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.seg[aria-busy="true"] { cursor: progress; }
+.mlist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--sp-4); padding: 0 var(--sp-4) var(--sp-3) var(--sp-7); }
+.mlist[aria-busy="true"] { cursor: progress; }
+.mitem { display: flex; align-items: center; gap: var(--sp-2); min-height: 28px; cursor: pointer; }
+.mitem input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.mitem input:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 3px; }
+.mnote { margin: 0; padding: 0 var(--sp-4) var(--sp-3) var(--sp-7); color: var(--text-muted); font-size: var(--fs-sm); }
+.stale { display: flex; align-items: center; gap: var(--sp-2); padding: 6px var(--sp-4) 6px var(--sp-7); border-top: 1px solid color-mix(in oklch, var(--passing) 45%, transparent); background: var(--passing-soft); font-size: var(--fs-sm); }
+.stale > .ic { color: var(--passing-ink); }
+.stale .btn { margin-left: auto; }
+.g-err.in { margin: 0 var(--sp-4) var(--sp-3) var(--sp-7); border-radius: var(--r-md); border: 0; align-items: center; }
+.g-err.in .btn { margin-left: auto; }
+.mchosen { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-height: 32px; grid-column: 1 / -1; }
+h3.sg-h { margin: 0; }
+.adv + .adv { border-top: 1px solid var(--border); }
+.adv .card-foot { border-radius: 0; }
+
+/* mode slider (ModeSlider, as on Home): one range, 0 = Direct, 100 = Relay, between = Auto at that threshold */
+.slider-row { padding: var(--sp-3) var(--sp-4); }
+.slider { display: grid; gap: 4px; }
+.slider-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.slider-head .t { font-weight: var(--fw-medium); }
+.slider-read { display: inline-flex; align-items: center; gap: 6px; font: var(--fw-semi) var(--fs-md)/1.2 var(--font-mono); }
+.slider-read .ic { color: var(--text-muted); }
+.range { --p: 30; -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer; }
+.range::-webkit-slider-runnable-track { height: 8px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--border);
+  background: linear-gradient(to right, var(--cutting) 0 calc(10px + (100% - 20px) * var(--p) / 100), var(--surface-2) 0); }
+.range::-moz-range-track { height: 8px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--border);
+  background: linear-gradient(to right, var(--cutting) 0 calc(10px + (100% - 20px) * var(--p) / 100), var(--surface-2) 0); }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); box-shadow: var(--shadow-1); }
+.range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); box-shadow: var(--shadow-1); }
+.range:hover::-webkit-slider-thumb { border-color: var(--accent-hover); }
+.range:focus-visible { outline: none; }
+.range:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus-ring); }
+.range:focus-visible::-moz-range-thumb { box-shadow: var(--focus-ring); }
+.range[aria-busy="true"] { cursor: progress; }
+.range[aria-busy="true"]::-webkit-slider-thumb { border-color: var(--text-muted); }
+.range:disabled { cursor: not-allowed; }
+.range:disabled::-webkit-slider-runnable-track { opacity: .6; }
+.range:disabled::-webkit-slider-thumb { border-color: var(--border-strong); box-shadow: none; }
+.slider-scale { display: grid; grid-template-columns: 1fr auto 1fr; font: var(--fs-xs)/1.4 var(--font-mono); color: var(--text-muted); }
+.slider-scale :last-child { text-align: right; }
+.slider-words { min-height: 20px; }
+.slider-words[data-rule] { font-family: var(--font-mono); font-size: var(--fs-sm); line-height: 20px; }
+.slider-refused { display: flex; align-items: center; gap: 6px; color: var(--error-ink); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+.slider .why { display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-muted); }
+.nosecret { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-sm); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64"><path fill="currentColor" stroke="none" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 20 20"><path d="M3.25 9.25 10 3.5l6.75 5.75"/><path d="M5 8v8.25h3.5V12h3v4.25H15V8"/></symbol>
+    <symbol id="i-accounts" viewBox="0 0 20 20"><circle cx="8" cy="7" r="3"/><path d="M2.75 16.25c.55-2.85 2.65-4.5 5.25-4.5s4.7 1.65 5.25 4.5"/><path d="M12.75 4.15a3 3 0 0 1 0 5.7"/><path d="M14.75 11.9c1.4.6 2.3 2.1 2.5 4.35"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 20 20"><path d="M4.75 16.25V11M8.25 16.25V6M11.75 16.25V9M15.25 16.25V3.75"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20"><path d="M3.25 6H9m4 0h3.75"/><circle cx="11" cy="6" r="2"/><path d="M3.25 14H7m4 0h5.75"/><circle cx="9" cy="14" r="2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 20 20"><rect x="7" y="7" width="9.25" height="9.25" rx="1.75"/><path d="M13 7V5a1.25 1.25 0 0 0-1.25-1.25H5A1.25 1.25 0 0 0 3.75 5v6.75A1.25 1.25 0 0 0 5 13h2"/></symbol>
+    <symbol id="i-external" viewBox="0 0 20 20"><path d="M11 3.75h5.25V9"/><path d="M16.25 3.75 9.5 10.5"/><path d="M14 11.75v3.5a1 1 0 0 1-1 1H4.75a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="M10 9.25V14"/><path d="M10 6.5v.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><path d="m4.5 10.5 3.75 3.75L15.5 6"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 20 20"><path d="M10 3.25 17.25 16H2.75Z"/><path d="M10 8.25v3.5"/><path d="M10 13.75v.01"/></symbol>
+    <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.25"/><path d="m7.5 7.5 5 5m0-5-5 5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 20 20"><path d="m8 5 5 5-5 5"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 20 20"><path d="M15.75 10a5.75 5.75 0 1 1-2.55-4.78"/><path d="M13.5 2.25V5.5h-3.25"/><path d="M8.75 7.75 12 10l-3.25 2.25Z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 20 20"><rect x="4.75" y="9" width="10.5" height="7.5" rx="1.5"/><path d="M7 9V6.75a3 3 0 0 1 6 0V9"/></symbol>
+    <symbol id="i-spinner" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5" stroke-dasharray="28 13" class="spin" style="transform-origin:10px 10px"/></symbol>
+  </defs>
+</svg>
+
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki prototype
+    <a href="home.html">Home</a><a href="accounts.html">Accounts</a><a href="activity.html">Activity</a><a href="settings.html" aria-current="page">Settings</a><a href="tray.html">Tray</a></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="themeSeg">
+      <button type="button" data-t="light" aria-pressed="true">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+  <label class="tbl">State
+    <select id="stateSel">
+      <option value="normal">Auto, every model</option>
+      <option value="models">Auto, chosen models, one not listed</option>
+      <option value="models-failed">Auto, the model list could not be read</option>
+      <option value="direct">Direct (0, no rule rows)</option>
+      <option value="relay">Relay (100, no rule rows)</option>
+      <option value="refused">The slider's write refused</option>
+      <option value="nosecret">Auto, no management secret set</option>
+      <option value="advanced">Advanced open</option>
+      <option value="browser">In a plain browser (no update line)</option>
+      <option value="unsaved">Unsaved changes, field error</option>
+      <option value="restart">Restart needed</option>
+      <option value="restart-both">Restart needed, CLIProxyAPI and core</option>
+      <option value="restarting">Restarting…</option>
+      <option value="restart-failed">Restart failed</option>
+      <option value="readonly">Read-only (409)</option>
+      <option value="env">Field set by the environment</option>
+    </select>
+  </label>
+</div>
+
+<div class="stage">
+  <div class="frame-cap"><span class="cap">settings.html · app window 1100 × 760</span><span class="cap" id="stateCap"></span></div>
+  <div class="frame">
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki</div>
+        <nav class="nav" aria-label="Destinations">
+          <a href="home.html"><svg class="ic"><use href="#i-home"/></svg>Home</a>
+          <a href="accounts.html"><svg class="ic"><use href="#i-accounts"/></svg>Accounts</a>
+          <a href="activity.html"><svg class="ic"><use href="#i-activity"/></svg>Activity</a>
+          <a href="settings.html" aria-current="page"><svg class="ic"><use href="#i-settings"/></svg>Settings</a>
+        </nav>
+        <div class="side-foot"><span class="st" id="cliStatus"><span class="dot dot-run"></span>CLIProxyAPI running</span><span class="cap">lokki 0.1.0</span></div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div class="mode-wrap">
+            <div class="mode" role="radiogroup" aria-label="Mode" data-mode>
+              <button type="button" role="radio" aria-checked="false" data-m="direct">Direct</button>
+              <button type="button" role="radio" aria-checked="true" data-m="auto">Auto 30 %</button>
+              <button type="button" role="radio" aria-checked="false" data-m="relay">Relay</button>
+            </div>
+            <div class="tip" role="tooltip" hidden></div>
+          </div>
+          <div class="decision" role="status" aria-live="polite">
+            <span class="dot dot-passing" id="decDot"></span><span class="decision-head" id="decHead">Passing requests through</span><span class="decision-reason" id="decReason">not every watched account is low</span>
+          </div>
+        </header>
+
+        <div class="restart" id="restart" role="status" aria-live="polite" hidden></div>
+
+        <div class="sbody" id="sbody">
+          <div class="sgrid">
+            <div class="page-head"><h1>Settings</h1><span class="lbl">each group saves on its own</span></div>
+
+            <div class="banner banner-warning" id="roBanner" role="status" hidden>
+              <svg class="ic"><use href="#i-lock"/></svg>
+              <p>The settings file is not writable here, so lokki shows its values but cannot change them</p>
+            </div>
+
+            <nav class="snav" id="snav" aria-label="Settings groups">
+              <a href="#g-saving">Mode</a>
+              <a href="#g-connection">Connection</a>
+              <a href="#g-about">Updates and About</a>
+              <a href="#g-advanced">Advanced</a>
+            </nav>
+
+            <div class="groups">
+              <!-- Mode -->
+              <section class="card" id="g-saving" data-group aria-labelledby="h-saving">
+                <header class="g-head"><h2 id="h-saving">Mode</h2><span class="lbl">when lokki cuts</span></header>
+                <div class="slider-row">
+                  <div class="slider" id="slider">
+                    <div class="slider-head"><span class="t" id="sliderName">Mode and threshold</span><span class="slider-read" id="sliderRead"></span></div>
+                    <input class="range" type="range" min="0" max="100" step="1" id="range" aria-labelledby="sliderName" aria-describedby="sliderWords">
+                    <div class="slider-scale" aria-hidden="true"><span>Direct · 0 %</span><span>% left</span><span>100 % · Relay</span></div>
+                    <p class="slider-words" id="sliderWords"></p>
+                    <p class="slider-refused" id="sliderRefused" role="alert" hidden><svg class="ic ic-16"><use href="#i-error"/></svg><span></span></p>
+                    <div class="why" data-lockwhy hidden><svg class="ic ic-16"><use href="#i-lock"/></svg>the settings file is not writable here</div>
+                  </div>
+                </div>
+                <div id="autoRows">
+                  <p class="nosecret" id="noSecret" hidden><svg class="ic ic-16"><use href="#i-info"/></svg><span></span></p>
+                  <div class="sg-h">Auto's rule</div>
+                  <div class="srow">
+                    <div><div class="t" id="watchedT">Watched accounts: 2 of 3</div><div class="h">Auto decides from the accounts it watches</div></div>
+                    <a class="linkbtn" href="accounts.html">Manage on Accounts<svg class="ic ic-16"><use href="#i-chevron"/></svg></a>
+                  </div>
+                  <div class="srow">
+                    <div><div class="t" id="lbl-cutwhen">Cut when</div><div class="h">With several watched accounts: must every one be low, or is one enough</div></div>
+                    <span class="sel"><select data-k="cutwhen" aria-labelledby="lbl-cutwhen"><option value="all">every watched account is low</option><option value="any">any watched account is low</option></select><svg class="ic ic-16"><use href="#i-chevron"/></svg></span>
+                  </div>
+                  <div class="srow models">
+                    <div><div class="t" id="lbl-models">Models cut when low</div><div class="h" id="modelsH">Any other model always passes through at full price</div></div>
+                    <div class="seg" role="radiogroup" aria-labelledby="lbl-models" id="modelSeg">
+                      <button type="button" role="radio" aria-checked="true" data-v="every">Every model</button>
+                      <button type="button" role="radio" aria-checked="false" data-v="only">Only the ones I pick</button>
+                    </div>
+                  </div>
+                  <div id="modelPick" hidden>
+                    <div class="g-err in" id="modelsErr" role="alert" hidden><svg class="ic ic-16"><use href="#i-error"/></svg>
+                      <span>lokki could not read the models CLIProxyAPI offers: CLIProxyAPI did not answer</span>
+                      <button type="button" class="btn btn-secondary btn-sm" id="modelsRetry">Retry</button></div>
+                    <div class="mlist" id="mlist" role="group" aria-labelledby="lbl-models"></div>
+                    <p class="mnote" id="mnote" hidden>Nothing is picked yet, so every model is still cut when low</p>
+                    <div class="stale" id="mstale" hidden><svg class="ic ic-16"><use href="#i-warning"/></svg><span>Chosen but not listed: <span class="mono">model-retired</span></span>
+                      <button type="button" class="btn btn-secondary btn-sm" id="mstaleRm" aria-label="Remove model-retired from the models cut when low">Remove</button></div>
+                  </div>
+                </div>
+                <footer class="card-foot"><span class="lbl" data-count></span><button type="button" class="btn btn-quiet btn-sm" data-discard hidden>Discard</button><button type="button" class="btn btn-primary btn-sm" data-save>No changes</button></footer>
+              </section>
+
+              <!-- Connection -->
+              <section class="card" id="g-connection" data-group aria-labelledby="h-connection">
+                <header class="g-head"><h2 id="h-connection">Connection</h2><span class="lbl">how clients reach lokki</span></header>
+                <div class="srow" id="row-addr">
+                  <div><div class="t" id="lbl-addr">Address</div><div class="h">The address and port clients use; the core restarts to apply</div>
+                    <div class="why" id="envWhy" hidden><svg class="ic ic-16"><use href="#i-lock"/></svg>set by the environment</div></div>
+                  <span class="uf txt short"><input data-k="addr" spellcheck="false" aria-labelledby="lbl-addr"></span>
+                </div>
+                <footer class="card-foot"><span class="lbl" data-count></span><button type="button" class="btn btn-quiet btn-sm" data-discard hidden>Discard</button><button type="button" class="btn btn-primary btn-sm" data-save>No changes</button></footer>
+              </section>
+
+              <!-- Updates and About -->
+              <section class="card" id="g-about" aria-labelledby="h-about">
+                <header class="g-head"><h2 id="h-about">Updates and About</h2></header>
+                <div class="srow" id="updRow">
+                  <div><div class="t" id="updLine">lokki 0.1.0 is up to date</div><div class="h">lokki checks once a day; a new release shows a banner at the top</div></div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="checkNow">Check now</button>
+                </div>
+                <dl class="kvlist" style="margin:0;border-top:1px solid var(--border)">
+                  <dt>Core</dt><dd>0.1.0 <span style="color:var(--text-muted)">(revision 7050fd6)</span></dd>
+                  <dt>UI</dt><dd>0.1.0</dd>
+                  <dt>CLIProxyAPI</dt><dd>8.0.23</dd>
+                  <dt>Status</dt><dd style="font-family:var(--font-ui);font-size:var(--fs-base)"><span class="dot dot-run" style="width:8px;height:8px"></span>CLIProxyAPI running</dd>
+                </dl>
+              </section>
+
+              <!-- Advanced -->
+              <details class="card" id="g-advanced">
+                <summary><div class="g-head"><svg class="ic ic-16 chev"><use href="#i-chevron"/></svg><h2>Advanced</h2><span class="lbl">for a server operator, or with a measurement behind it</span></div></summary>
+
+                <section class="adv" id="g-cliproxy" data-group aria-labelledby="h-cliproxy">
+                  <h3 class="sg-h" id="h-cliproxy">CLIProxyAPI</h3>
+                  <div class="srow">
+                    <div><div class="t" id="lbl-port">Port</div><div class="h">CLIProxyAPI restarts to apply</div></div>
+                    <span class="uf"><input inputmode="numeric" data-k="port" aria-labelledby="lbl-port"></span>
+                  </div>
+                  <div class="srow">
+                    <div><div class="t" id="lbl-remote">Use a remote CLIProxyAPI</div><div class="h">Leave empty to use the one lokki runs</div></div>
+                    <span class="uf txt"><input data-k="remote" spellcheck="false" placeholder="http://host:port" aria-labelledby="lbl-remote"></span>
+                  </div>
+                  <div class="srow">
+                    <div><div class="t">Web panel</div><div class="h">CLIProxyAPI's own management page; it downloads its files from GitHub when on</div></div>
+                    <button type="button" class="switch" role="switch" aria-checked="true" data-k="panel" aria-label="Web panel"><span class="trk"></span><span data-word>On</span></button>
+                  </div>
+                  <div class="srow sub" id="panelRow">
+                    <div class="h">the panel asks for this secret; paste it from the clipboard</div>
+                    <div class="acts">
+                      <button type="button" class="btn btn-secondary btn-sm">Open the panel<svg class="ic ic-16"><use href="#i-external"/></svg></button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="copySecret"><svg class="ic ic-16"><use href="#i-copy"/></svg><span>Copy the management secret</span></button>
+                    </div>
+                  </div>
+                  <div class="srow">
+                    <div><div class="t">Version</div><div class="h">the CLIProxyAPI lokki runs</div></div>
+                    <span class="ro">8.0.23</span>
+                  </div>
+                  <footer class="card-foot"><span class="lbl" data-count></span><button type="button" class="btn btn-quiet btn-sm" data-discard hidden>Discard</button><button type="button" class="btn btn-primary btn-sm" data-save>No changes</button></footer>
+                </section>
+
+                <section class="adv" id="g-tuning" data-group aria-label="Quota reading, cutting, tool calls and traffic">
+                  <h3 class="sg-h">Quota reading</h3>
+                  <div class="g-err" id="readErr" role="alert" hidden><svg class="ic ic-16"><use href="#i-error"/></svg>
+                    <span><b>The core refused this group.</b> <span class="mono">low_quota.poll_seconds must be at least 30</span></span></div>
+                  <div class="srow"><div><div class="t" id="l-read">Read every</div><div class="h">How often lokki reads each account's quota, in every mode</div></div><span class="uf" id="readWrap"><input inputmode="numeric" data-k="readevery" aria-labelledby="l-read" aria-describedby="readErr"><span class="u">s</span></span></div>
+                  <h3 class="sg-h">Cutting</h3>
+                  <div class="srow"><div><div class="t" id="l-budget">Answer budget</div><div class="h">Characters of answer one upstream request may produce</div></div><span class="uf"><input inputmode="numeric" data-k="budget" aria-labelledby="l-budget"><span class="u">chars</span></span></div>
+                  <div class="srow"><div><div class="t" id="l-cap">Hard cap</div><div class="h">No answer runs past this many characters</div></div><span class="uf"><input inputmode="numeric" data-k="cap" aria-labelledby="l-cap"><span class="u">chars</span></span></div>
+                  <div class="srow"><div><div class="t" id="l-rpa">Requests per answer</div><div class="h">Most upstream requests one answer may use</div></div><span class="uf"><input inputmode="numeric" data-k="rpa" aria-labelledby="l-rpa"></span></div>
+                  <div class="srow"><div><div class="t" id="l-ctx">Continuation context</div><div class="h">Characters carried into each continuation request</div></div><span class="uf"><input inputmode="numeric" data-k="ctx" aria-labelledby="l-ctx"><span class="u">chars</span></span></div>
+                  <div class="srow"><div><div class="t">One message per answer</div><div class="h">Join the continuations into a single message</div></div><button type="button" class="switch" role="switch" data-k="onemsg" aria-label="One message per answer"><span class="trk"></span><span data-word></span></button></div>
+                  <div class="srow"><div><div class="t" id="l-payload">Payload cap</div><div class="h">Characters of one provider payload field passed on; 0 = no cap</div></div><span class="uf"><input inputmode="numeric" data-k="payload" aria-labelledby="l-payload"><span class="u">chars</span></span></div>
+                  <div class="srow"><div><div class="t">End on an image item</div><div class="h">End the run when the provider starts an image item</div></div><button type="button" class="switch" role="switch" data-k="endimg" aria-label="End on an image item"><span class="trk"></span><span data-word></span></button></div>
+                  <h3 class="sg-h">Tool calls</h3>
+                  <div class="srow"><div><div class="t">Text tool calls</div><div class="h">The model writes its exec call as text, and lokki makes the call and cuts there</div></div><button type="button" class="switch" role="switch" data-k="texttool" aria-label="Text tool calls"><span class="trk"></span><span data-word></span></button></div>
+                  <div class="srow"><div><div class="t">Keep the padding tool</div><div class="h">With text tool calls, still carry the padding tool</div></div><button type="button" class="switch" role="switch" data-k="padtool" aria-label="Keep the padding tool"><span class="trk"></span><span data-word></span></button></div>
+                  <h3 class="sg-h">Traffic</h3>
+                  <div class="srow"><div><div class="t" id="l-pacing">Pacing</div><div class="h">Wait between upstream requests</div></div><span class="uf"><input inputmode="numeric" data-k="pacing" aria-labelledby="l-pacing"><span class="u">s</span></span></div>
+                  <div class="srow"><div><div class="t" id="l-streams">Streams at once</div><div class="h">Upstream streams open at the same time</div></div><span class="uf"><input inputmode="numeric" data-k="streams" aria-labelledby="l-streams"></span></div>
+                  <div class="srow"><div><div class="t" id="l-attempts">Attempts</div><div class="h">Tries for a request that has produced no output yet</div></div><span class="uf"><input inputmode="numeric" data-k="attempts" aria-labelledby="l-attempts"></span></div>
+                  <div class="srow"><div><div class="t" id="l-drain">Drain time</div><div class="h">How long open streams may finish when lokki stops</div></div><span class="uf"><input inputmode="numeric" data-k="drain" aria-labelledby="l-drain"><span class="u">s</span></span></div>
+                  <div class="srow"><div><div class="t">Pin a session id</div><div class="h">Send a session id of lokki's own, one per client</div></div><button type="button" class="switch" role="switch" data-k="pin" aria-label="Pin a session id"><span class="trk"></span><span data-word></span></button></div>
+                  <footer class="card-foot"><span class="lbl" data-count></span><button type="button" class="btn btn-quiet btn-sm" data-discard hidden>Discard</button><button type="button" class="btn btn-primary btn-sm" data-save>No changes</button></footer>
+                </section>
+
+                <section class="adv" aria-labelledby="h-file">
+                  <h3 class="sg-h" id="h-file">Set in the file <span class="lbl" style="font-weight:var(--fw-regular)">read-only here</span></h3>
+                  <dl class="kvlist" style="margin:0">
+                    <dt>CLIProxyAPI key</dt><dd>***</dd>
+                    <dt>Upstream URL (server deployments)</dt><dd class="none" aria-label="not set">—</dd>
+                    <dt>Management secret file</dt><dd>~/.local/share/lokki/secrets/cliproxy-mgmt.secret</dd>
+                    <dt>Run log</dt><dd>~/.local/share/lokki/runs.jsonl</dd>
+                    <dt>Debug log</dt><dd class="none" aria-label="not set">—</dd>
+                    <dt>Capture directory</dt><dd class="none" aria-label="not set">—</dd>
+                    <dt>Refuse chained responses</dt><dd>on</dd>
+                    <dt>Allow a public address</dt><dd>off</dd>
+                    <dt>Let clients tune the relay</dt><dd>off</dd>
+                  </dl>
+                  <p class="ro-note"><svg class="ic ic-16"><use href="#i-lock"/></svg>Change these in the settings file itself.</p>
+                </section>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var $ = function (id) { return document.getElementById(id); };
+  var $$ = function (sel, el) { return Array.prototype.slice.call((el || document).querySelectorAll(sel)); };
+
+  var DEF = { cutwhen: 'all', addr: '127.0.0.1:8381', port: '8317', remote: '', panel: 'true',
+    budget: '1500', cap: '8000', rpa: '6', ctx: '1500', onemsg: 'true', payload: '65536', endimg: 'true',
+    texttool: 'true', padtool: 'true', pacing: '1', streams: '2', attempts: '6', drain: '15', pin: 'false', readevery: '60' };
+  /* Sample data: the models CLIProxyAPI lists (GET /api/models). */
+  var MODELS = ['model-alpha', 'model-alpha-mini', 'model-beta', 'model-gamma'];
+  var LOCK_RO = 'the settings file is not writable here';
+  var ctl = function (k) { return document.querySelector('[data-k="' + k + '"]'); };
+  var isSw = function (el) { return el.getAttribute('role') === 'switch'; };
+  function getV(el) { return isSw(el) ? el.getAttribute('aria-checked') : el.value; }
+  function setV(el, v) {
+    if (isSw(el)) { el.setAttribute('aria-checked', v); el.querySelector('[data-word]').textContent = v === 'true' ? 'On' : 'Off'; }
+    else el.value = v;
+  }
+
+  var S = { readonly: false, env: false, err: false, rs: { cli: false, core: false, busy: '', fail: false },
+    models: { only: false, picked: [], stale: false, failed: false, busy: false } };
+
+  /* ── dirty counting, one count per group; groups inside Advanced count on its link ── */
+  function refresh() {
+    var counts = {};
+    $$('[data-group]').forEach(function (g) {
+      var n = 0;
+      $$('[data-k]', g).forEach(function (el) {
+        var d = getV(el) !== el.dataset.orig; if (d) n++;
+        el.closest('.srow').classList.toggle('dirty', d);
+      });
+      var save = g.querySelector('[data-save]');
+      if (save.getAttribute('aria-busy') !== 'true') {
+        save.disabled = S.readonly || n === 0;
+        save.textContent = n ? 'Save ' + n + ' change' + (n > 1 ? 's' : '') : 'No changes';
+      }
+      g.querySelector('[data-discard]').hidden = !n || S.readonly;
+      g.querySelector('[data-count]').innerHTML = S.readonly ? '<svg class="ic ic-16"><use href="#i-lock"/></svg>read-only' : (n ? n + ' unsaved' : 'saved');
+      var key = g.closest('#g-advanced') ? 'g-advanced' : g.id;
+      counts[key] = (counts[key] || 0) + n;
+    });
+    Object.keys(counts).forEach(function (key) {
+      var link = document.querySelector('#snav a[href="#' + key + '"]');
+      var flag = link.querySelector('.flag'); if (flag) flag.remove();
+      if (key === 'g-advanced' && S.err) link.insertAdjacentHTML('beforeend', '<span class="flag err"><svg class="ic ic-16" aria-hidden="true"><use href="#i-error"/></svg>error</span>');
+      else if (counts[key]) link.insertAdjacentHTML('beforeend', '<span class="flag chg">' + counts[key] + '</span>');
+    });
+    $('panelRow').hidden = getV(ctl('panel')) !== 'true';
+    $('readWrap').classList.toggle('bad', S.err);
+    ctl('readevery').setAttribute('aria-invalid', S.err ? 'true' : 'false');
+    $('readErr').hidden = !S.err;
+  }
+  document.addEventListener('input', function (e) { if (e.target.dataset && e.target.dataset.k) refresh(); });
+  document.addEventListener('change', function (e) { if (e.target.dataset && e.target.dataset.k) refresh(); });
+  $$('.switch[data-k]').forEach(function (sw) {
+    sw.addEventListener('click', function () { if (sw.disabled) return; setV(sw, getV(sw) === 'true' ? 'false' : 'true'); refresh(); });
+  });
+
+  $$('[data-group]').forEach(function (g) {
+    g.querySelector('[data-discard]').addEventListener('click', function () {
+      $$('[data-k]', g).forEach(function (el) { setV(el, el.dataset.orig); });
+      if (g.id === 'g-tuning') S.err = false;
+      refresh();
+    });
+    var save = g.querySelector('[data-save]');
+    save.addEventListener('click', function () {
+      save.setAttribute('aria-busy', 'true'); save.disabled = true;
+      save.innerHTML = '<svg class="ic ic-16"><use href="#i-spinner"/></svg>Saving…';
+      setTimeout(function () {
+        save.removeAttribute('aria-busy');
+        if (g.id === 'g-tuning') {
+          var v = Number(ctl('readevery').value);
+          S.err = Math.round(v) !== v ? 'low_quota.poll_seconds must be a whole number'
+            : v < 30 ? 'low_quota.poll_seconds must be at least 30' : v > 600 ? 'low_quota.poll_seconds must be at most 600' : '';
+          $('readErr').querySelector('.mono').textContent = S.err;
+          if (S.err) { refresh(); ctl('readevery').focus(); return; }
+        }
+        $$('[data-k]', g).forEach(function (el) {
+          if (getV(el) === el.dataset.orig) return;
+          if (el.dataset.k === 'port') { S.rs.cli = true; S.rs.fail = false; }
+          if (el.dataset.k === 'addr') S.rs.core = true;
+          el.dataset.orig = getV(el);
+        });
+        refresh(); renderRestart();
+        if (g.id === 'g-saving') paint();     /* the rule line says the rule as saved */
+      }, 700);
+    });
+  });
+
+  /* ── the models cut when low: writes at once, like the scope on Accounts; never drafts ── */
+  function renderModels() {
+    var m = S.models;
+    $$('#modelSeg button').forEach(function (b) { b.setAttribute('aria-checked', String((b.dataset.v === 'only') === m.only)); });
+    if (m.busy) $('modelSeg').setAttribute('aria-busy', 'true'); else $('modelSeg').removeAttribute('aria-busy');
+    $('modelPick').hidden = !m.only;
+    $('modelsErr').hidden = !m.failed;
+    $('modelsH').textContent = m.only ? 'A model not picked always passes through at full price' : 'Any other model always passes through at full price';
+    /* a failed read keeps every chosen name listed, each with its Remove */
+    $('mlist').innerHTML = m.failed ? m.picked.concat(m.stale ? ['model-retired'] : []).map(function (id) {
+      return '<div class="mchosen"><span class="mono">' + id + '</span><button type="button" class="btn btn-secondary btn-sm" data-rm="' + id + '" aria-label="Remove ' + id + ' from the models cut when low">Remove</button></div>';
+    }).join('') : MODELS.map(function (id) {
+      var on = m.picked.indexOf(id) >= 0;
+      return '<label class="mitem"><input type="checkbox" data-model="' + id + '"' + (on ? ' checked' : '') + (S.readonly ? ' disabled' : '') + '><span class="mono">' + id + '</span></label>';
+    }).join('');
+    if (m.busy) $('mlist').setAttribute('aria-busy', 'true'); else $('mlist').removeAttribute('aria-busy');
+    $('mnote').hidden = m.picked.length > 0 || m.stale || m.failed;
+    $('mstale').hidden = !m.stale || m.failed;        /* "not listed" needs a list to compare with */
+    paint();
+  }
+  function writeModels(change) {
+    if (S.models.busy || S.readonly) return;
+    S.models.busy = true; renderModels();
+    setTimeout(function () { change(); S.models.busy = false; renderModels(); }, 600);
+  }
+  $('modelSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b || S.models.busy || S.readonly) return;
+    var only = b.dataset.v === 'only';
+    if (only) { S.models.only = true; renderModels(); return; }        /* local until a model is picked */
+    if (S.models.picked.length || S.models.stale) writeModels(function () { S.models.only = false; S.models.picked = []; S.models.stale = false; });
+    else { S.models.only = false; renderModels(); }
+  });
+  $('mlist').addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-rm]');
+    if (rm) { var gone = rm.dataset.rm; writeModels(function () { if (gone === 'model-retired') S.models.stale = false; S.models.picked = S.models.picked.filter(function (x) { return x !== gone; }); }); return; }
+    var box = e.target.closest('input[data-model]'); if (!box) return;
+    if (S.models.busy) { e.preventDefault(); return; }               /* a click while a write runs writes nothing */
+    var id = box.dataset.model;
+    e.preventDefault();
+    writeModels(function () {
+      var i = S.models.picked.indexOf(id);
+      if (i >= 0) S.models.picked.splice(i, 1); else S.models.picked.push(id);
+    });
+  });
+  $('mstaleRm').addEventListener('click', function () { writeModels(function () { S.models.stale = false; }); });
+  $('modelsRetry').addEventListener('click', function () {
+    var b = $('modelsRetry'); b.setAttribute('aria-busy', 'true');
+    setTimeout(function () { b.removeAttribute('aria-busy'); S.models.failed = false; renderModels(); }, 700);
+  });
+
+  /* ── restart bar ── */
+  function renderRestart() {
+    var r = S.rs, h = '';
+    function line(who, text, btn) {
+      var busy = r.busy === who;
+      h += '<div class="rb-line"><svg class="ic"><use href="#i-restart"/></svg><p>' + text +
+        (who === 'cli' && r.fail && !busy ? '<span class="rb-err" role="alert"><svg class="ic ic-16"><use href="#i-error"/></svg>could not restart CLIProxyAPI: port 8320 is already in use</span>' : '') + '</p>' +
+        '<button type="button" class="btn btn-primary btn-sm" data-restart="' + who + '"' + (busy ? ' aria-busy="true"' : '') + '>' +
+        (busy ? '<svg class="ic ic-16"><use href="#i-spinner"/></svg>Restarting…' : btn) + '</button></div>';
+    }
+    if (r.cli) line('cli', 'Restart CLIProxyAPI to apply the new port', 'Restart CLIProxyAPI');
+    if (r.core) line('core', 'Restart the core to apply the new address', 'Restart the core');
+    $('restart').innerHTML = h; $('restart').hidden = !h;
+    var st = $('cliStatus');
+    st.innerHTML = r.busy === 'cli' ? '<svg class="ic ic-16 spin" style="transform-origin:center"><use href="#i-spinner"/></svg>CLIProxyAPI restarting'
+      : '<span class="dot dot-run"></span>CLIProxyAPI running';
+  }
+  $('restart').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-restart]'); if (!b || b.getAttribute('aria-busy') === 'true') return;
+    var who = b.dataset.restart;
+    S.rs.busy = who; renderRestart();
+    setTimeout(function () { S.rs.busy = ''; S.rs[who] = false; if (who === 'cli') S.rs.fail = false; renderRestart(); }, 1600);
+  });
+
+  /* ── the update line reads the banner's own slot (app.update); a plain browser has none, so no line ── */
+  $('checkNow').addEventListener('click', function () {
+    var b = $('checkNow'); if (b.getAttribute('aria-busy') === 'true') return;
+    b.setAttribute('aria-busy', 'true'); b.innerHTML = '<svg class="ic ic-16"><use href="#i-spinner"/></svg>Checking…';
+    $('updLine').textContent = 'Checking for a new lokki…';
+    setTimeout(function () { b.removeAttribute('aria-busy'); b.textContent = 'Check now'; $('updLine').textContent = 'lokki 0.1.0 is up to date'; }, 900);
+  });
+
+  /* ── mode: the top bar's three choices write {routing} alone; the slider in the Mode group writes a mode at
+     its ends and Auto with its threshold between them; both show what the core reports ── */
+  var SENT = {
+    direct: 'Every request goes to CLIProxyAPI untouched, at full price.',
+    auto: 'Cut when the watched accounts run low; otherwise pass through at full price.',
+    relay: 'Every request is cut: lokki ends the answer early so it costs less.'
+  };
+  var NO_SECRET = 'lokki does not read the quota here: no management secret file is set';
+  var NO_SECRET_AUTO = '; Auto passes every request through at full price';
+  var DEC = { relay: ['cut', 'routing: relay'], auto: ['pass', 'not every watched account is low'], direct: ['pass', 'routing: direct'] };
+  /* the core's answer: its mode, the threshold it stores (an end leaves the threshold, Auto returns to it), and the
+     reason Auto gives where it differs from the sample's (no management secret: the quota cannot be read) */
+  var core = { mode: 'auto', t: 30, reason: null };
+  var range = $('range'), keyT = null, dragging = false;
+  function ruleLine(t) {
+    var who = ctl('cutwhen').dataset.orig === 'any' ? 'any watched account' : 'every watched account';   /* as saved */
+    var n = S.models.picked.length + (S.models.stale ? 1 : 0);
+    var models = n ? n + (n === 1 ? ' model' : ' models') : 'every model';
+    return 'Cut when ' + who + ' has less than ' + t + ' % left · ' + models;
+  }
+  function label(pos) { return pos === 0 ? 'Direct' : pos === 100 ? 'Relay' : 'Auto ' + pos + ' %'; }
+  function words(pos) { return pos === 0 ? SENT.direct : pos === 100 ? SENT.relay : ruleLine(pos); }
+  function reported() { return core.mode === 'direct' ? 0 : core.mode === 'relay' ? 100 : core.t; }
+  function posOf(m) { return m === 'direct' ? 0 : m === 'relay' ? 100 : core.t; }
+
+  /* One mode write at a time for every mode control (spec 3.7), held here and not in each control: the write in
+     flight, and the latest choice waiting, which replaces any choice waiting before it. A top-bar choice is
+     {from: 'bar', m} and writes {routing} alone; a slider choice is {from: 'slider', pos}. held: a slider position
+     stepped or dragged to and not yet chosen. */
+  var W = { flight: null, waiting: null }, held = null;
+  window.lokkiProto = { writes: [] };                           /* each body sent, as it would PUT */
+  function sliderChoice() { return W.waiting && W.waiting.from === 'slider' ? W.waiting : W.flight && W.flight.from === 'slider' ? W.flight : null; }
+  function paint() {
+    var mine = sliderChoice(), pos = held != null ? held : mine ? mine.pos : reported();
+    range.value = pos; range.style.setProperty('--p', pos);
+    $('sliderRead').innerHTML = (held == null && mine ? '<svg class="ic ic-16"><use href="#i-spinner"/></svg>' : '') + label(pos);
+    $('sliderWords').textContent = words(pos);
+    if (pos > 0 && pos < 100) $('sliderWords').setAttribute('data-rule', ''); else $('sliderWords').removeAttribute('data-rule');
+    range.setAttribute('aria-valuetext', label(pos) + ': ' + words(pos));
+    [range].concat($$('[data-mode]')).forEach(function (el) { if (W.flight) el.setAttribute('aria-busy', 'true'); else el.removeAttribute('aria-busy'); });
+    $$('[data-mode] button').forEach(function (b) {
+      var pending = [W.flight, W.waiting].some(function (c) { return c && c.from === 'bar' && c.m === b.dataset.m; });
+      b.innerHTML = (pending ? '<svg class="ic ic-16"><use href="#i-spinner"/></svg>' : '') + (b.dataset.m === 'auto' ? 'Auto ' + core.t + ' %' : b.dataset.m === 'direct' ? 'Direct' : 'Relay');
+      if (pending) b.setAttribute('data-pending', ''); else b.removeAttribute('data-pending');
+    });
+  }
+  function setMode(m) {
+    core.mode = m;
+    $$('[data-mode] button').forEach(function (x) { x.setAttribute('aria-checked', x.dataset.m === m); });
+    paint();
+    $('autoRows').hidden = m !== 'auto';       /* Auto's rule shows only between the slider's ends */
+    var d = m === 'auto' && core.reason ? ['pass', core.reason] : DEC[m];
+    $('decDot').className = 'dot ' + (d[0] === 'cut' ? 'dot-cutting' : 'dot-passing');
+    $('decHead').textContent = d[0] === 'cut' ? 'Cutting every request' : 'Passing requests through';
+    $('decReason').textContent = d[1];
+  }
+  function landed(pos) {
+    if (pos > 0 && pos < 100) core.t = pos;
+    setMode(pos === 0 ? 'direct' : pos === 100 ? 'relay' : 'auto');
+  }
+  /* every choice comes through here: a held slider position goes into the queue first, then the choice, so the order
+     never rests on a blur or a focus change (WebKit does not focus a button on click) */
+  function choose(c) {
+    if (S.readonly) return;
+    if (held != null) {
+      var pos = held; held = null; clearTimeout(keyT); keyT = null;
+      enqueue({ from: 'slider', pos: pos });
+    }
+    enqueue(c);
+  }
+  function enqueue(c) {
+    if (W.flight) { W.waiting = c; paint(); return; }          /* the latest choice waits for the write in flight */
+    send(c);
+  }
+  function send(c) {
+    var pos = c.from === 'bar' ? posOf(c.m) : c.pos;
+    if (pos === reported()) { paint(); return; }                /* nothing to write */
+    window.lokkiProto.writes.push(c.from === 'bar' ? { routing: c.m }
+      : pos === 0 ? { routing: 'direct' } : pos === 100 ? { routing: 'relay' } : { routing: 'auto', low_quota: { threshold_percent: pos } });
+    W.flight = c; paint();                                      /* the refusal line stays while this write runs */
+    setTimeout(function () {
+      var next = W.waiting;
+      W = { flight: null, waiting: null };
+      $('sliderRefused').hidden = true;                         /* written: the line clears where the write lands */
+      landed(pos);
+      if (next) send(next);                                     /* then the choice that waited */
+    }, 600);
+  }
+  function flush() {
+    clearTimeout(keyT); keyT = null;
+    if (held == null) return;
+    var pos = held; held = null;
+    enqueue({ from: 'slider', pos: pos });
+  }
+  range.addEventListener('pointerdown', function () { dragging = true; });
+  range.addEventListener('input', function () { held = Number(range.value); paint(); });
+  range.addEventListener('change', function () { if (dragging) { dragging = false; flush(); } });
+  range.addEventListener('keydown', function (e) {
+    var step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 }[e.key];
+    var to = e.key === 'Home' ? 0 : e.key === 'End' ? 100 : step == null ? null : Number(range.value) + step;
+    if (to == null) return;
+    e.preventDefault();
+    held = Math.max(0, Math.min(100, to)); paint();
+    clearTimeout(keyT); keyT = setTimeout(flush, 500);
+  });
+  range.addEventListener('blur', function () { if (keyT) flush(); });
+  $$('[data-mode]').forEach(function (mode) {
+    var tip = mode.parentNode.querySelector('.tip');
+    function show(b) {
+      tip.innerHTML = S.readonly
+        ? '<b>Mode is locked</b><span class="lock"><svg class="ic ic-16"><use href="#i-lock"/></svg>' + LOCK_RO + '</span>'
+        : '<b>' + b.textContent.trim() + '</b>' + SENT[b.dataset.m];
+      if (tip.style.right !== '0px') tip.style.left = Math.max(0, b.offsetLeft - 2) + 'px';
+      tip.hidden = false;
+    }
+    mode.addEventListener('mouseover', function (e) { var b = e.target.closest('button'); if (b) show(b); });
+    mode.addEventListener('mouseleave', function () { if (!mode.contains(document.activeElement)) tip.hidden = true; });
+    mode.addEventListener('focusin', function (e) { if (e.target.matches(':focus-visible')) show(e.target); });
+    mode.addEventListener('focusout', function () { tip.hidden = true; });
+    /* a click is never swallowed: while a write is in flight it waits, the latest one winning */
+    mode.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      choose({ from: 'bar', m: b.dataset.m });
+    });
+    mode.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var bs = $$('button', mode), i = bs.indexOf(document.activeElement);
+      if (i < 0) return; e.preventDefault();
+      bs[(i + (e.key === 'ArrowRight' ? 1 : 2)) % 3].focus();
+    });
+  });
+  $$('[data-mode]').forEach(function (m, i) { var tip = m.parentNode.querySelector('.tip'); tip.id = 'modeTip' + i; $$('button', m).forEach(function (b) { b.setAttribute('aria-describedby', tip.id); }); });
+
+  /* ── locks: read-only file, or one field set by the environment ── */
+  function applyLocks() {
+    $$('[data-k]').forEach(function (el) { el.disabled = S.readonly || (S.env && el.dataset.k === 'addr'); });
+    $$('[data-mode]').forEach(function (m) { if (S.readonly) m.setAttribute('aria-disabled', 'true'); else m.removeAttribute('aria-disabled'); });
+    if (S.readonly) $('modelSeg').setAttribute('aria-disabled', 'true'); else $('modelSeg').removeAttribute('aria-disabled');
+    range.disabled = S.readonly;
+    $$('[data-lockwhy]').forEach(function (w) { w.hidden = !S.readonly; });
+    $('roBanner').hidden = !S.readonly;
+    $('envWhy').hidden = !S.env;
+    $('row-addr').querySelector('.uf').title = S.env ? 'set by the environment' : '';
+  }
+
+  /* ── nav: scroll the settings pane (no scrollIntoView), mark the group in view ── */
+  var body = $('sbody');
+  $('snav').addEventListener('click', function (e) {
+    var a = e.target.closest('a'); if (!a) return; e.preventDefault();
+    var g = $(a.getAttribute('href').slice(1));
+    if (g.tagName === 'DETAILS') g.open = true;
+    body.scrollTo({ top: g.offsetTop - 16, behavior: 'smooth' });
+    setCurrent(a);
+  });
+  function setCurrent(a) { $$('#snav a').forEach(function (x) { if (x === a) x.setAttribute('aria-current', 'true'); else x.removeAttribute('aria-current'); }); }
+  body.addEventListener('scroll', function () {
+    var y = body.scrollTop + 40, cur = null, links = $$('#snav a');
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) cur = links[links.length - 1];
+    else links.forEach(function (a) { if ($(a.getAttribute('href').slice(1)).offsetTop <= y) cur = a; });
+    setCurrent(cur || links[0]);
+  });
+
+  var copyT;
+  $('copySecret').addEventListener('click', function () {
+    var b = $('copySecret');
+    b.querySelector('span').textContent = 'Copied'; b.querySelector('use').setAttribute('href', '#i-check');
+    clearTimeout(copyT);
+    copyT = setTimeout(function () { b.querySelector('span').textContent = 'Copy the management secret'; b.querySelector('use').setAttribute('href', '#i-copy'); }, 3000);
+  });
+
+  /* ── states ── */
+  function render(id) {
+    $('stateSel').value = id;
+    $('stateCap').textContent = 'state: ' + $('stateSel').selectedOptions[0].text;
+    Object.keys(DEF).forEach(function (k) { var el = ctl(k); setV(el, DEF[k]); el.dataset.orig = DEF[k]; });
+    S.readonly = id === 'readonly'; S.env = id === 'env'; S.err = false;
+    S.rs = { cli: false, core: false, busy: '', fail: false };
+    S.models = { only: false, picked: [], stale: false, failed: false, busy: false };
+    if (id === 'models') S.models = { only: true, picked: ['model-alpha', 'model-beta'], stale: true, failed: false, busy: false };
+    if (id === 'models-failed') S.models = { only: true, picked: ['model-alpha', 'model-beta'], stale: true, failed: true, busy: false };
+    $('updRow').hidden = id === 'browser';
+    if (id === 'unsaved') { setV(ctl('cutwhen'), 'any'); setV(ctl('readevery'), '10'); S.err = 'low_quota.poll_seconds must be at least 30'; $('readErr').querySelector('.mono').textContent = S.err; }
+    if (/^restart/.test(id)) { setV(ctl('port'), '8320'); ctl('port').dataset.orig = '8320'; S.rs.cli = true; }
+    if (id === 'restart-both') { setV(ctl('addr'), '127.0.0.1:8382'); ctl('addr').dataset.orig = '127.0.0.1:8382'; S.rs.core = true; }
+    if (id === 'restarting') S.rs.busy = 'cli';
+    if (id === 'restart-failed') S.rs.fail = true;
+    $('g-advanced').open = id === 'advanced' || id === 'unsaved' || /^restart/.test(id);
+    core.t = 30; core.reason = id === 'nosecret' ? 'the quota cannot be read' : null;
+    held = null; clearTimeout(keyT); keyT = null; W = { flight: null, waiting: null };
+    $('watchedT').textContent = id === 'nosecret' ? 'Watched accounts' : 'Watched accounts: 2 of 3';   /* no quota read: no count */
+    setMode(id === 'relay' ? 'relay' : id === 'direct' ? 'direct' : 'auto');
+    $('sliderRefused').hidden = id !== 'refused';
+    $('sliderRefused').querySelector('span').textContent = id === 'refused' ? 'the settings file names no client token; the reload would refuse it, so nothing is written' : '';
+    $('noSecret').hidden = id !== 'nosecret';
+    $('noSecret').querySelector('span').textContent = NO_SECRET + NO_SECRET_AUTO;
+    applyLocks(); refresh(); renderRestart(); renderModels();
+    body.scrollTop = 0; setCurrent($$('#snav a')[0]);
+    if (id === 'env') body.scrollTop = $('g-connection').offsetTop - 16;
+    if (id === 'advanced' || /^restart/.test(id)) body.scrollTop = $('g-advanced').offsetTop - 16;
+    if (id === 'unsaved') body.scrollTop = $('g-tuning').offsetTop - 16;
+    try { localStorage.setItem('lokki.settings.state', id); } catch (e) {}
+  }
+  $('stateSel').addEventListener('change', function (e) { render(e.target.value); });
+
+  document.querySelectorAll('a[href="#"]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    document.querySelectorAll('#themeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === t); });
+    try { localStorage.setItem('lokki.proto.theme', t); } catch (e) {}
+  }
+  $('themeSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTheme(b.dataset.t); });
+
+  /* a state and a scheme can be named in the address: settings.html#refused/dark */
+  var t0 = 'light', s0 = 'normal', h = location.hash.slice(1).split('/');
+  try { t0 = localStorage.getItem('lokki.proto.theme') || t0; s0 = localStorage.getItem('lokki.settings.state') || s0; } catch (e) {}
+  if ($('stateSel').querySelector('option[value="' + h[0] + '"]')) s0 = h[0];
+  if (h[1] === 'light' || h[1] === 'dark') t0 = h[1];
+  setTheme(t0);
+  render($('stateSel').querySelector('option[value="' + s0 + '"]') ? s0 : 'normal');
+})();
+</script>
+</body>
+</html>

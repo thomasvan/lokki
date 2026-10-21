@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "lokki",
+  "version": "0.0.0",
+  "identifier": "dev.lokki.desktop",
+  "build": {
+    "frontendDist": "dist",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage", "dmg", "nsis", "msi"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": { "minimumSystemVersion": "12.4", "signingIdentity": "-", "hardenedRuntime": false }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQyOEFENTkyQ0U5Q0Y0NTQKUldSVTlKek9rdFdLUXJOSGoxc0lJbzgzK1QrQ2VHZnVmTDlubmJhQWJxSGNiY3Rab1hJeElEOEUK",
+      "endpoints": ["https://github.com/thomasvan/lokki/releases/latest/download/latest.json"],
+      "requireSignedVersion": true,
+      "windows": { "installMode": "passive" }
+    }
+  }
+}

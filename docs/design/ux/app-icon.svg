@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">
+  <title>lokki</title>
+  <!-- The app icon: the mark over a sky field and a sea band, on a continuous-corner square of
+       the macOS grid (an 80-unit body on a 100-unit canvas). Sizes of 32 px and under use the
+       16 px drawing of the mark (logo.html), so each wing keeps a full pixel. -->
+  <defs>
+    <clipPath id="body"><path d="M28 10H72C84.5 10 90 15.5 90 28V72C90 84.5 84.5 90 72 90H28C15.5 90 10 84.5 10 72V28C10 15.5 15.5 10 28 10Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#body)">
+    <rect x="10" y="10" width="80" height="80" fill="#2c5f75"/>
+    <rect x="10" y="68" width="80" height="22" fill="#06454f"/>
+  </g>
+  <g transform="translate(50 46) scale(.9) translate(-32 -32)">
+    <path fill="#f7fbfc" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/>
+  </g>
+</svg>
