@@ -10,7 +10,17 @@ as `migrated`. A `config.yaml` without the keys init writes is reported as not m
 by init and is left alone. Ports are `0` (any free port) or 1 to 65535; anything
 else is refused with exit status 2.
 
-| Path | Purpose and owner | Mode |
+Windows keeps no POSIX modes. There `init` gives the data directory and each
+directory in the layout a protected DACL instead: full control for the user
+running `init` and for SYSTEM, and for nobody else. Everything made inside them
+inherits it, CLIProxyAPI's files included. An administrator can still take
+ownership. On a volume that keeps no ACLs, such as FAT or exFAT, this step is
+passed over. Anywhere else, if Windows refuses the DACL, `init` stops before it
+writes any secret, prints one line on stderr and exits with status 1. A rerun on a
+directory that already has a configuration file leaves the directories alone, so
+one an earlier version created keeps the ACL it had.
+
+| Path | Purpose and owner | POSIX mode |
 | --- | --- | --- |
 | `config.yaml` | lokki core settings, including its client credentials and the CLIProxyAPI connection details; owned by the core. A key an older version wrote under a name that moved is read under the old name and rewritten under the new one by the next `init`; a key this version does not know stays and is listed in `unknown_keys` | `0600` |
 | `cliproxy/config.yaml` | CLIProxyAPI server, auth directory, API key and management settings; CLIProxyAPI owns it after initialization, including edits from its panel | `0600` |
