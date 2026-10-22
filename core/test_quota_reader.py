@@ -527,6 +527,24 @@ class OAuthTests(unittest.TestCase):
             oauth.Callback(port=held.getsockname()[1]).start(self.fake.url)
         self.assertEqual(self.fake.callbacks, [])
 
+    @unittest.skipUnless(os.name == "nt", "SO_EXCLUSIVEADDRUSE is Windows' own")
+    def test_on_windows_no_other_socket_binds_the_port_while_a_login_waits(self):
+        port = self.listener().address[1]
+        for host in ("127.0.0.1", "0.0.0.0"):
+            for option in (None, socket.SO_REUSEADDR, socket.SO_EXCLUSIVEADDRUSE):
+                with socket.socket() as s:
+                    if option is not None:
+                        s.setsockopt(socket.SOL_SOCKET, option, 1)
+                    with self.assertRaises(OSError, msg=f"{host} with option {option} bound the waiting port"):
+                        s.bind((host, port))
+
+    @unittest.skipUnless(os.name == "nt", "SO_EXCLUSIVEADDRUSE is Windows' own")
+    def test_on_windows_the_next_login_binds_the_port_at_once_after_a_callback(self):
+        port = self.listener("state-code-1abc").address[1]
+        self.assertEqual(browse(port, f"/auth/callback?code={CODE}&state=state-code-1abc")[0], 200)
+        oauth.close_pending()
+        self.assertEqual(self.listener("state-next-1abc").address[1], port)    # CallbackPortBusy if still held
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,6 +21,7 @@ provider's body, which may repeat what the request carried.
 import html
 import json
 import os
+import socket
 import threading
 import time
 import urllib.parse
@@ -63,8 +64,15 @@ class CallbackPortBusy(Exception):
 class _CallbackServer(ThreadingHTTPServer):
     # SO_REUSEADDR on Windows lets a second listener bind a port in use: another core's
     # login would share the port with this one, and either could take the code. POSIX
-    # keeps it, for a port whose last login left connections in TIME_WAIT.
+    # keeps it, for a port whose last login left connections in TIME_WAIT. Windows sets
+    # SO_EXCLUSIVEADDRUSE instead, so no other socket binds the port while a login waits,
+    # whatever options it sets.
     allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 def _get(url, secret, timeout, route):
