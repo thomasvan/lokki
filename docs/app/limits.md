@@ -33,9 +33,10 @@ on (`docs/app/api.md`, Adding an account). Port 1455 is the one `codex login` us
 the other's login is refused ("another login is in progress"). The page the
 user logs in on is the provider's.
 
-The listener binds `127.0.0.1:1455` only; the code and the redirect URI
-(`http://localhost:1455/auth/callback`) say so on every system, and `[::1]:1455`
-is left free. The core does not guard that address: a program running as the
+The code binds the listener to `127.0.0.1:1455` only, on every system, and
+leaves `[::1]:1455` free; the redirect URI names `localhost`
+(`http://localhost:1455/auth/callback`), which a browser may resolve to `::1`.
+The core does not guard that address: a program running as the
 same user can bind it, and a browser that tries `::1` for `localhost` hands the
 code to that program. Such a program runs inside the boundary that can already
 read the data directory and CLIProxyAPI's credentials, so the core does not

@@ -10,13 +10,14 @@ as `migrated`. A `config.yaml` without the keys init writes is reported as not m
 by init and is left alone. Ports are `0` (any free port) or 1 to 65535; anything
 else is refused with exit status 2.
 
-The data directory may already exist when it is empty, or when it holds only
-the entries an interrupted first run left. One that holds anything else, such as
-a `LOKKI_DATA_DIR` pointed at a folder in use, is refused: `init` prints one line
+The data directory may already exist when it is empty, or when it holds only the
+entries an interrupted first run left. One that holds anything else, such as a
+`LOKKI_DATA_DIR` pointed at a folder in use, is refused: `init` prints one line
 naming the directory and an entry it did not make, exits with status 1 and
-changes nothing. The line says to point `LOKKI_DATA_DIR` at an empty or new folder, or
-to move those files out and press Try again, which runs `init` again. Making it `0700`, or on Windows giving it the DACL below, would
-shut other users out of what it already holds.
+changes nothing. The line says to point `LOKKI_DATA_DIR` at an empty or new
+folder, or to move those files out and press Try again, which runs `init` again.
+Making it `0700`, or on Windows giving it the DACL below, would shut other users
+out of what it already holds.
 
 Windows keeps no POSIX modes. There `init` gives the data directory and each
 directory in the layout a protected DACL instead: full control for the user
