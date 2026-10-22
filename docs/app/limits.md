@@ -143,7 +143,7 @@ hand test of 2026-10-22 (next paragraph), the updated lokki's `app.log` has the
 install asked at 05:20:02Z and `ready` at 05:21:11Z.
 
 The Intel build is sealed ad hoc too ([updates](update.md), How a macOS build is
-signed), and it has been run. On 2026-10-22, from 04:41 to about 05:3x UTC,
+signed), and it has been run. On 2026-10-22, from 04:41 UTC,
 `app/scripts/mac-update-handtest.sh` ran steps 0 to 8 of [Testing an install on
 macOS](update.md) at 8236d37, on an Intel Core i9-9880H Mac with macOS 26.7.1. The
 build venv had Python 3.14.9, not 3.13. The real lokki (0.1.0) and its data
