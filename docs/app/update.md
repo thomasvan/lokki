@@ -110,7 +110,8 @@ bundle has; a copy a browser downloaded is refused as "damaged", and Privacy & S
 offers no Open Anyway. A sealed copy gets macOS's ordinary prompt: lokki was "Not
 Opened" because Apple could not verify it, and Open Anyway in System Settings › Privacy
 & Security opens it (README › macOS). Both were seen on an Apple silicon Mac with
-`tauri` CLI 2.12.2; no one has run a sealed build on an Intel Mac.
+`tauri` CLI 2.12.2, and on an Intel Mac in the hand test of 2026-10-22
+([limits](limits.md), An Intel Mac is slow to start and the paragraph after it).
 
 Hardened runtime gives an app that is not notarized nothing. A build with it, on the same
 Mac, never logged `ready` in 60 seconds. Why was not checked; one guess is that library

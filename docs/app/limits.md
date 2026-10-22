@@ -95,11 +95,50 @@ the position then held. Leaving the page, or reloading, drops it, and the slider
 shows what the core reports.
 
 An Intel Mac is slow to start. In the hand test of 2026-10-21 the first run was
-ready in 77 s and a restart in 59 s. Where the time goes was not measured.
+ready in 77 s and a restart in 59 s. Where the time goes was not measured. In the
+hand test of 2026-10-22 (next paragraph), the updated lokki's `app.log` has the
+install asked at 05:20:02Z and `ready` at 05:21:11Z.
 
 The Intel build is sealed ad hoc too ([updates](update.md), How a macOS build is
-signed), and no one has run a sealed build on an Intel Mac: neither macOS's "could
-not verify" prompt with Open Anyway, nor the hand test's checks of the seal.
+signed), and it has been run. On 2026-10-22, from 04:41 to about 05:3x UTC,
+`app/scripts/mac-update-handtest.sh` ran steps 0 to 8 of [Testing an install on
+macOS](update.md) at 8236d37, on an Intel Core i9-9880H Mac with macOS 26.7.1. The
+build venv had Python 3.14.9, not 3.13. The real lokki (0.1.0) and its data
+directory were moved aside first and put back afterwards.
+
+- Step 1 built A and B in about 8 minutes.
+- Step 3, by hand, through the README's path: A's quarantined `.dmg`
+  (`0081;…;Safari;`) opened from Finder, lokki dragged to Applications and
+  opened. macOS gave its "could not verify" prompt, not "damaged". Privacy &
+  Security offered Open Anyway, which asked for the password. The first run
+  reached Home, and so did the restart. "Check now" offered 99.0.1 with "Install
+  and restart".
+- Step 4: the bundle read `Identifier=dev.lokki.desktop Signature=adhoc` and both
+  sidecars `Signature=adhoc`. `codesign --verify --deep --strict` passed on
+  `/Applications/lokki.app`, and `codesign -v` passed on `cliproxy-8_0_23` and on
+  `lokki-core-0_1_0`. The approved bundle's quarantine read `01c1;…;Safari;`.
+- Step 5, by hand: "Install and restart" gave no password dialog and no
+  Gatekeeper dialog, and lokki relaunched as 99.0.1. Its `app.log` has the install
+  asked at 05:20:02Z, both sidecars stopped drained at 05:20:03Z, "update
+  installed; restarting" at 05:20:03Z, init saying "already initialised" at
+  05:20:26Z, and ready at 05:21:11Z.
+- Step 6: every check passed. The version is 99.0.1, and the shell and both
+  sidecars run as B's files from `/Applications/lokki.app`. The bundle carries no
+  quarantine. `codesign -dv` matches step 4, and `--deep --strict` and each
+  sidecar's `-v` pass again. The data checksums are unchanged. `app.log` shows the
+  drain, the stop, the install after the proof, both sidecars started again, and
+  no error.
+- Step 7, by hand, the banner's reason word for word:
+  - 7a: "lokki is running from a read-only disk, such as its disk image: move
+    lokki.app into Applications, open it from there, then install"
+  - 7b: "your macOS user cannot change lokki.app or the folder it is in, and lokki
+    does not ask for an administrator's password; download the new .dmg, or move
+    lokki.app to a folder you can write to"
+  - 7c, after the "could not verify" prompt and Open Anyway: "macOS is running
+    lokki from a temporary copy, which cannot be updated: quit lokki, move
+    lokki.app into Applications with Finder, open it from there, then install"
+- Step 8: every `clean` check passed. The test's data directory was removed, the
+  real install was put back, and nothing of the test was left.
 
 An x86_64 build that Rosetta runs on an Apple silicon Mac installs its updates
 in place too, and no one has run that.
