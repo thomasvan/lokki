@@ -33,14 +33,39 @@ on (`docs/app/api.md`, Adding an account). Port 1455 is the one `codex login` us
 the other's login is refused ("another login is in progress"). The page the
 user logs in on is the provider's.
 
-The listener binds `127.0.0.1:1455` only. While a login waits, no other socket
-binds that address, whatever options it sets, on Windows too. A program running
-as the same user can still bind port 1455 on `[::1]`, and on Windows on every
-address. A connection to `127.0.0.1` still reaches the core's listener, but
-Windows resolves `localhost` to `::1` first, so a browser may hand the code to a
-program listening on `[::1]`. The core does not guard against that program: it
-runs inside the boundary that can already read the data directory and
-CLIProxyAPI's credentials.
+The code binds the listener to `127.0.0.1:1455` only, on every system, and
+leaves `[::1]:1455` free; the redirect URI names `localhost`
+(`http://localhost:1455/auth/callback`), which a browser may resolve to `::1`.
+The core does not guard that address: a program running as the
+same user can bind it, and a browser that tries `::1` for `localhost` hands the
+code to that program. Such a program runs inside the boundary that can already
+read the data directory and CLIProxyAPI's credentials, so the core does not
+bind `[::1]` as well.
+
+What was measured:
+
+- Windows (hosted runner, thomasvan/lokki#3, runs 39716610311 and 39717434134):
+  while a login waits, no other socket binds `127.0.0.1:1455`, whatever options
+  it sets, and a connection to `127.0.0.1` reaches the core's listener. A socket
+  binds `[::1]:1455` and a wildcard `0.0.0.0:1455`; `localhost` resolves to
+  `::1` first, and a connection to `localhost` reached the program on `::1`.
+- Linux (this project's development host, one scratch run with no socket
+  options, on a port the OS picked): with `127.0.0.1:<port>` listening,
+  `[::1]:<port>` bound, and `0.0.0.0:<port>` was refused (`EADDRINUSE`).
+  `localhost` resolved to `127.0.0.1` only there, so a client that follows the
+  resolver reaches the core; that depends on the host's `/etc/hosts`.
+- macOS (Intel, macOS 26.7.1, 2026-10-22, a probe from `core/` at 8236d37 with
+  the core's own listener class, which keeps `SO_REUSEADDR` on POSIX, on a port
+  the OS picked): while the listener held `127.0.0.1:<port>`, no other socket
+  bound that address, with no option, `SO_REUSEADDR`, `SO_REUSEPORT` or both
+  (`EADDRINUSE`). A wildcard `0.0.0.0:<port>` bound beside it only with
+  `SO_REUSEADDR` or `SO_REUSEPORT`; `[::1]` and `[::]` bound with any of the
+  four. `localhost` resolved to `['127.0.0.1', '::1']`, and with a socket on
+  `[::1]` a connection to `localhost:<port>` reached `127.0.0.1`, as did a
+  request to `127.0.0.1:<port>`: the core's listener answered.
+
+A browser's own address choice was not measured on any system, and Happy
+Eyeballs may try `::1` whatever order the resolver gives.
 
 CLIProxyAPI makes two version checks when it starts, one from npm and one
 whose source its log does not name; that traffic is its own.

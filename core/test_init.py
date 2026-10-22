@@ -285,6 +285,11 @@ class InitTests(unittest.TestCase):
             init.run(self.dir, core_port=0, cliproxy_port=0)
         self.assertIn(self.dir, str(caught.exception))
         self.assertIn("photos", str(caught.exception))
+        self.assertIn("nothing changed", str(caught.exception))
+        # The error page shows this line: it says how to get past it, by either way.
+        self.assertIn("LOKKI_DATA_DIR", str(caught.exception))
+        self.assertIn("move", str(caught.exception))
+        self.assertIn("Try again", str(caught.exception))
         self.assertEqual((self._snapshot(), os.stat(self.dir).st_mode), before)
         self.assertEqual(sorted(os.listdir(self.dir)), ["photos"])
         if os.name == "nt":
