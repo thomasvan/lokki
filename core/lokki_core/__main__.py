@@ -36,7 +36,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.cmd == "init":
         from . import init
-        out = init.run(args.data_dir, args.core_port, args.cliproxy_port, args.cliproxy_version)
+        try:
+            out = init.run(args.data_dir, args.core_port, args.cliproxy_port, args.cliproxy_version)
+        except init.InitError as e:
+            print(f"lokki_core: {e}", file=sys.stderr)
+            return 1
         note = out.pop("note", "")
         # Ports and paths only: `run` returns no secret, and this prints what it returns.
         print(json.dumps(out))

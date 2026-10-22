@@ -23,8 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows runs on request only until its suite is green.
-        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-26.04", "macos-latest", "windows-latest"]' || '["ubuntu-26.04", "macos-latest"]') }}
+        os: [ubuntu-26.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:

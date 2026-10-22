@@ -36,7 +36,8 @@ export default defineConfig(() => {
       "/healthz": coreProxy(core),
       "/version": coreProxy(core),
     } } : undefined,
-    // The suite runs on a shared workstation: the limits are there to catch a hang, not to time a test.
+    // The suite runs on a shared workstation and on CI's hosted runners, both slower than a quiet machine:
+    // the limits are there to catch a hang, not to time a test.
     test: {
       environment: "jsdom", setupFiles: ["./src/test-setup.ts"], include: ["src/**/*.test.ts"],
       testTimeout: 30_000, hookTimeout: 30_000,

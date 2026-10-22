@@ -635,7 +635,7 @@ APPLIES = (
     # serving process's evidence mid-stream, one chain split across two files. It would also
     # reach into a caller that chose its own path: the suite passes `RELAY_RUNS_LOG`.
     dict(name="a config that names no run log does not move the process log",
-         patch={"core.RUNS_LOG": "{scratch}/mine.jsonl"}, file=T,
+         patch={"core.RUNS_LOG": os.path.join("{scratch}", "mine.jsonl")}, file=T,
          expect={"core.RUNS_LOG": Ref("scratch", lambda d: os.path.join(d, "mine.jsonl")),
                  "s.runs_log_source": "default"}),
 )
@@ -659,7 +659,7 @@ RELOADS = (
          expect={"applied": None, "config.TOKENS": Ref("before.TOKENS"), "said.0": Has("no client tokens")}),
     # the operator's edit is neither obeyed (that would split the chain) nor swallowed
     dict(name="a reload that changes the run log says so and keeps writing",
-         patch={"core.RUNS_LOG": "{scratch}/mine.jsonl"}, file=T + "runs_log: {scratch}/other.jsonl\n",
+         patch={"core.RUNS_LOG": os.path.join("{scratch}", "mine.jsonl")}, file=T + "runs_log: {scratch}/other.jsonl\n",
          expect={"core.RUNS_LOG": Ref("scratch", lambda d: os.path.join(d, "mine.jsonl")),
                  "told": Has("takes effect at the next start", "reloaded"),
                  "applied.runs_log_source": "config runs_log"}),
@@ -1221,7 +1221,8 @@ CODEX_ITEMS = [
 TWO_TOKENS = {"config.TOKENS": (("first", TOKEN, "operator"), ("second", "second-client-token", "client"))}
 TUNE = {"prompt": "hello", "mode": "control", "pad_tools": False}
 PINNED = {"config.DEFAULT_SESSION_PIN": True}
-CAPTURING = {"config.CAPTURE_DIR": "{scratch}/captures"}
+# Joined as the expectations join it: a patched path skips the loader, which would resolve it.
+CAPTURING = {"config.CAPTURE_DIR": os.path.join("{scratch}", "captures")}
 PIN_OF_THE_CLIENT = Ref("record.client", core.session_pin_id)
 OPENAI_ERROR_KEYS = ["code", "message", "param", "type"]
 
