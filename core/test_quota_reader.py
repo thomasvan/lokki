@@ -527,6 +527,31 @@ class OAuthTests(unittest.TestCase):
             oauth.Callback(port=held.getsockname()[1]).start(self.fake.url)
         self.assertEqual(self.fake.callbacks, [])
 
+    @unittest.skipUnless(os.name == "nt", "SO_REUSEADDR shares a held port on Windows only")
+    def test_on_windows_no_other_socket_binds_the_waiting_address(self):
+        port = self.listener().address[1]
+        for option in (None, socket.SO_REUSEADDR, socket.SO_EXCLUSIVEADDRUSE):
+            with socket.socket() as s:
+                if option is not None:
+                    s.setsockopt(socket.SOL_SOCKET, option, 1)
+                with self.assertRaises(OSError, msg=f"option {option} bound the waiting address"):
+                    s.bind(("127.0.0.1", port))
+
+    @unittest.skipUnless(os.name == "nt", "the listener sets no SO_REUSEADDR on Windows only")
+    def test_on_windows_the_next_login_binds_the_port_at_once_after_a_callback(self):
+        port = self.listener("state-code-1abc").address[1]
+        # As a browser reads a `Connection: close` answer: until the listener closes, so the
+        # TIME_WAIT is the listener's side, the one that could hold the port.
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as c:
+            c.sendall(f"GET /auth/callback?code={CODE}&state=state-code-1abc HTTP/1.1\r\n"
+                      "Host: localhost\r\n\r\n".encode())
+            answer = b""
+            while chunk := c.recv(4096):
+                answer += chunk
+        self.assertTrue(answer.startswith(b"HTTP/1.0 200 "), answer[:40])
+        oauth.close_pending()
+        self.assertEqual(self.listener("state-next-1abc").address[1], port)    # CallbackPortBusy if still held
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,13 @@ as `migrated`. A `config.yaml` without the keys init writes is reported as not m
 by init and is left alone. Ports are `0` (any free port) or 1 to 65535; anything
 else is refused with exit status 2.
 
+The data directory may already exist when it is empty, or when it holds only
+the entries an interrupted first run left. One that holds anything else, such as
+a `LOKKI_DATA_DIR` pointed at a folder in use, is refused: `init` prints one line
+naming the directory and an entry it did not make, exits with status 1 and
+changes nothing. Making it `0700`, or on Windows giving it the DACL below, would
+shut other users out of what it already holds.
+
 Windows keeps no POSIX modes. There `init` gives the data directory and each
 directory in the layout a protected DACL instead: full control for the user
 running `init` and for SYSTEM, and for nobody else. Everything made inside them
@@ -18,7 +25,8 @@ ownership. On a volume that keeps no ACLs, such as FAT or exFAT, this step is
 passed over. Anywhere else, if Windows refuses the DACL, `init` stops before it
 writes any secret, prints one line on stderr and exits with status 1. A rerun on a
 directory that already has a configuration file leaves the directories alone, so
-one an earlier version created keeps the ACL it had.
+one an earlier version created keeps the ACL it had. Only a development build
+from before the DACL made such a directory; no released build did.
 
 | Path | Purpose and owner | POSIX mode |
 | --- | --- | --- |

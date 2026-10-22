@@ -33,6 +33,15 @@ on (`docs/app/api.md`, Adding an account). Port 1455 is the one `codex login` us
 the other's login is refused ("another login is in progress"). The page the
 user logs in on is the provider's.
 
+The listener binds `127.0.0.1:1455` only. While a login waits, no other socket
+binds that address, whatever options it sets, on Windows too. A program running
+as the same user can still bind port 1455 on `[::1]`, and on Windows on every
+address. A connection to `127.0.0.1` still reaches the core's listener, but
+Windows resolves `localhost` to `::1` first, so a browser may hand the code to a
+program listening on `[::1]`. The core does not guard against that program: it
+runs inside the boundary that can already read the data directory and
+CLIProxyAPI's credentials.
+
 CLIProxyAPI makes two version checks when it starts, one from npm and one
 whose source its log does not name; that traffic is its own.
 
