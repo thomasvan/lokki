@@ -33,14 +33,28 @@ on (`docs/app/api.md`, Adding an account). Port 1455 is the one `codex login` us
 the other's login is refused ("another login is in progress"). The page the
 user logs in on is the provider's.
 
-The listener binds `127.0.0.1:1455` only. While a login waits, no other socket
-binds that address, whatever options it sets, on Windows too. A program running
-as the same user can still bind port 1455 on `[::1]`, and on Windows on every
-address. A connection to `127.0.0.1` still reaches the core's listener, but
-Windows resolves `localhost` to `::1` first, so a browser may hand the code to a
-program listening on `[::1]`. The core does not guard against that program: it
-runs inside the boundary that can already read the data directory and
-CLIProxyAPI's credentials.
+The listener binds `127.0.0.1:1455` only; the code and the redirect URI
+(`http://localhost:1455/auth/callback`) say so on every system, and `[::1]:1455`
+is left free. The core does not guard that address: a program running as the
+same user can bind it, and a browser that tries `::1` for `localhost` hands the
+code to that program. Such a program runs inside the boundary that can already
+read the data directory and CLIProxyAPI's credentials, so the core does not
+bind `[::1]` as well.
+
+What was measured:
+
+- Windows (hosted runner, thomasvan/lokki#3, runs 39716610311 and 39717434134):
+  while a login waits, no other socket binds `127.0.0.1:1455`, whatever options
+  it sets, and a connection to `127.0.0.1` reaches the core's listener. A socket
+  binds `[::1]:1455` and a wildcard `0.0.0.0:1455`; `localhost` resolves to
+  `::1` first, and a connection to `localhost` reached the program on `::1`.
+- Linux (this project's development host, one scratch run with no socket
+  options, on a port the OS picked): with `127.0.0.1:<port>` listening,
+  `[::1]:<port>` bound, and `0.0.0.0:<port>` was refused (`EADDRINUSE`).
+  `localhost` resolved to `127.0.0.1` only there, so no browser connection
+  reached `::1`; that depends on the host's `/etc/hosts`.
+- macOS: not measured. Whether `localhost` resolves to `::1` first, and whether
+  a wildcard socket binds beside `127.0.0.1`, is unknown here.
 
 CLIProxyAPI makes two version checks when it starts, one from npm and one
 whose source its log does not name; that traffic is its own.

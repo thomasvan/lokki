@@ -233,7 +233,8 @@ def run(data_dir, core_port=CORE_PORT, cliproxy_port=CLIPROXY_PORT, cliproxy_ver
         foreign = []
     if foreign:
         raise InitError(f"{data_dir} already holds files init did not make, such as {foreign[0]}; "
-                        "nothing changed: give init an empty or new directory")
+                        "nothing changed. Point LOKKI_DATA_DIR at an empty or new folder, or move "
+                        "those files out of this one and press Try again")
     for rel in ("", "cliproxy", os.path.join("cliproxy", "auth"), "secrets", "logs"):
         _mkdir(os.path.join(data_dir, rel), 0o700)
     app_token, client_key, cliproxy_key, mgmt_secret = (secrets.token_hex(32) for _ in range(4))

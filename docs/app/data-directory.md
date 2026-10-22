@@ -14,7 +14,8 @@ The data directory may already exist when it is empty, or when it holds only
 the entries an interrupted first run left. One that holds anything else, such as
 a `LOKKI_DATA_DIR` pointed at a folder in use, is refused: `init` prints one line
 naming the directory and an entry it did not make, exits with status 1 and
-changes nothing. Making it `0700`, or on Windows giving it the DACL below, would
+changes nothing. The line says to point `LOKKI_DATA_DIR` at an empty or new folder, or
+to move those files out and press Try again, which runs `init` again. Making it `0700`, or on Windows giving it the DACL below, would
 shut other users out of what it already holds.
 
 Windows keeps no POSIX modes. There `init` gives the data directory and each
