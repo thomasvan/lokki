@@ -25,7 +25,8 @@ ownership. On a volume that keeps no ACLs, such as FAT or exFAT, this step is
 passed over. Anywhere else, if Windows refuses the DACL, `init` stops before it
 writes any secret, prints one line on stderr and exits with status 1. A rerun on a
 directory that already has a configuration file leaves the directories alone, so
-one an earlier version created keeps the ACL it had.
+one an earlier version created keeps the ACL it had. Only a development build
+from before the DACL made such a directory; no released build did.
 
 | Path | Purpose and owner | POSIX mode |
 | --- | --- | --- |
