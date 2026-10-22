@@ -109,9 +109,10 @@ signature is the one the linker gives the shell, which expects sealed resources 
 bundle has; a copy a browser downloaded is refused as "damaged", and Privacy & Security
 offers no Open Anyway. A sealed copy gets macOS's ordinary prompt: lokki was "Not
 Opened" because Apple could not verify it, and Open Anyway in System Settings › Privacy
-& Security opens it (README › macOS). Both were seen on an Apple silicon Mac with
-`tauri` CLI 2.12.2, and on an Intel Mac in the hand test of 2026-10-22
-([limits](limits.md), An Intel Mac is slow to start and the paragraph after it).
+& Security opens it (README › macOS). The sealed copy's prompt and Open Anyway were
+seen on an Apple silicon Mac with `tauri` CLI 2.12.2 and on an Intel Mac (The hand test on an Intel Mac, below);
+the "damaged" refusal of an unsealed copy, on Apple silicon only: the Intel run
+built only sealed bundles.
 
 Hardened runtime gives an app that is not notarized nothing. A build with it, on the same
 Mac, never logged `ready` in 60 seconds. Why was not checked; one guess is that library
@@ -237,3 +238,47 @@ its libraries at start, for `/api/status` on the port and with the operator toke
 the installed core's `shell-config` prints. *Pass:* it answers 200. The script takes a
 Mac for Apple silicon when `sysctl -n hw.optional.arm64` reads 1, and step 0 says which
 it found. Step 5's relaunch and the sidecars' start prove the kernel ran them.
+
+## The hand test on an Intel Mac
+
+On 2026-10-22, from 04:41 UTC, `app/scripts/mac-update-handtest.sh` ran steps 0 to 8
+of Testing an install on macOS, above, at 8236d37, on an Intel Core i9-9880H Mac with
+macOS 26.7.1. The build venv had Python 3.14.9, not 3.13. The real lokki (0.1.0) and its data
+directory were moved aside first and put back afterwards.
+
+- Step 1 built A and B in about 8 minutes.
+- Step 3, by hand, through the README's path: A's quarantined `.dmg`
+  (`0081;…;Safari;`) opened from Finder, lokki dragged to Applications and
+  opened. macOS gave its "could not verify" prompt, not "damaged". (The person at
+  the Mac did not quote the dialog. It is known for this by three things: step 3 finished
+  through Open Anyway, which a copy refused as "damaged" does not offer, as above;
+  the approved bundle's quarantine read `01c1`; and step 7c went through the same
+  prompt.) Privacy & Security offered Open Anyway, which asked for the password. The first run
+  reached Home, and so did the restart. "Check now" offered 99.0.1 with "Install
+  and restart".
+- Step 4: the bundle read `Identifier=dev.lokki.desktop Signature=adhoc` and both
+  sidecars `Signature=adhoc`. `codesign --verify --deep --strict` passed on
+  `/Applications/lokki.app`, and `codesign -v` passed on `cliproxy-8_0_23` and on
+  `lokki-core-0_1_0`. The approved bundle's quarantine read `01c1;…;Safari;`.
+- Step 5, by hand: "Install and restart" gave no password dialog and no
+  Gatekeeper dialog, and lokki relaunched as 99.0.1. Its `app.log` has the install
+  asked at 05:20:02Z, both sidecars stopped drained at 05:20:03Z, "update
+  installed; restarting" at 05:20:03Z, init saying "already initialised" at
+  05:20:26Z, and ready at 05:21:11Z.
+- Step 6: every check passed. The version is 99.0.1, and the shell and both
+  sidecars run as B's files from `/Applications/lokki.app`. The bundle carries no
+  quarantine. `codesign -dv` matches step 4, and `--deep --strict` and each
+  sidecar's `-v` pass again. The data checksums are unchanged. `app.log` shows the
+  drain, the stop, the install after the proof, both sidecars started again, and
+  no error.
+- Step 7, by hand, the banner's reason word for word:
+  - 7a: "lokki is running from a read-only disk, such as its disk image: move
+    lokki.app into Applications, open it from there, then install"
+  - 7b: "your macOS user cannot change lokki.app or the folder it is in, and lokki
+    does not ask for an administrator's password; download the new .dmg, or move
+    lokki.app to a folder you can write to"
+  - 7c, after the "could not verify" prompt and Open Anyway: "macOS is running
+    lokki from a temporary copy, which cannot be updated: quit lokki, move
+    lokki.app into Applications with Finder, open it from there, then install"
+- Step 8: every `clean` check passed. The test's data directory was removed, the
+  real install was put back, and nothing of the test was left.
