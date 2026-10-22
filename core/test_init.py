@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """First run belongs to the core: the data directory, four distinct secrets, two
 config files that agree, a busy port moved, a second run that changes nothing."""
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -38,8 +40,13 @@ def _tree_text(root):
 
 
 def _powershell(script, **env):
+    """What Windows PowerShell prints for `script`, which calls .NET only: a cmdlet's module
+    may not load under the PSModulePath a pwsh step hands down. Anything on stderr fails."""
+    env = {k: v for k, v in {**os.environ, **env}.items() if k != "PSModulePath"}
     run = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                         capture_output=True, text=True, check=True, env={**os.environ, **env})
+                         capture_output=True, text=True, check=True, env=env)
+    if run.stderr.strip():
+        raise AssertionError(f"PowerShell said: {run.stderr.strip()}")
     return run.stdout.strip()
 
 
@@ -53,18 +60,21 @@ SYSTEM_SID = "S-1-5-18"
 
 def _windows_dacl(path):
     """Whether `path`'s DACL is protected from its parent's, and the SIDs its rules let
-    in, each an allow of full control (else None); read by PowerShell's `Get-Acl`, not by
-    the code under test."""
-    got = json.loads(_powershell(
-        "$a = Get-Acl -LiteralPath $env:ACL_PATH; "
-        "@{protected = $a.AreAccessRulesProtected; rules = @($a.Access | ForEach-Object { @{"
-        "sid = $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value; "
-        "rights = [string]$_.FileSystemRights; type = [string]$_.AccessControlType} })} | ConvertTo-Json -Compress",
-        ACL_PATH=path))
-    rules = got["rules"]
-    if any(r["type"] != "Allow" or r["rights"] != "FullControl" for r in rules):
-        return got["protected"], None
-    return got["protected"], {r["sid"] for r in rules}
+    in, each an allow of full control (else None); read through .NET, not by the code
+    under test."""
+    lines = _powershell(
+        "$p = $env:ACL_PATH; "
+        "$i = if ([IO.Directory]::Exists($p)) { [IO.DirectoryInfo]::new($p) } else { [IO.FileInfo]::new($p) }; "
+        "$a = $i.GetAccessControl(); "
+        "'protected ' + $a.AreAccessRulesProtected; "
+        "foreach ($r in $a.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) "
+        "{ 'rule ' + $r.IdentityReference.Value + ' ' + $r.AccessControlType + ' ' + $r.FileSystemRights }",
+        ACL_PATH=path).splitlines()
+    protected = {"protected True": True, "protected False": False}[lines[0]]
+    rules = [line.split(" ", 3)[1:] for line in lines[1:]]
+    if any(rest != ["Allow", "FullControl"] for _sid, *rest in rules):
+        return protected, None
+    return protected, {sid for sid, *_ in rules}
 
 
 class InitTests(unittest.TestCase):
@@ -247,6 +257,29 @@ class InitTests(unittest.TestCase):
         plain = os.path.join(os.path.dirname(self.dir), "plain")
         os.mkdir(plain)
         self.assertNotEqual(_windows_dacl(plain), (True, {user, SYSTEM_SID}))
+
+    @unittest.skipUnless(os.name == "nt", "Windows ACLs: POSIX has the modes tested above")
+    def test_on_windows_a_dacl_the_volume_refuses_stops_init_before_any_secret(self):
+        with mock.patch.object(init._advapi32, "SetNamedSecurityInfoW", return_value=5):     # ERROR_ACCESS_DENIED
+            with self.assertRaises(init.InitError) as caught:
+                init.run(self.dir, core_port=0, cliproxy_port=0)
+        self.assertIn(self.dir, str(caught.exception))
+        self.assertEqual(_tree_text(self.dir), [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows ACLs: POSIX has the modes tested above")
+    def test_on_windows_a_volume_that_keeps_no_acls_is_passed_over(self):
+        with mock.patch.object(init, "_keeps_acls", return_value=False), \
+                mock.patch.object(init._advapi32, "SetNamedSecurityInfoW") as set_dacl:
+            self.assertTrue(init.run(self.dir, core_port=0, cliproxy_port=0)["created"])
+        set_dacl.assert_not_called()
+
+    def test_the_cli_states_an_init_refusal_in_one_line_and_exits_1(self):
+        from lokki_core import __main__ as cli
+        said, printed = io.StringIO(), io.StringIO()
+        with mock.patch.object(init, "run", side_effect=init.InitError("cannot do it")), \
+                contextlib.redirect_stderr(said), contextlib.redirect_stdout(printed):
+            code = cli.main(["init", "--data-dir", self.dir, "--core-port", "0", "--cliproxy-port", "0"])
+        self.assertEqual((code, said.getvalue(), printed.getvalue()), (1, "lokki_core: cannot do it\n", ""))
 
     def test_the_core_file_names_only_the_keys_the_app_owns(self):
         out = init.run(self.dir, core_port=0, cliproxy_port=0)
