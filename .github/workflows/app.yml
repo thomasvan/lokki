@@ -106,8 +106,9 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 7 }}
 
   hosted:
-    name: Installers on ${{ matrix.os }} (on request)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.tag == '' }}
+    name: Installers on ${{ matrix.os }}
+    # Where the Linux job runs. The slowest leg, Intel macOS, takes about 15 minutes cold.
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && (github.event_name != 'workflow_dispatch' || inputs.tag == '') }}
     strategy:
       fail-fast: false
       matrix:
