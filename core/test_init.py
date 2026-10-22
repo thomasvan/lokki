@@ -288,7 +288,7 @@ class InitTests(unittest.TestCase):
         self.assertIn("nothing changed", str(caught.exception))
         # The error page shows this line: it says how to get past it, by either way.
         self.assertIn("LOKKI_DATA_DIR", str(caught.exception))
-        self.assertIn("move", str(caught.exception))
+        self.assertIn(" move those files out", str(caught.exception))
         self.assertIn("Try again", str(caught.exception))
         self.assertEqual((self._snapshot(), os.stat(self.dir).st_mode), before)
         self.assertEqual(sorted(os.listdir(self.dir)), ["photos"])
