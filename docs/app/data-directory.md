@@ -16,6 +16,11 @@ entries an interrupted first run left. One that holds anything else, such as a
 naming the directory and an entry it did not make, exits with status 1 and
 changes nothing. The line says to point `LOKKI_DATA_DIR` at an empty or new
 folder, or to move those files out and press Try again, which runs `init` again.
+The app reads `LOKKI_DATA_DIR` once, when it starts (`paths::data_dir()` at
+`app/src-tauri/src/lib.rs:503`, reading it at `app/src-tauri/logic/src/paths.rs:12`),
+so an app opened from Finder, the Start menu or a launcher must be quit and opened
+again with the variable set; Try again does not pick it up. Moving the files out and
+pressing Try again needs no environment.
 Making it `0700`, or on Windows giving it the DACL below, would shut other users
 out of what it already holds.
 

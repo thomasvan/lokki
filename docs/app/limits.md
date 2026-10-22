@@ -35,7 +35,8 @@ user logs in on is the provider's.
 
 The code binds the listener to `127.0.0.1:1455` only, on every system, and
 leaves `[::1]:1455` free; the redirect URI names `localhost`
-(`http://localhost:1455/auth/callback`), which a browser may resolve to `::1`.
+(`http://localhost:1455/auth/callback`), which CLIProxyAPI builds
+(`core/lokki_core/quota/oauth.py:1-7`) and a browser may resolve to `::1`.
 The core does not guard that address: a program running as the
 same user can bind it, and a browser that tries `::1` for `localhost` hands the
 code to that program. Such a program runs inside the boundary that can already
@@ -44,25 +45,67 @@ bind `[::1]` as well.
 
 What was measured:
 
-- Windows (hosted runner, thomasvan/lokki#3, runs 39716610311 and 39717434134):
-  while a login waits, no other socket binds `127.0.0.1:1455`, whatever options
-  it sets, and a connection to `127.0.0.1` reaches the core's listener. A socket
-  binds `[::1]:1455` and a wildcard `0.0.0.0:1455`; `localhost` resolves to
-  `::1` first, and a connection to `localhost` reached the program on `::1`.
-- Linux (this project's development host, one scratch run with no socket
-  options, on a port the OS picked): with `127.0.0.1:<port>` listening,
-  `[::1]:<port>` bound, and `0.0.0.0:<port>` was refused (`EADDRINUSE`).
-  `localhost` resolved to `127.0.0.1` only there, so a client that follows the
-  resolver reaches the core; that depends on the host's `/etc/hosts`.
-- macOS (Intel, macOS 26.7.1, 2026-10-22, a probe from `core/` at 8236d37 with
+- Windows (hosted runner, thomasvan/lokki#3, runs 39716610311 and 39717434134,
+  on a port the OS picked): while a login waits, no other socket binds
+  `127.0.0.1:<port>`, whatever options it sets, and a connection to `127.0.0.1`
+  reaches the core's listener. A socket binds `[::1]:<port>`. A wildcard
+  `0.0.0.0:<port>` binds with no option and with `SO_REUSEADDR`, and is refused
+  with `SO_EXCLUSIVEADDRUSE`: run 39716610311's log has `squatter 0.0.0.0
+  SO_EXCLUSIVEADDRUSE: bind refused, winerror 10048 errno 10048`. `localhost`
+  resolves to `::1` first, and a connection to `localhost` reached the program on
+  `::1`. Run 39716610311 is red because its test asserted that the wildcard
+  could not bind, and the measurement broke that test.
+- Linux (this project's development host, 2026-10-22, `python3
+  core/callback_port_probe.py`, output below): with the core's listener on
+  `127.0.0.1:<port>`, a socket on `127.0.0.1` or on `0.0.0.0` was refused with
+  no option, `SO_REUSEADDR`, `SO_REUSEPORT` or both (`EADDRINUSE`), and a
+  socket on `[::1]` or on `[::]` bound with any of the four. `localhost`
+  resolved to `['127.0.0.1']` only there, a connection to `localhost:<port>`
+  reached `127.0.0.1` with a socket on `[::1]`, and the core's listener
+  answered; that depends on the host's `/etc/hosts`.
+- macOS (Intel, macOS 26.7.1, 2026-10-22, an earlier copy of
+  `core/callback_port_probe.py`, run at 8236d37, with
   the core's own listener class, which keeps `SO_REUSEADDR` on POSIX, on a port
   the OS picked): while the listener held `127.0.0.1:<port>`, no other socket
   bound that address, with no option, `SO_REUSEADDR`, `SO_REUSEPORT` or both
   (`EADDRINUSE`). A wildcard `0.0.0.0:<port>` bound beside it only with
   `SO_REUSEADDR` or `SO_REUSEPORT`; `[::1]` and `[::]` bound with any of the
   four. `localhost` resolved to `['127.0.0.1', '::1']`, and with a socket on
-  `[::1]` a connection to `localhost:<port>` reached `127.0.0.1`, as did a
-  request to `127.0.0.1:<port>`: the core's listener answered.
+  `[::1]` a connection to `localhost:<port>` reached `127.0.0.1`, and the core's
+  listener answered a request to `127.0.0.1:<port>`.
+
+The Linux output, in full:
+
+```
+system: Linux  x86_64
+localhost resolves to: ['127.0.0.1']
+core listener on 127.0.0.1:<port>, SO_REUSEADDR = True
+squatter 127.0.0.1 no option                 refused, errno 98 (Address already in use)
+squatter 127.0.0.1 SO_REUSEADDR              refused, errno 98 (Address already in use)
+squatter 127.0.0.1 SO_REUSEPORT              refused, errno 98 (Address already in use)
+squatter 127.0.0.1 SO_REUSEADDR+SO_REUSEPORT refused, errno 98 (Address already in use)
+squatter 0.0.0.0   no option                 refused, errno 98 (Address already in use)
+squatter 0.0.0.0   SO_REUSEADDR              refused, errno 98 (Address already in use)
+squatter 0.0.0.0   SO_REUSEPORT              refused, errno 98 (Address already in use)
+squatter 0.0.0.0   SO_REUSEADDR+SO_REUSEPORT refused, errno 98 (Address already in use)
+squatter ::1       no option                 BOUND
+squatter ::1       SO_REUSEADDR              BOUND
+squatter ::1       SO_REUSEPORT              BOUND
+squatter ::1       SO_REUSEADDR+SO_REUSEPORT BOUND
+squatter ::        no option                 BOUND
+squatter ::        SO_REUSEADDR              BOUND
+squatter ::        SO_REUSEPORT              BOUND
+squatter ::        SO_REUSEADDR+SO_REUSEPORT BOUND
+squatter [::1] for the landing test: BOUND
+a connection to localhost:<port> reached 127.0.0.1
+a request to 127.0.0.1:<port> answered by the core listener: True
+```
+
+`core/callback_port_probe.py` is the Linux and macOS measurement; run it with
+`python3 core/callback_port_probe.py`. It binds one port the OS picks, on loopback
+and the wildcard address, and nothing else: no port below 1024, not 1455, not
+lokki's own. The Windows runs used a temporary probe step that is no longer in
+the workflow.
 
 A browser's own address choice was not measured on any system, and Happy
 Eyeballs may try `::1` whatever order the resolver gives.
