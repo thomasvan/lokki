@@ -2,8 +2,9 @@
 """app.yml's release matrix and its --require list are deliberate copies of
 release_manifest.PLATFORMS; this test holds them equal, so a platform cannot be added to
 one and forgotten in the other. It also holds the release boundary: no build app.yml makes
-can carry the updater's insecure transport flag or another public key; and every macOS build
-is sealed ad hoc without hardened runtime."""
+can carry the updater's insecure transport flag or another public key; every macOS build
+is sealed ad hoc without hardened runtime; and every workflow keeps a public repository's
+supply chain closed to a fork's pull request."""
 import glob
 import json
 import os
@@ -252,6 +253,55 @@ class MacSigningTests(unittest.TestCase):
             self.assertNotIn("--no-sign", text, path)
             self.assertNotIn("TAURI_CONFIG", text, path)
         self.assertNotIn("--no-sign", _read(os.path.join(HERE, "mac-update-handtest.sh")))
+
+
+class SupplyChainTests(unittest.TestCase):
+    """The repository is public: anyone's pull request runs these workflows. So no job runs on
+    a self-hosted runner, where a fork's code would run on the host; nothing runs a pull
+    request's code with the base repository's token and secrets (`pull_request_target`); every
+    action is the commit it was reviewed at; and a secret is read only by the release jobs,
+    which run on a tag or a dispatch and never on a pull request."""
+
+    HOSTED = r"(ubuntu|macos|windows)-[\w.-]+"
+
+    def _workflows(self):
+        paths = sorted(glob.glob(os.path.join(WORKFLOWS_DIR, "*.y*ml")))
+        self.assertIn(WORKFLOW, paths)
+        return {os.path.basename(p): _read(p) for p in paths}
+
+    def test_every_job_runs_on_a_hosted_runner(self):
+        for name, text in self._workflows().items():
+            self.assertNotIn("self-hosted", text, name)
+            for label in re.findall(r"(?m)^\s*runs-on:\s*(.+?)\s*$", text):
+                self.assertRegex(label, rf"^({self.HOSTED}|\$\{{\{{ matrix\.os \}}\}})$", name)
+            # A matrix's labels, listed or in a fromJSON list.
+            labels = re.findall(r"\bos: ([\w.-]+)", text) + re.findall(r'"([\w.-]+)"', " ".join(re.findall(r"\bos: \$\{\{.*\}\}", text)))
+            for label in labels:
+                self.assertRegex(label, rf"^{self.HOSTED}$", name)
+
+    def test_no_workflow_runs_a_pull_request_with_the_base_repositorys_secrets(self):
+        for name, text in self._workflows().items():
+            self.assertNotIn("pull_request_target", text, name)
+            self.assertNotIn("workflow_run", text, name)
+
+    def test_every_action_is_pinned_by_its_full_commit_with_the_version_beside_it(self):
+        for name, text in self._workflows().items():
+            for line in re.findall(r"(?m)^\s*(?:- )?uses:.*$", text):
+                self.assertRegex(line.strip(), r"^(- )?uses: [\w.-]+/[\w./-]+@[0-9a-f]{40} # \S+", name)
+
+    def test_secrets_are_read_only_by_the_release_jobs(self):
+        release = ("release-linux", "release-hosted")
+        for name, text in self._workflows().items():
+            if name != os.path.basename(WORKFLOW):
+                self.assertNotIn("secrets.", text, name)
+        text = _text()
+        outside = text
+        for job in release:
+            body = _job(text, job)
+            # prepare runs only on a tag push or a dispatch with a tag (WorkflowTests holds its if:).
+            self.assertRegex(body, r"(?m)^    needs: prepare$", job)
+            outside = outside.replace(body, "")
+        self.assertNotIn("secrets.", outside)
 
 
 if __name__ == "__main__":

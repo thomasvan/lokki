@@ -145,10 +145,10 @@ cannot be read; set `routing: relay` to keep cutting every request.
 
 Installers: macOS `.dmg` for arm64 and Intel; Windows `.msi` and NSIS `.exe` for
 x64; Linux `.deb` and AppImage for x64. Linux arm64 and Windows arm64 wait for a
-runner that builds them. `app.yml` builds Linux installers on the workstation
-runner; macOS and Windows builds run by hand (`workflow_dispatch`). Those runs
-keep their installers as Actions artifacts; a tagged release puts them on the
-Releases page. Installers carry no Apple Developer ID or Windows certificate:
+runner that builds them. `app.yml` builds every installer on GitHub's hosted
+runners (Linux on Ubuntu 26.04) for a pull request, a push to `main` or a dispatch
+without a tag, and keeps them as Actions artifacts; a tagged release puts them on
+the Releases page. Installers carry no Apple Developer ID or Windows certificate:
 the macOS app is signed ad hoc only, and is not notarized. A release's update
 packages are signed with the project's release key, and the app checks that
 signature before it installs an update.

@@ -5,9 +5,6 @@ on:
     paths: ["core/**", "deploy/docker-compose.relay-8381.yml", "deploy/relay/Dockerfile", ".github/workflows/core.yml"]
   pull_request:
     paths: ["core/**", "deploy/docker-compose.relay-8381.yml", "deploy/relay/Dockerfile", ".github/workflows/core.yml"]
-  # The hosted macOS and Windows jobs below run only on request: a hosted job
-  # this account is not entitled to is never assigned and fails with zero steps,
-  # which would gate every PR on a proof that cannot run.
   workflow_dispatch:
 
 permissions:
@@ -22,74 +19,28 @@ concurrency:
 
 jobs:
   suite:
-    name: Suite on the workstation runner
-    # The repo's own runner on the workstation (cm-workstation-lokki, started and
-    # healed by the harness's actions-runners-start.sh). It runs pull request code
-    # with the workstation user's access; the repository is private, so no fork's
-    # pull request can reach it. The workstation is shared with every seat and
-    # service, so the limit is generous: the suite takes about three minutes idle.
-    runs-on: [self-hosted, Linux, X64]
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        # uv's CPython, as the other repos on this runner use: it links no
-        # libpython, so a test that starts sys.executable (test_lock.py) runs it
-        # whatever the environment, where actions/setup-python's build on this
-        # runner needs LD_LIBRARY_PATH. One venv per run, under RUNNER_TEMP, so
-        # nothing is installed into the runner's own Python.
-        run: |
-          uv venv --python 3.13 "$RUNNER_TEMP/venv"
-          uv pip install --python "$RUNNER_TEMP/venv/bin/python" pyyaml
-          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
-
-      - name: Report the runner's load and core count
-        # The host is shared with every seat and service: when a run is slow or a
-        # timing test fails, this line says what the suite was competing with.
-        run: |
-          nproc
-          uptime
-
-      - name: Typecheck
-        run: python -c "import server"
-        working-directory: core
-
-      - name: Run the test suite
-        # The run log goes under RUNNER_TEMP: log_run refuses a path inside the
-        # checkout, and this runner's checkout is a real directory on the host.
-        # ci_quiet_suite.py runs the same discovery and also fails the step on
-        # any output a test did not ask for, or any file left in TMPDIR.
-        run: python ci_quiet_suite.py
-        working-directory: core
-        env:
-          RELAY_RUNS_LOG: ${{ runner.temp }}/runs.jsonl
-
-  hosted:
-    name: Suite on ${{ matrix.os }} (on request)
-    if: github.event_name == 'workflow_dispatch'
+    name: Suite on ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # Windows runs on request only until its suite is green.
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-26.04", "macos-latest", "windows-latest"]' || '["ubuntu-26.04", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: {python-version: "3.13"}
       - run: pip install pyyaml
       - name: Typecheck
         run: python -c "import server"
         working-directory: core
       - name: Run the test suite
-        # ci_quiet_suite.py fails on stray output or files left in TMPDIR.
+        # The run log goes under RUNNER_TEMP: log_run refuses a path inside the checkout.
+        # ci_quiet_suite.py runs the same discovery and also fails the step on any output
+        # a test did not ask for, or any file left in TMPDIR.
         run: python ci_quiet_suite.py
         working-directory: core
         env:

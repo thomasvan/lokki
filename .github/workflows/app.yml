@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-    paths: ["app/**", ".github/workflows/app.yml", "core/**", "ui/**"]
+    paths: ["app/**", ".github/workflows/**", "core/**", "ui/**"]
   pull_request:
-    # The reader's management major and the page's typed hooks are checked by this workflow's tests.
-    paths: ["app/**", ".github/workflows/app.yml", "core/lokki_core/quota/reader.py", "ui/src/lib/lokki.d.ts"]
+    # The reader's management major, the page's typed hooks and every workflow are checked by this workflow's tests.
+    paths: ["app/**", ".github/workflows/**", "core/lokki_core/quota/reader.py", "ui/src/lib/lokki.d.ts"]
   workflow_dispatch:
     inputs:
       tag:
@@ -32,10 +32,10 @@ jobs:
   linux:
     # paths do not filter a tag push; a release run has its own jobs.
     if: ${{ !startsWith(github.ref, 'refs/tags/') && (github.event_name != 'workflow_dispatch' || inputs.tag == '') }}
-    # Repository workstation runner cm-workstation-lokki; it is the one runner with minutes.
-    # Runner dependencies: see WORKSPACE_PROTOCOL.md's app Rust and smoke gates.
-    name: Linux build, tests and the headless smoke on the workstation runner
-    runs-on: [self-hosted, Linux, X64]
+    name: Linux build, tests and the headless smoke
+    # Pinned, not ubuntu-latest: the installers' glibc floor is this image's (README.md), and
+    # the AppImage carries its WebKitGTK.
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       CARGO_TERM_COLOR: never
@@ -43,18 +43,22 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - name: Toolchain on the PATH
+      - name: Tauri's Linux packages and the smoke's display
         run: |
-          echo "CARGO_TARGET_DIR=$(dirname "$GITHUB_WORKSPACE")/app-target" >> "$GITHUB_ENV"
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev pkg-config patchelf file xvfb xauth dbus
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable branch
+        with: { toolchain: stable, components: "rustfmt, clippy" }
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with: { workspaces: app/src-tauri }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: { python-version: "3.13" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: Python for the core sidecar
-        run: |
-          uv venv --python 3.13 "$RUNNER_TEMP/venv"
-          uv pip install --python "$RUNNER_TEMP/venv/bin/python" ${{ env.PYTHON_BUILD_PACKAGES }}
-          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
-      - name: Versions and load
-        run: cargo --version && rustc --version && node --version && pyinstaller --version && uptime && df -h /
+        run: pip install ${{ env.PYTHON_BUILD_PACKAGES }}
+      - name: Versions
+        run: cargo --version && rustc --version && node --version && pyinstaller --version
       - name: Script tests
         working-directory: app/scripts
         run: python3 -m unittest
@@ -96,14 +100,15 @@ jobs:
         with:
           name: lokki-linux-x86_64
           path: |
-            ${{ env.CARGO_TARGET_DIR }}/release/bundle/deb/*.deb
-            ${{ env.CARGO_TARGET_DIR }}/release/bundle/appimage/*.AppImage
+            app/src-tauri/target/release/bundle/deb/*.deb
+            app/src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 7 }}
 
   hosted:
-    name: Installers on ${{ matrix.os }} (on request)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.tag == '' }}
+    name: Installers on ${{ matrix.os }}
+    # Where the Linux job runs. The slowest leg, Intel macOS, takes about 15 minutes cold.
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && (github.event_name != 'workflow_dispatch' || inputs.tag == '') }}
     strategy:
       fail-fast: false
       matrix:
@@ -142,7 +147,7 @@ jobs:
     name: The draft release
     # A dispatch on a tag ref with no tag input is a CI run, not a release.
     if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.tag != '') }}
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: write
@@ -188,7 +193,8 @@ jobs:
   release-linux:
     name: The Linux installers, signed
     needs: prepare
-    runs-on: [self-hosted, Linux, X64]
+    # The CI job's image; no cache, so a release builds from the tag alone.
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
       contents: write
@@ -200,16 +206,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, ref: "refs/tags/${{ needs.prepare.outputs.tag }}" }
-      - name: Toolchain on the PATH
+      - name: Tauri's Linux packages and the smoke's display
         run: |
-          echo "CARGO_TARGET_DIR=$(dirname "$GITHUB_WORKSPACE")/app-target" >> "$GITHUB_ENV"
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev pkg-config patchelf file xvfb xauth dbus
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable branch
+        with: { toolchain: stable }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: { python-version: "3.13" }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: Python for the core sidecar
-        run: |
-          uv venv --python 3.13 "$RUNNER_TEMP/venv"
-          uv pip install --python "$RUNNER_TEMP/venv/bin/python" ${{ env.PYTHON_BUILD_PACKAGES }}
-          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+        run: pip install ${{ env.PYTHON_BUILD_PACKAGES }}
       - name: UI build
         working-directory: ui
         run: npm ci && npm run build
@@ -234,7 +242,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          B="$CARGO_TARGET_DIR/release/bundle"
+          B=app/src-tauri/target/release/bundle
           gh release upload "$TAG" "$B/deb/lokki_${VERSION}_amd64.deb" "$B/appimage/lokki_${VERSION}_amd64.AppImage" "$B/appimage/lokki_${VERSION}_amd64.AppImage.sig" -R "$GITHUB_REPOSITORY" --clobber
 
   release-hosted:
@@ -299,7 +307,7 @@ jobs:
     name: latest.json, then the release
     needs: [prepare, release-linux, release-hosted]
     if: ${{ always() && needs.prepare.result == 'success' && needs.release-linux.result == 'success' && (needs.release-hosted.result == 'success' || inputs.platforms == 'linux') }}
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: write

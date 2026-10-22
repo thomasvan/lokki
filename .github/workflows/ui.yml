@@ -18,9 +18,9 @@ concurrency:
 
 jobs:
   ui:
-    name: UI checks, tests and the browser run on the workstation runner
+    name: UI checks, tests and the browser run
     # The e2e starts a real core against a fake CLIProxyAPI on loopback, under RUNNER_TEMP.
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - name: Check out repository
@@ -28,15 +28,14 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python for the core
-        run: |
-          uv venv --python 3.13 "$RUNNER_TEMP/venv"
-          uv pip install --python "$RUNNER_TEMP/venv/bin/python" pyyaml
-          echo "LOKKI_PYTHON=$RUNNER_TEMP/venv/bin/python" >> "$GITHUB_ENV"
-      - name: Report Node and the load
-        run: |
-          node --version
-          npm --version
-          uptime
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: {python-version: "3.13"}
+      - run: pip install pyyaml
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
       - name: Install
         working-directory: ui
         run: npm ci
@@ -46,9 +45,16 @@ jobs:
       - name: Component tests
         working-directory: ui
         run: npm test
+      - name: Chromium from an earlier run
+        # Its CDN is reached only on a miss: from GitHub's runners it has served another host's certificate.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
       - name: Browser
+        # Chromium, unless the cache had it, and the system libraries it needs, which the runner image does not carry.
         working-directory: ui
-        run: npx playwright install chromium
+        run: npx playwright install --with-deps chromium
       - name: Build and the browser run
         working-directory: ui
         env:
