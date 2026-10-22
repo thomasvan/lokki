@@ -15,6 +15,8 @@ import sys
 import tempfile
 import unittest
 
+import yaml
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import release_manifest as rm  # noqa: E402
@@ -272,14 +274,26 @@ class SupplyChainTests(unittest.TestCase):
     def test_every_job_runs_on_a_hosted_runner(self):
         for name, text in self._workflows().items():
             self.assertNotIn("self-hosted", text, name)
-            for label in re.findall(r"(?m)^\s*runs-on:\s*(.+?)\s*$", text):
-                self.assertRegex(label, rf"^({self.HOSTED}|\$\{{\{{ matrix\.os \}}\}})$", name)
-            # A matrix's labels: one, a [list] of them, or the quoted ones in a fromJSON expression.
-            labels = re.findall(r"\bos: ([\w.-]+)", text)
-            labels += [label.strip() for listed in re.findall(r"\bos: \[([^\]]*)\]", text) for label in listed.split(",")]
-            labels += re.findall(r'"([\w.-]+)"', " ".join(re.findall(r"\bos: \$\{\{.*\}\}", text)))
-            for label in labels:
-                self.assertRegex(label, rf"^{self.HOSTED}$", name)
+            for job_name, job in yaml.safe_load(text)["jobs"].items():
+                where = f"{name}: {job_name}"
+                runs_on = job.get("runs-on")
+                labels = self._matrix_os(job, where) if runs_on == "${{ matrix.os }}" else [runs_on]
+                for label in labels:
+                    # A list, a `group:` or `labels:` mapping is refused whole: a hosted runner is one label.
+                    self.assertIsInstance(label, str, f"{where}: runs-on {label!r}")
+                    self.assertRegex(label, rf"^{self.HOSTED}$", where)
+
+    def _matrix_os(self, job, where):
+        """The labels a job's matrix gives `os`: one, a list, the quoted ones in a fromJSON
+        expression, and each `include` entry's."""
+        matrix = job.get("strategy", {}).get("matrix", {})
+        os_ = matrix.get("os")
+        labels = os_ if isinstance(os_, list) else [] if os_ is None else [os_]
+        if isinstance(os_, str) and os_.startswith("${{"):
+            labels = re.findall(r'"([^"]+)"', os_)
+        labels += [entry["os"] for entry in matrix.get("include", []) if "os" in entry]
+        self.assertTrue(labels, f"{where}: runs-on is matrix.os, and the matrix names none")
+        return labels
 
     def test_no_workflow_runs_a_pull_request_with_the_base_repositorys_secrets(self):
         for name, text in self._workflows().items():
