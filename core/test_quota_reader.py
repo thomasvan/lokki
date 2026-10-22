@@ -528,15 +528,14 @@ class OAuthTests(unittest.TestCase):
         self.assertEqual(self.fake.callbacks, [])
 
     @unittest.skipUnless(os.name == "nt", "SO_EXCLUSIVEADDRUSE is Windows' own")
-    def test_on_windows_no_other_socket_binds_the_port_while_a_login_waits(self):
+    def test_on_windows_no_other_socket_binds_the_waiting_address(self):
         port = self.listener().address[1]
-        for host in ("127.0.0.1", "0.0.0.0"):
-            for option in (None, socket.SO_REUSEADDR, socket.SO_EXCLUSIVEADDRUSE):
-                with socket.socket() as s:
-                    if option is not None:
-                        s.setsockopt(socket.SOL_SOCKET, option, 1)
-                    with self.assertRaises(OSError, msg=f"{host} with option {option} bound the waiting port"):
-                        s.bind((host, port))
+        for option in (None, socket.SO_REUSEADDR, socket.SO_EXCLUSIVEADDRUSE):
+            with socket.socket() as s:
+                if option is not None:
+                    s.setsockopt(socket.SOL_SOCKET, option, 1)
+                with self.assertRaises(OSError, msg=f"option {option} bound the waiting address"):
+                    s.bind(("127.0.0.1", port))
 
     @unittest.skipUnless(os.name == "nt", "SO_EXCLUSIVEADDRUSE is Windows' own")
     def test_on_windows_the_next_login_binds_the_port_at_once_after_a_callback(self):

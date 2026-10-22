@@ -290,6 +290,17 @@ class InitTests(unittest.TestCase):
         if os.name == "nt":
             self.assertEqual([_windows_dacl(p) for p in (self.dir, mine)], acls)
 
+    def test_an_initialised_directory_with_a_stray_file_is_still_already_initialised(self):
+        first = init.run(self.dir, core_port=0, cliproxy_port=0)
+        with open(os.path.join(self.dir, ".DS_Store"), "wb"):
+            pass
+        before = self._snapshot()
+        again = init.run(self.dir, core_port=0, cliproxy_port=0)
+        self.assertFalse(again["created"])
+        self.assertEqual(again["core_port"], first["core_port"])
+        self.assertIn("already initialised", again["note"])
+        self.assertEqual(self._snapshot(), before)
+
     def test_an_empty_folder_or_an_interrupted_first_run_is_initialised(self):
         os.makedirs(self.dir)
         out = init.run(self.dir, core_port=0, cliproxy_port=0)
