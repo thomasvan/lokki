@@ -10,8 +10,8 @@ MUTANTS = [
      "SO_REUSEADDR on Windows, the listener before #2",
      "oauth._CallbackServer.allow_reuse_address = True"),
     ("test_on_windows_the_next_login_binds_the_port_at_once_after_a_callback",
-     "close() leaves the socket bound",
-     "oauth._CallbackServer.server_close = lambda self: None"),
+     "close() leaves the socket bound, the server kept alive",
+     "held = []; oauth._CallbackServer.server_close = lambda self: held.append(self)"),
 ]
 RUN = """
 import sys, unittest
