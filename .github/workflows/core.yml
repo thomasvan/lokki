@@ -36,10 +36,6 @@ jobs:
       - name: Typecheck
         run: python -c "import server"
         working-directory: core
-      - name: Mutation check of the Windows callback tests (temporary)
-        if: runner.os == 'Windows'
-        run: python -u mutate_callback_tests.py
-        working-directory: core
       - name: Run the test suite
         # The run log goes under RUNNER_TEMP: log_run refuses a path inside the checkout.
         # ci_quiet_suite.py runs the same discovery and also fails the step on any output
