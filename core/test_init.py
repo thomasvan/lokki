@@ -273,6 +273,34 @@ class InitTests(unittest.TestCase):
             self.assertTrue(init.run(self.dir, core_port=0, cliproxy_port=0)["created"])
         set_dacl.assert_not_called()
 
+    def test_a_folder_that_holds_other_files_is_refused_and_left_as_it_was(self):
+        os.makedirs(os.path.join(self.dir, "photos"))
+        mine = os.path.join(self.dir, "photos", "mine.txt")
+        with open(mine, "w", encoding="utf-8") as f:
+            f.write("mine\n")
+        os.chmod(self.dir, 0o755)
+        before = self._snapshot(), os.stat(self.dir).st_mode
+        acls = [_windows_dacl(p) for p in (self.dir, mine)] if os.name == "nt" else None
+        with self.assertRaises(init.InitError) as caught:
+            init.run(self.dir, core_port=0, cliproxy_port=0)
+        self.assertIn(self.dir, str(caught.exception))
+        self.assertIn("photos", str(caught.exception))
+        self.assertEqual((self._snapshot(), os.stat(self.dir).st_mode), before)
+        self.assertEqual(sorted(os.listdir(self.dir)), ["photos"])
+        if os.name == "nt":
+            self.assertEqual([_windows_dacl(p) for p in (self.dir, mine)], acls)
+
+    def test_an_empty_folder_or_an_interrupted_first_run_is_initialised(self):
+        os.makedirs(self.dir)
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        self.assertTrue(out["created"])
+        # A first run cut off before its two config files, with a sibling file _write left.
+        os.remove(out["core_config"])
+        os.remove(out["cliproxy_config"])
+        with open(os.path.join(self.dir, ".tmp-left"), "w", encoding="utf-8"):
+            pass
+        self.assertTrue(init.run(self.dir, core_port=0, cliproxy_port=0)["created"])
+
     def test_the_cli_states_an_init_refusal_in_one_line_and_exits_1(self):
         from lokki_core import __main__ as cli
         said, printed = io.StringIO(), io.StringIO()

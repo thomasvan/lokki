@@ -11,6 +11,7 @@ import yaml
 from . import migrate
 
 CORE_PORT, CLIPROXY_PORT = 8381, 8317
+_LAYOUT = ("config.yaml", "cliproxy", "secrets", "logs", "runs.jsonl")     # what `run` makes at the top
 
 
 class InitError(Exception):
@@ -222,6 +223,17 @@ def run(data_dir, core_port=CORE_PORT, cliproxy_port=CLIPROXY_PORT, cliproxy_ver
                     out["note"] = (f"already initialised: {present[0]} exists; settings updated: "
                                    + ", ".join(out["migrated"]))
         return out
+    # Closing a folder that already holds other files would close them too: 0700 on POSIX
+    # shuts other users out of them, and on Windows the protected DACL replaces what each
+    # one inherited. An interrupted first run leaves only init's own names, so it is redone.
+    try:
+        foreign = sorted(name for name in os.listdir(data_dir)
+                         if name not in _LAYOUT and not name.startswith(".tmp-"))
+    except FileNotFoundError:
+        foreign = []
+    if foreign:
+        raise InitError(f"{data_dir} already holds files init did not make, such as {foreign[0]}; "
+                        "nothing changed: give init an empty or new directory")
     for rel in ("", "cliproxy", os.path.join("cliproxy", "auth"), "secrets", "logs"):
         _mkdir(os.path.join(data_dir, rel), 0o700)
     app_token, client_key, cliproxy_key, mgmt_secret = (secrets.token_hex(32) for _ in range(4))
