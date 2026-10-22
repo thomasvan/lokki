@@ -10,9 +10,9 @@ what "localhost" resolves to, and which address a connection to "localhost"
 reaches while a socket holds [::1]. docs/app/limits.md quotes its output for
 each system.
 
-Run it from anywhere: `python3 core/callback_port_probe.py`. It only binds, on
+Run it from anywhere: `python3 -B core/callback_port_probe.py`. It only binds, on
 loopback and the wildcard address, one port the OS picks (port 0), and closes
-everything on exit. It reads no file and writes none. It refuses to go on if
+everything on exit. It reads no file and, run as `python3 -B`, writes none. It refuses to go on if
 the OS picks a port below 1024, 1455 or one of lokki's own ports, so it never
 touches a login in progress or a running lokki. `unittest` discovery does not
 import it: its name does not begin with `test_`.
@@ -36,10 +36,10 @@ if port < 1024 or port in (1455, 8317, 8318, 8381, 8382):
 print("core listener on 127.0.0.1:<port>, SO_REUSEADDR =", srv.socket.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) != 0)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
-held = []
 def squat(fam, addr, opts):
-    s = socket.socket(fam, socket.SOCK_STREAM)
+    s = None
     try:
+        s = socket.socket(fam, socket.SOCK_STREAM)
         if fam == socket.AF_INET6:
             s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
         for o in opts:
@@ -47,7 +47,10 @@ def squat(fam, addr, opts):
         s.bind((addr, port)); s.listen()
         return s, "BOUND"
     except OSError as e:
-        s.close()
+        if s:
+            s.close()
+        if s is None:
+            return None, f"not tried: {e}"
         return None, f"refused, errno {e.errno} ({os.strerror(e.errno)})"
 
 for fam, addr in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::1"), (socket.AF_INET6, "::")):
