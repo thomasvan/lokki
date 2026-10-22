@@ -74,6 +74,10 @@ if os.name == "nt":
     _advapi32.SetNamedSecurityInfoW.argtypes = [wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD, ctypes.c_void_p,
                                                 ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
     _advapi32.SetNamedSecurityInfoW.restype = wintypes.DWORD
+    _kernel32.GetVolumePathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+    _kernel32.GetVolumeInformationW.argtypes = [wintypes.LPCWSTR, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p,
+                                                ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p,
+                                                wintypes.DWORD]
 
     def _user_sid():
         """The SID of the user this process runs as, in its string form."""
@@ -97,26 +101,43 @@ if os.name == "nt":
         finally:
             _kernel32.CloseHandle(token)
 
+    def _keeps_acls(path):
+        """Whether the volume `path` is on keeps ACLs; True when Windows cannot say, so
+        that the DACL is tried and a refusal reported."""
+        root = ctypes.create_unicode_buffer(261)
+        flags = wintypes.DWORD()
+        if not (_kernel32.GetVolumePathNameW(path, root, len(root))
+                and _kernel32.GetVolumeInformationW(root, None, 0, None, None, ctypes.byref(flags), None, 0)):
+            return True
+        return bool(flags.value & 0x00000008)                             # FILE_PERSISTENT_ACLS
+
     def _owner_only(path):
         """Windows keeps no POSIX mode, so the 0700 above is not enforced there. `path` gets
         a protected DACL in its place, inherited by everything made under it later (the
         files written here, and CLIProxyAPI's credentials): full control for this user and
         for SYSTEM, nobody else. An administrator can still take ownership, as root can
-        read a 0600 file. Like the chmod above, a refusal (a volume with no ACLs) is passed
-        over."""
+        read a 0600 file. A volume that keeps no ACLs (FAT, exFAT) is passed over, as the
+        chmod above is where it fails. Anywhere else a failure is an InitError: on POSIX
+        the directory was already made 0700, but here nothing else narrows it, and the
+        secrets would be written under the ACL it inherited."""
+        if not _keeps_acls(path):
+            return
         try:
             sddl = f"D:P(A;OICI;FA;;;{_user_sid()})(A;OICI;FA;;;SY)"
-        except OSError:
-            return
+        except OSError as e:
+            raise InitError(f"cannot keep {path} to this user: its SID is unreadable ({e})") from None
         sd, dacl = ctypes.c_void_p(), ctypes.c_void_p()
         present, defaulted = wintypes.BOOL(), wintypes.BOOL()
         if not _advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, 1, ctypes.byref(sd), None):
-            return
+            raise InitError(f"cannot keep {path} to this user: {ctypes.FormatError(ctypes.get_last_error())}")
         try:
-            if _advapi32.GetSecurityDescriptorDacl(sd, ctypes.byref(present), ctypes.byref(dacl),
-                                                   ctypes.byref(defaulted)):
-                # SE_FILE_OBJECT; DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION
-                _advapi32.SetNamedSecurityInfoW(path, 1, 0x00000004 | 0x80000000, None, None, dacl, None)
+            if not _advapi32.GetSecurityDescriptorDacl(sd, ctypes.byref(present), ctypes.byref(dacl),
+                                                       ctypes.byref(defaulted)):
+                raise InitError(f"cannot keep {path} to this user: {ctypes.FormatError(ctypes.get_last_error())}")
+            # SE_FILE_OBJECT; DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION
+            error = _advapi32.SetNamedSecurityInfoW(path, 1, 0x00000004 | 0x80000000, None, None, dacl, None)
+            if error:
+                raise InitError(f"cannot keep {path} to this user: {ctypes.FormatError(error)}")
         finally:
             _kernel32.LocalFree(sd)
 
