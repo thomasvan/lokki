@@ -12,8 +12,8 @@ each system.
 
 Run it from anywhere: `python3 -B core/callback_port_probe.py`. It only binds, on
 loopback and the wildcard address, one port the OS picks (port 0), and closes
-everything on exit. It reads no file and, run as `python3 -B`, writes none. It refuses to go on if
-the OS picks a port below 1024, 1455 or one of lokki's own ports, so it never
+everything on exit. It reads no file and, run as `python3 -B`, writes none. It
+refuses to go on if the OS picks a port below 1024, 1455 or one of lokki's own ports, so it never
 touches a login in progress or a running lokki. `unittest` discovery does not
 import it: its name does not begin with `test_`.
 """
@@ -73,6 +73,9 @@ if s6:
     s6.close()
 c = socket.create_connection(("127.0.0.1", port), timeout=3)
 c.sendall(b"GET / HTTP/1.0\r\n\r\n")
-print("a request to 127.0.0.1:<port> answered by the core listener:", c.recv(200).endswith(b"core"))
+reply = b""
+while chunk := c.recv(200):
+    reply += chunk
+print("a request to 127.0.0.1:<port> answered by the core listener:", reply.endswith(b"core"))
 c.close()
 srv.shutdown(); srv.server_close()

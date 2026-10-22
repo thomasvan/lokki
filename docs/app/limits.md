@@ -65,8 +65,8 @@ What was measured:
   answered; that depends on the host's `/etc/hosts`.
 - macOS (Intel, macOS 26.7.1, 2026-10-22, an earlier copy of
   `core/callback_port_probe.py`, run at 8236d37: the committed file adds the
-  docstring, the port guard and a "not tried" branch for an option a system
-  lacks, and drops a `sys.path` line; the measuring is the same. It used the
+  docstring, the port guard and a "not tried" branch for an option or an
+  address family a system lacks, and drops a `sys.path` line; the measuring is the same. It used the
   core's own listener class, which keeps `SO_REUSEADDR` on POSIX, on a port
   the OS picked): while the listener held `127.0.0.1:<port>`, no other socket
   bound that address, with no option, `SO_REUSEADDR`, `SO_REUSEPORT` or both
