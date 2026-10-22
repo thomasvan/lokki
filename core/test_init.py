@@ -37,6 +37,36 @@ def _tree_text(root):
     return out
 
 
+def _powershell(script, **env):
+    run = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                         capture_output=True, text=True, check=True, env={**os.environ, **env})
+    return run.stdout.strip()
+
+
+def _windows_user_sid():
+    """This user's SID, as Windows itself reports it."""
+    return _powershell("[Security.Principal.WindowsIdentity]::GetCurrent().User.Value")
+
+
+SYSTEM_SID = "S-1-5-18"
+
+
+def _windows_dacl(path):
+    """Whether `path`'s DACL is protected from its parent's, and the SIDs its rules let
+    in, each an allow of full control (else None); read by PowerShell's `Get-Acl`, not by
+    the code under test."""
+    got = json.loads(_powershell(
+        "$a = Get-Acl -LiteralPath $env:ACL_PATH; "
+        "@{protected = $a.AreAccessRulesProtected; rules = @($a.Access | ForEach-Object { @{"
+        "sid = $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value; "
+        "rights = [string]$_.FileSystemRights; type = [string]$_.AccessControlType} })} | ConvertTo-Json -Compress",
+        ACL_PATH=path))
+    rules = got["rules"]
+    if any(r["type"] != "Allow" or r["rights"] != "FullControl" for r in rules):
+        return got["protected"], None
+    return got["protected"], {r["sid"] for r in rules}
+
+
 class InitTests(unittest.TestCase):
     def setUp(self):
         # `root`, not only `data/`, is removed at cleanup: `init` writes secrets
@@ -58,7 +88,10 @@ class InitTests(unittest.TestCase):
             self.assertFalse(second["created"])
             self.assertEqual(second["migrated"], ["retries_old -> retries"])
             self.assertEqual(_load(path), {**before, "retries": 2})
-            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+            if os.name == "nt":
+                self.assertEqual(_windows_dacl(path)[1], {_windows_user_sid(), SYSTEM_SID})
+            else:
+                self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
             mtime = os.stat(path).st_mtime_ns
             third = init.run(self.dir, core_port=0, cliproxy_port=0)
         self.assertEqual(third["migrated"], [])
@@ -201,6 +234,19 @@ class InitTests(unittest.TestCase):
             self.assertEqual(os.stat(os.path.join(self.dir, rel)).st_mode & 0o777, 0o600, rel)
         for rel in ("cliproxy", "cliproxy/auth", "logs", "secrets"):
             self.assertEqual(os.stat(os.path.join(self.dir, rel)).st_mode & 0o777, 0o700, rel)
+
+    @unittest.skipUnless(os.name == "nt", "Windows ACLs: POSIX has the modes tested above")
+    def test_on_windows_the_secrets_let_in_their_user_and_system_only(self):
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        user = _windows_user_sid()
+        for rel in ("", "cliproxy", "cliproxy/auth", "logs", "secrets"):
+            self.assertEqual(_windows_dacl(os.path.join(self.dir, rel)), (True, {user, SYSTEM_SID}), rel)
+        for path in (out["core_config"], out["cliproxy_config"], os.path.join(self.dir, "secrets", "cliproxy-mgmt.secret")):
+            self.assertEqual(_windows_dacl(path)[1], {user, SYSTEM_SID}, path)
+        # The check can fail: a directory init did not make is not owner-only.
+        plain = os.path.join(os.path.dirname(self.dir), "plain")
+        os.mkdir(plain)
+        self.assertNotEqual(_windows_dacl(plain), (True, {user, SYSTEM_SID}))
 
     def test_the_core_file_names_only_the_keys_the_app_owns(self):
         out = init.run(self.dir, core_port=0, cliproxy_port=0)

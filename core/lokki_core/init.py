@@ -49,6 +49,76 @@ def _mkdir(path, mode):
         os.chmod(path, mode)
     except OSError:
         pass
+    if os.name == "nt":
+        _owner_only(path)
+
+
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+
+    _advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    _kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    _kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    _kernel32.LocalFree.restype = ctypes.c_void_p
+    _advapi32.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+    _advapi32.GetTokenInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p,
+                                              wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    _advapi32.ConvertSidToStringSidW.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.LPWSTR)]
+    _advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p]
+    _advapi32.GetSecurityDescriptorDacl.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.BOOL),
+                                                    ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.BOOL)]
+    _advapi32.SetNamedSecurityInfoW.argtypes = [wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD, ctypes.c_void_p,
+                                                ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    _advapi32.SetNamedSecurityInfoW.restype = wintypes.DWORD
+
+    def _user_sid():
+        """The SID of the user this process runs as, in its string form."""
+        token = wintypes.HANDLE()
+        if not _advapi32.OpenProcessToken(_kernel32.GetCurrentProcess(), 0x0008, ctypes.byref(token)):  # TOKEN_QUERY
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            size = wintypes.DWORD()
+            _advapi32.GetTokenInformation(token, 1, None, 0, ctypes.byref(size))                  # TokenUser
+            buf = ctypes.create_string_buffer(size.value)
+            if not _advapi32.GetTokenInformation(token, 1, buf, size, ctypes.byref(size)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            text = wintypes.LPWSTR()
+            if not _advapi32.ConvertSidToStringSidW(ctypes.cast(buf, ctypes.POINTER(ctypes.c_void_p))[0],
+                                                    ctypes.byref(text)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            try:
+                return text.value
+            finally:
+                _kernel32.LocalFree(text)
+        finally:
+            _kernel32.CloseHandle(token)
+
+    def _owner_only(path):
+        """Windows keeps no POSIX mode, so the 0700 above is not enforced there. `path` gets
+        a protected DACL in its place, inherited by everything made under it later (the
+        files written here, and CLIProxyAPI's credentials): full control for this user and
+        for SYSTEM, nobody else. An administrator can still take ownership, as root can
+        read a 0600 file. Like the chmod above, a refusal (a volume with no ACLs) is passed
+        over."""
+        try:
+            sddl = f"D:P(A;OICI;FA;;;{_user_sid()})(A;OICI;FA;;;SY)"
+        except OSError:
+            return
+        sd, dacl = ctypes.c_void_p(), ctypes.c_void_p()
+        present, defaulted = wintypes.BOOL(), wintypes.BOOL()
+        if not _advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, 1, ctypes.byref(sd), None):
+            return
+        try:
+            if _advapi32.GetSecurityDescriptorDacl(sd, ctypes.byref(present), ctypes.byref(dacl),
+                                                   ctypes.byref(defaulted)):
+                # SE_FILE_OBJECT; DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION
+                _advapi32.SetNamedSecurityInfoW(path, 1, 0x00000004 | 0x80000000, None, None, dacl, None)
+        finally:
+            _kernel32.LocalFree(sd)
 
 
 def _read(path):

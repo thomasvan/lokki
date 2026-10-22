@@ -75,7 +75,7 @@ class FakeManagement:
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
-                except (BrokenPipeError, ConnectionResetError):
+                except ConnectionError:
                     pass                     # the reader gave up (a timeout test); nothing to tell
 
             def _auth(self):
@@ -176,7 +176,9 @@ def free_port():
 
 def port_is_free(port):
     """Whether a listener could bind the port now. SO_REUSEADDR, so a closed listener's
-    TIME_WAIT connections do not count as a holder; a socket still listening does."""
+    TIME_WAIT connections do not count as a holder; a socket still listening does. On
+    Windows the option lets a socket share a port another one holds with it too, so
+    this also stands for a second listener that tries to share the callback's."""
     with socket.socket() as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:

@@ -9,6 +9,7 @@ Run:  python3 core/test_compose_healthcheck.py
 """
 
 import os
+import posixpath
 import shlex
 import subprocess
 import tempfile
@@ -20,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPOSE = os.path.join(ROOT, "deploy", "docker-compose.relay-8381.yml")
 DOCKERFILE = os.path.join(ROOT, "deploy", "relay", "Dockerfile")
 LEGACY_DIR = "/app/midstream-abort"
+IN_THE_IMAGE_SHELL = unittest.skipIf(os.name == "nt", "the healthcheck runs under the Linux image's sh, which Windows does not have")
 
 
 def healthcheck_command():
@@ -40,7 +42,7 @@ def dockerfile_healthcheck_path():
             if words[:1] == ["WORKDIR"]:
                 workdir = words[1]
             if words[:1] == ["COPY"] and words[1].endswith("healthcheck.py"):
-                return os.path.join(workdir, os.path.basename(words[2]))
+                return posixpath.join(workdir, posixpath.basename(words[2]))   # a path in the Linux image
     raise AssertionError("the Dockerfile copies no healthcheck.py")
 
 
@@ -61,18 +63,21 @@ class ComposeHealthcheckTests(unittest.TestCase):
     def test_reaches_the_pre_move_path(self):
         self.assertIn(LEGACY_DIR + "/healthcheck.py", healthcheck_command())
 
+    @IN_THE_IMAGE_SHELL
     def test_passes_in_both_layouts(self):
         current = os.path.dirname(dockerfile_healthcheck_path())[len("/app/"):]
         for directory in (current, LEGACY_DIR[len("/app/"):]):
             with self.subTest(directory=directory):
                 self.assertEqual(self.run_in_layout(directory, 0), 0)
 
+    @IN_THE_IMAGE_SHELL
     def test_fails_in_both_layouts_when_the_script_does(self):
         current = os.path.dirname(dockerfile_healthcheck_path())[len("/app/"):]
         for directory in (current, LEGACY_DIR[len("/app/"):]):
             with self.subTest(directory=directory):
                 self.assertEqual(self.run_in_layout(directory, 1), 1)
 
+    @IN_THE_IMAGE_SHELL
     def test_fails_when_no_script_exists(self):
         self.assertNotEqual(self.run_in_layout(None, 0), 0)
 

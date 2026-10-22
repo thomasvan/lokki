@@ -274,8 +274,10 @@ class SupplyChainTests(unittest.TestCase):
             self.assertNotIn("self-hosted", text, name)
             for label in re.findall(r"(?m)^\s*runs-on:\s*(.+?)\s*$", text):
                 self.assertRegex(label, rf"^({self.HOSTED}|\$\{{\{{ matrix\.os \}}\}})$", name)
-            # A matrix's labels, listed or in a fromJSON list.
-            labels = re.findall(r"\bos: ([\w.-]+)", text) + re.findall(r'"([\w.-]+)"', " ".join(re.findall(r"\bos: \$\{\{.*\}\}", text)))
+            # A matrix's labels: one, a [list] of them, or the quoted ones in a fromJSON expression.
+            labels = re.findall(r"\bos: ([\w.-]+)", text)
+            labels += [label.strip() for listed in re.findall(r"\bos: \[([^\]]*)\]", text) for label in listed.split(",")]
+            labels += re.findall(r'"([\w.-]+)"', " ".join(re.findall(r"\bos: \$\{\{.*\}\}", text)))
             for label in labels:
                 self.assertRegex(label, rf"^{self.HOSTED}$", name)
 

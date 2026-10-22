@@ -21,7 +21,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lokki_core import config, core  # noqa: E402
+from lokki_core import config, core, lock  # noqa: E402
 
 
 def read_lines(path):
@@ -205,8 +205,8 @@ class SingleWriterTests(ChainHarness):
     enforcement."""
 
     def test_a_second_writer_for_the_same_log_is_refused(self):
-        lock = core.acquire_runs_lock(self.log)
-        self.assertTrue(os.path.exists(lock))
+        lock_path = core.acquire_runs_lock(self.log)
+        self.assertTrue(os.path.exists(lock_path))
         with self.assertRaises(core.RunLogBusy) as caught:
             core.acquire_runs_lock(self.log)
         self.assertIn("already writing", str(caught.exception))
@@ -214,6 +214,11 @@ class SingleWriterTests(ChainHarness):
 
     def test_a_different_log_is_a_different_lock(self):
         core.acquire_runs_lock(self.log)
+        # The core holds one lock; the second acquire replaces this one, which is given
+        # back here, else Windows cannot remove its file while it is open.
+        first = core._runs_lock_fd
+        self.addCleanup(os.close, first)
+        self.addCleanup(lock.release, first)
         other = os.path.join(self.dir, "other.jsonl")
         self.assertTrue(core.acquire_runs_lock(other))
 
