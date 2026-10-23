@@ -51,12 +51,6 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
-      - name: TEMP diag
-        run: |
-          echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"; . /etc/os-release; echo $VERSION_CODENAME
-          ls -la /etc/apt /etc/apt/sources.list.d /etc/apt/apt.conf.d; cat /etc/apt/sources.list.d/* 2>/dev/null | head -60; cat /etc/apt/sources.list 2>/dev/null | head
-          cat /etc/apt/apt-mirrors.txt; ls /var/lib/apt/lists | head; ls /var/cache/apt/archives | head; grep -r "Keep-Downloaded\|docker-clean" /etc/apt/apt.conf.d || true
-          ls /usr/share/keyrings; sudo -V | head -1; sudo grep -r . /etc/sudoers.d 2>/dev/null | head
       - name: Browser
         # Chromium and WebKit, unless the cache had them, and the system libraries they need, which the runner image does not carry.
         working-directory: ui
