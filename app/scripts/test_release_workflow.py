@@ -488,7 +488,7 @@ class UiWorkflowTests(unittest.TestCase):
 
     def test_a_cache_hit_installs_without_downloading(self):
         self.assertRegex(self.run, r'sudo dpkg -i "\$debs"/\*\.deb')
-        self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', self.run)
+        self.assertIn("""find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$debs" {} +""", self.run)
 
     def test_a_cached_entry_that_does_not_install_is_named_and_fetched_past(self):
         # A hit is never saved again, so such an entry sends every run down the download path.
