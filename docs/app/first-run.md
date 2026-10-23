@@ -84,9 +84,9 @@ The bundled error page titles are “lokki could not set up its data directory�
 not start its services”, “lokki could not open its window”, and “lokki stopped the
 core” or “lokki stopped CLIProxyAPI” after four exits within a minute. It shows a
 sentence describing the failure and, when there is a log, the last lines of the named
-log. “Try again” repeats first run
-after a data directory failure, repeats startup after a service or window failure, or
-starts the stopped sidecar again after it exhausts its restarts.
+log. “Try again” repeats first run after a data directory failure, repeats startup
+after a service or window failure, or starts the stopped sidecar again after it exhausts
+its restarts.
 
 While it runs, lokki holds a lock on `lokki.lock` in the data directory, and the
 system lets it go when lokki ends, however it ends. A second lokki on the same data
@@ -111,11 +111,11 @@ of another user included, is sent nothing. Then:
 
 - a core that accepts the data directory's operator token is asked to drain and stop
   through `POST /api/shutdown`, and is given as long as a quit gives it, at most 30
-  seconds: the start waits before any window opens, holding what Quit needs. A core
-  whose `drain_seconds` is above 25 may still be draining then, and is left to finish.
-  The error page “lokki could not start its services” says its port is in use by the
-  core's file and pid, and Try again asks it again and waits as long, so lokki starts
-  once the drain is over;
+  seconds: the start waits before any window opens, holding what Quit needs. One still
+  there after that is killed, as lokki kills its own core after its drain, together with
+  the processes that started it as far as each also runs as this user and runs a
+  `lokki-core-*` file: the one-file core's bootloader, never the program that started
+  that. Its line in `logs/app.log` names their pids and ends `killed=true`;
 - a CLIProxyAPI that accepts the data directory's management secret is stopped by its
   pid: SIGTERM, then SIGKILL after 5 seconds, on Linux and macOS; killed at once on
   Windows.
