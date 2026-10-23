@@ -59,7 +59,7 @@ jobs:
         # `timeout` signals the whole process group, and sudo relays the signal to apt; the retry waits for apt and dpkg to exit,
         # then finishes any half-done dpkg run, so a killed attempt cannot leave the lock held. apt resumes partial downloads.
         run: |
-          attempt() { timeout --kill-after=5 4 npx playwright install --with-deps chromium webkit; }
+          attempt() { timeout --kill-after=15 180 npx playwright install --with-deps chromium webkit; }
           if ! attempt; then
             echo "::warning::The first attempt failed or ran past 180 s; retrying once."
             for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done
