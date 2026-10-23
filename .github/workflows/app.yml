@@ -137,11 +137,47 @@ jobs:
         run: cd app && python scripts/fetch_cliproxy.py --lock cliproxy.lock --target ${{ matrix.triple }} --out src-tauri/binaries && python scripts/fetch_cliproxy.py --lock cliproxy.lock --target ${{ matrix.triple }} --out src-tauri/binaries --check && python scripts/build_core.py --out src-tauri/binaries --triple ${{ matrix.triple }} --run
       - shell: bash
         run: cd app && python scripts/sidecars.py --config-json --out "$RUNNER_TEMP/tauri.json" && npm ci && npm run tauri build -- --bundles ${{ matrix.bundles }} --config "$RUNNER_TEMP/tauri.json" -- --locked
+      - name: The Windows shell opens no console window
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python app/scripts/check_pe_subsystem.py app/src-tauri/target/release/lokki.exe --want windows
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: lokki-${{ matrix.triple }}
           path: app/src-tauri/target/release/bundle/
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 7 }}
+
+  rust:
+    name: Rust lint and tests on ${{ matrix.os }}
+    # Where the Linux job runs. The shell's Windows and macOS code (the job a sidecar runs in,
+    # the stop it hears, what holds a port) is compiled and tested only here.
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && (github.event_name != 'workflow_dispatch' || inputs.tag == '') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1, on master
+        with: { toolchain: stable, components: clippy }
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with: { workspaces: app/src-tauri }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: { python-version: "3.13" }
+      - name: Python for the build script and the core's init test
+        shell: bash
+        run: pip install ${{ env.PYTHON_BUILD_PACKAGES }}
+      - name: Rust lint
+        working-directory: app/src-tauri
+        run: cargo clippy --locked --workspace -- -D warnings
+      - name: Rust tests
+        working-directory: app/src-tauri
+        run: cargo test --locked --workspace
 
   prepare:
     name: The draft release
@@ -289,6 +325,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cd app && python scripts/sidecars.py --config-json --release --out "$RUNNER_TEMP/tauri.json" && npm run tauri build -- --bundles ${{ matrix.bundles }} --config "$RUNNER_TEMP/tauri.json" -- --locked
+      - name: The Windows shell opens no console window
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python app/scripts/check_pe_subsystem.py app/src-tauri/target/release/lokki.exe --want windows
       - name: Upload to the draft, the updater archive named by version and arch
         shell: bash
         env:

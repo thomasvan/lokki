@@ -99,15 +99,13 @@ pub fn bar(app: &AppHandle) -> (Ink, u32) {
 /// (`AppsUseLightTheme` is the apps', which differs under Windows 10's default).
 #[cfg(windows)]
 fn light_taskbar() -> Option<bool> {
-    use std::os::windows::process::CommandExt;
-    let out = std::process::Command::new("reg")
+    let out = crate::process::command("reg")
         .args([
             "query",
             r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
             "/v",
             "SystemUsesLightTheme",
         ])
-        .creation_flags(0x0800_0000)
         .output()
         .ok()?;
     tray::light_taskbar(&String::from_utf8_lossy(&out.stdout))

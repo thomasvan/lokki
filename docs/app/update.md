@@ -110,9 +110,9 @@ bundle has; a copy a browser downloaded is refused as "damaged", and Privacy & S
 offers no Open Anyway. A sealed copy gets macOS's ordinary prompt: lokki was "Not
 Opened" because Apple could not verify it, and Open Anyway in System Settings › Privacy
 & Security opens it (README › macOS). The sealed copy's prompt and Open Anyway were
-seen on an Apple silicon Mac with `tauri` CLI 2.12.2 and on an Intel Mac (The hand test on an Intel Mac, below);
-the "damaged" refusal of an unsealed copy, on Apple silicon only: the Intel run
-built only sealed bundles.
+seen on an Apple silicon Mac with `tauri` CLI 2.12.2 and on an Intel Mac (The hand
+test on an Intel Mac, below); the "damaged" refusal of an unsealed copy, on Apple
+silicon only: the Intel run built only sealed bundles.
 
 Hardened runtime gives an app that is not notarized nothing. A build with it, on the same
 Mac, never logged `ready` in 60 seconds. Why was not checked; one guess is that library
@@ -282,3 +282,44 @@ directory were moved aside first and put back afterwards.
     lokki.app into Applications with Finder, open it from there, then install"
 - Step 8: every `clean` check passed. The test's data directory was removed, the
   real install was put back, and nothing of the test was left.
+
+## The hand test on Windows
+
+On 2026-10-23 lokki 0.1.0 was run by hand on a Windows 11 machine. Measured over ssh
+before the install and read again after the run: Windows 11 Education 10.0.26300, build
+26300, 64-bit; WebView2 156.0.4314.42 (the EdgeUpdate client key); an uninstall entry
+for the user reading "lokki 0.1.0"; and the release's `lokki_0.1.0_x64-setup.exe`,
+fetched again there, 30,618,427 bytes, whose SHA-256 equals the release asset's digest.
+Its core reported revision 17a0316, and `app.log` has no update line: no update was
+offered or installed.
+
+What was measured from outside lokki: its processes and listeners, sampled about every
+5 seconds from 05:27 UTC, a line for each change; and at 05:55:30 the install, the data
+directory, its ACLs, a count of the secrets found in the logs, and the tail of
+`logs/app.log`.
+
+- The first start was first seen at 05:33:23, and `app.log` has ready at 05:34:00,
+  about 37 seconds later.
+- Both sidecars listened on `127.0.0.1` only: CLIProxyAPI on 8317, the core's Python
+  child on 8381.
+- The data directory, `secrets/`, `logs/`, `cliproxy/` and `cliproxy/auth/` each had a
+  protected DACL of two entries, the user and SYSTEM, full control, not inherited.
+- None of the four secrets (the two tokens, the CLIProxyAPI key and the management
+  secret) was in any log.
+- Each of two restarts of CLIProxyAPI started both sidecars as new processes. Each stop
+  of CLIProxyAPI, in the two restarts and in the quit, logged `drained=false
+  killed=true` 5 to 6 seconds after it began.
+- The quit was asked at 05:37:13, and no lokki process was left at 05:37:23.
+- The next start ran `init` at 05:37:32 and was ready at 05:37:41.
+- At 05:51:20 that shell, pid 13988, was gone, and CLIProxyAPI (2780) and the core's
+  bootloader (12816) with its Python child (15744) still ran and listened. A shell
+  started at 05:51:23 showed "lokki could not start its services" at 05:51:31. The
+  three were gone at 05:55:04; the record does not say what ended them.
+
+What the person at the machine reported:
+
+- They installed v0.1.0. How it was downloaded, and what Edge or SmartScreen showed,
+  was not reported.
+- `lokki.exe` opened a console window whenever it ran.
+- Closing that window ended the shell at 05:51:20.
+- The start ready at 05:37:41 was opened from the Start menu.

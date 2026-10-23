@@ -44,6 +44,7 @@ from before the DACL made such a directory; no released build did.
 | `secrets/cliproxy-mgmt.secret` | Plaintext management secret CLIProxyAPI needs at startup; owned by lokki core | `0600` |
 | `logs/` | Log directory for the sidecar processes; those processes own files they create | `0700` |
 | `runs.jsonl` | lokki core's run evidence log | `0600` |
+| `lokki.lock` | Locked by the running shell, so that no second lokki runs on this directory ([first run](first-run.md)); owned by the shell | `0600` |
 
 `init` prints the selected core and CLIProxyAPI ports and configuration paths,
 never the generated secrets. It writes `server.host: "127.0.0.1"` and
