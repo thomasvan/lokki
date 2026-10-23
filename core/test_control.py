@@ -522,9 +522,11 @@ class RouteMatrixTests(_ControlHarness):
                 stop = threading.Event()
                 self.addCleanup(stop.set)
 
+                # A byte every 0.05 s, 0.2 s inside the drain's 0.25 s idle stop, so that a loaded
+                # runner's stall does not end the drain of the sized body early.
                 def drip():
                     with contextlib.suppress(OSError):
-                        while not stop.wait(0.1):
+                        while not stop.wait(0.05):
                             sock.sendall(b"x" * 64)
 
                 start = time.monotonic()
