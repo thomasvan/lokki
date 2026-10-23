@@ -501,6 +501,41 @@ class RouteMatrixTests(_ControlHarness):
                         self.assertEqual(answer.readline().split()[1:2], [b"401"])
         self.assertEqual(handler.begin_drain.call_count, 0)
 
+    def test_the_drain_of_an_unread_body_stops_at_its_bounds(self):
+        # Before an error the core reads a body nothing read, but never waits on it: it stops
+        # once no byte has come for 0.25 s, and does not read a chunked body or one above
+        # MAX_BODY_BYTES at all. Each client below sends no body, or trickles bytes that a
+        # drain would go on reading for seconds; each is answered in under one.
+        sized = "Content-Length: 1000\r\n"
+        rows = [
+            ("a promised body that never comes", sized, False),
+            ("a chunked body", "Transfer-Encoding: chunked\r\nContent-Length: 1000000\r\n", True),
+            ("a body above MAX_BODY_BYTES", f"Content-Length: {config.MAX_BODY_BYTES + 1}\r\n", True),
+        ]
+        for label, framing, trickle in rows:
+            with self.subTest(label):
+                sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
+                self.addCleanup(sock.close)
+                stop = threading.Event()
+                self.addCleanup(stop.set)
+
+                def drip():
+                    with contextlib.suppress(OSError):
+                        while not stop.wait(0.1):
+                            sock.sendall(b"x" * 64)
+
+                start = time.monotonic()
+                sock.sendall((f"POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                              f"{framing}\r\n").encode())
+                if trickle:
+                    threading.Thread(target=drip, daemon=True).start()
+                with sock.makefile("rb") as answer:
+                    status = answer.readline().split()[1:2]
+                elapsed = time.monotonic() - start
+                stop.set()
+                self.assertEqual(status, [b"401"], label)
+                self.assertLess(elapsed, 1.0, label)
+
     def test_a_client_token_is_403_on_every_operator_route(self):
         for route, status in self._each({"X-Relay-Token": CLIENT_TOKEN}):
             if route[1] in OPERATOR_ONLY:

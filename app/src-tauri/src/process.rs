@@ -1017,9 +1017,12 @@ pub(crate) mod tests {
 
     #[test]
     fn a_process_of_another_user_is_not_this_users() {
-        // pid 1 runs as root, and the System process, pid 4, as SYSTEM; the tests as neither.
+        // pid 1 runs as root, and the System process, pid 4, as SYSTEM. A test run as root
+        // runs as pid 1's user, so the row says nothing then and is skipped.
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        assert!(!same_user(1), "pid 1");
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(!same_user(1), "pid 1");
+        }
         #[cfg(windows)]
         {
             use std::os::windows::io::{FromRawHandle, OwnedHandle};
