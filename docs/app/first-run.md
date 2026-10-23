@@ -107,7 +107,11 @@ earlier mount, or a file an upgrade has since removed, counts. Anything else, a 
 of another user included, is sent nothing. Then:
 
 - a core that accepts the data directory's operator token is asked to drain and stop
-  through `POST /api/shutdown`, and is given at most 30 seconds to;
+  through `POST /api/shutdown`, and is given at most 30 seconds to. One still there
+  after that is killed, as lokki kills its own core after its drain, together with the
+  processes that started it as far as each also runs as this user and runs a
+  `lokki-core-*` file: the one-file core's bootloader, never the program that started
+  that. Its line in `logs/app.log` names their pids and ends `killed=true`;
 - a CLIProxyAPI that accepts the data directory's management secret is stopped by its
   pid: SIGTERM, then SIGKILL after 5 seconds, on Linux and macOS; killed at once on
   Windows.

@@ -93,9 +93,13 @@ impl Tree {
     }
 }
 
-/// The process listening on a loopback port, held so that its pid cannot name another
-/// process while the shell acts on it: by a handle on Windows and a pidfd on Linux. macOS
-/// has no such hold; there the pid is checked against the port again before each signal.
+/// How long a kill waits for the processes it ended to be gone.
+const KILL_WAIT: Duration = Duration::from_secs(5);
+
+/// The process listening on a loopback port, or one that started it, held so that its pid
+/// cannot name another process while the shell acts on it: by a handle on Windows and a
+/// pidfd on Linux. macOS has no such hold; there the pid is checked against the port again
+/// before each signal.
 pub struct Listener {
     pub pid: u32,
     /// Its executable, when the system says.
@@ -120,22 +124,12 @@ pub fn listener(port: u16) -> Option<Listener> {
         handle,
     })?;
     #[cfg(target_os = "linux")]
-    let found = pidfd_open(pid).map(|pidfd| {
-        use std::os::unix::fs::MetadataExt;
-        Listener {
-            pid,
-            exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
-            // `/proc/<pid>` belongs to the process's effective user.
-            same_user: std::fs::metadata(format!("/proc/{pid}"))
-                .is_ok_and(|m| m.uid() == unsafe { libc::geteuid() }),
-            pidfd,
-        }
-    })?;
+    let found = pidfd_open(pid).map(|pidfd| held(pid, pidfd))?;
     #[cfg(target_os = "macos")]
     let found = Listener {
         pid,
         exe: proc_pidpath(pid),
-        same_user: proc_uid(pid) == Some(unsafe { libc::geteuid() }),
+        same_user: proc_bsdinfo(pid).map(|i| i.pbi_uid) == Some(unsafe { libc::geteuid() }),
     };
     (owner(port) == Some(pid)).then_some(found)
 }
@@ -153,62 +147,177 @@ impl Listener {
         #[cfg(target_os = "linux")]
         {
             let _ = port;
-            let signal = |sig: libc::c_int| unsafe {
-                use std::os::fd::AsRawFd;
-                libc::syscall(
-                    libc::SYS_pidfd_send_signal,
-                    self.pidfd.as_raw_fd(),
-                    sig,
-                    std::ptr::null::<libc::siginfo_t>(),
-                    0,
-                );
-            };
-            // A pidfd turns readable when its process exits.
-            let exited = |wait: Duration| {
-                use std::os::fd::AsRawFd;
-                let mut fd = libc::pollfd {
-                    fd: self.pidfd.as_raw_fd(),
-                    events: libc::POLLIN,
-                    revents: 0,
-                };
-                let ms = wait.as_millis().min(i32::MAX as u128) as libc::c_int;
-                unsafe { libc::poll(&mut fd, 1, ms) == 1 }
-            };
-            signal(libc::SIGTERM);
-            if exited(wait) {
+            self.signal(libc::SIGTERM);
+            if self.exited(wait) {
                 return true;
             }
-            signal(libc::SIGKILL);
-            exited(Duration::from_secs(2))
+            self.signal(libc::SIGKILL);
+            self.exited(Duration::from_secs(2))
         }
         #[cfg(target_os = "macos")]
         {
             // With no hold on the pid, a signal goes only while the pid still holds the port,
             // and the process counts as gone once it no longer does.
-            let holds = || owner(port) == Some(self.pid);
             let signal = |sig| {
-                if holds() {
+                if owner(port) == Some(self.pid) {
                     unsafe { libc::kill(self.pid as libc::pid_t, sig) };
                 }
             };
-            let released = |wait: Duration| {
-                let end = std::time::Instant::now() + wait;
-                while holds() {
-                    if std::time::Instant::now() >= end {
-                        return false;
-                    }
-                    std::thread::sleep(Duration::from_millis(200));
-                }
-                true
-            };
             signal(libc::SIGTERM);
-            if released(wait) {
+            if released(port, self.pid, wait) {
                 return true;
             }
             signal(libc::SIGKILL);
-            released(Duration::from_secs(2))
+            released(port, self.pid, Duration::from_secs(2))
         }
     }
+
+    /// The process that started it, held as it is, while the system still names one.
+    pub fn parent(&self) -> Option<Listener> {
+        #[cfg(windows)]
+        {
+            let pid = win::parent(self.pid)?;
+            let handle = win::open(pid)?;
+            // Windows keeps a parent's pid after the parent is gone, and the pid may name a
+            // later process: the parent is the one that was created before its child.
+            (win::created(&handle)? <= win::created(&self.handle)?).then(|| Listener {
+                pid,
+                exe: win::image(&handle),
+                same_user: win::same_user(&handle),
+                handle,
+            })
+        }
+        #[cfg(target_os = "linux")]
+        {
+            // A live process's parent is alive, so a pid this process still names as its
+            // parent after the pidfd is open is the parent that pidfd holds.
+            let pid = parent_pid(self.pid)?;
+            let parent = held(pid, pidfd_open(pid)?);
+            let live = |p: &Listener| !p.exited(Duration::ZERO);
+            (parent_pid(self.pid) == Some(pid) && live(self) && live(&parent)).then_some(parent)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            // Checked again before the kill, as the listener's own pid is.
+            let pid = proc_bsdinfo(self.pid)?.pbi_ppid;
+            Some(Listener {
+                pid,
+                exe: proc_pidpath(pid),
+                same_user: proc_bsdinfo(pid).map(|i| i.pbi_uid) == Some(unsafe { libc::geteuid() }),
+            })
+        }
+    }
+
+    /// Kills it and `ancestors`, the processes that started it from the nearest up, at once
+    /// and with nothing any of them can handle. True when every one is gone; on macOS, when
+    /// the port is let go. There each ancestor is killed only while the listener still holds
+    /// `port` and every process between it and the ancestor still names the next as parent.
+    pub fn kill(&self, port: u16, ancestors: &[Listener]) -> bool {
+        // The ancestors first: on macOS the line to them runs through the live listener.
+        #[cfg(windows)]
+        {
+            let _ = port;
+            ancestors
+                .iter()
+                .chain([self])
+                .fold(true, |gone, p| win::terminate(&p.handle, KILL_WAIT) && gone)
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = port;
+            let all = || ancestors.iter().chain([self]);
+            all().for_each(|p| p.signal(libc::SIGKILL));
+            all().fold(true, |gone, p| p.exited(KILL_WAIT) && gone)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            if owner(port) == Some(self.pid) {
+                let mut child = self.pid;
+                let line: Vec<u32> = ancestors
+                    .iter()
+                    .map(|a| a.pid)
+                    .take_while(|&pid| {
+                        let linked = proc_bsdinfo(child).map(|i| i.pbi_ppid) == Some(pid);
+                        child = pid;
+                        linked
+                    })
+                    .collect();
+                for pid in line {
+                    unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+                }
+                if owner(port) == Some(self.pid) {
+                    unsafe { libc::kill(self.pid as libc::pid_t, libc::SIGKILL) };
+                }
+            }
+            released(port, self.pid, KILL_WAIT)
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn signal(&self, sig: libc::c_int) {
+        use std::os::fd::AsRawFd;
+        unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                self.pidfd.as_raw_fd(),
+                sig,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            );
+        }
+    }
+
+    /// Whether it exits within `wait`: a pidfd turns readable when its process exits.
+    #[cfg(target_os = "linux")]
+    fn exited(&self, wait: Duration) -> bool {
+        use std::os::fd::AsRawFd;
+        let mut fd = libc::pollfd {
+            fd: self.pidfd.as_raw_fd(),
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        let ms = wait.as_millis().min(i32::MAX as u128) as libc::c_int;
+        unsafe { libc::poll(&mut fd, 1, ms) == 1 }
+    }
+}
+
+/// `pid`, held by `pidfd`, with what `/proc` says of it.
+#[cfg(target_os = "linux")]
+fn held(pid: u32, pidfd: std::os::fd::OwnedFd) -> Listener {
+    use std::os::unix::fs::MetadataExt;
+    Listener {
+        pid,
+        exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
+        // `/proc/<pid>` belongs to the process's effective user.
+        same_user: std::fs::metadata(format!("/proc/{pid}"))
+            .is_ok_and(|m| m.uid() == unsafe { libc::geteuid() }),
+        pidfd,
+    }
+}
+
+/// The parent pid in `/proc/<pid>/stat`, whose fields follow the command in parentheses.
+#[cfg(target_os = "linux")]
+fn parent_pid(pid: u32) -> Option<u32> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    stat.rsplit_once(')')?
+        .1
+        .split_whitespace()
+        .nth(1)?
+        .parse()
+        .ok()
+}
+
+/// Whether `pid` lets go of `port` within `wait`.
+#[cfg(target_os = "macos")]
+fn released(port: u16, pid: u32, wait: Duration) -> bool {
+    let end = std::time::Instant::now() + wait;
+    while owner(port) == Some(pid) {
+        if std::time::Instant::now() >= end {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    true
 }
 
 /// The pid that holds `port` in the listening state, from the system's own table.
@@ -285,7 +394,7 @@ fn pidfd_open(pid: u32) -> Option<std::os::fd::OwnedFd> {
 }
 
 #[cfg(target_os = "macos")]
-fn proc_uid(pid: u32) -> Option<libc::uid_t> {
+fn proc_bsdinfo(pid: u32) -> Option<libc::proc_bsdinfo> {
     let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
     let size = size_of::<libc::proc_bsdinfo>() as libc::c_int;
     let n = unsafe {
@@ -297,7 +406,7 @@ fn proc_uid(pid: u32) -> Option<libc::uid_t> {
             size,
         )
     };
-    (n == size).then_some(info.pbi_uid)
+    (n == size).then_some(info)
 }
 
 #[cfg(target_os = "macos")]
@@ -323,7 +432,7 @@ mod win {
     use std::sync::{Mutex, PoisonError};
     use std::time::Duration;
     use windows_sys::Win32::Foundation::{
-        ERROR_INSUFFICIENT_BUFFER, HANDLE, INVALID_HANDLE_VALUE, WAIT_OBJECT_0,
+        ERROR_INSUFFICIENT_BUFFER, FILETIME, HANDLE, INVALID_HANDLE_VALUE, WAIT_OBJECT_0,
     };
     use windows_sys::Win32::NetworkManagement::IpHelper::{
         GetExtendedTcpTable, MIB_TCPROW_OWNER_PID, MIB_TCPTABLE_OWNER_PID,
@@ -337,7 +446,8 @@ mod win {
         AttachConsole, FreeConsole, GenerateConsoleCtrlEvent, CTRL_BREAK_EVENT,
     };
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-        CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, Thread32First, Thread32Next,
+        PROCESSENTRY32W, TH32CS_SNAPPROCESS, TH32CS_SNAPTHREAD, THREADENTRY32,
     };
     use windows_sys::Win32::System::JobObjects::{
         AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
@@ -345,10 +455,10 @@ mod win {
         JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     };
     use windows_sys::Win32::System::Threading::{
-        GetCurrentProcess, OpenProcess, OpenProcessToken, OpenThread, QueryFullProcessImageNameW,
-        ResumeThread, TerminateProcess, WaitForSingleObject, PROCESS_NAME_WIN32,
-        PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
-        THREAD_SUSPEND_RESUME,
+        GetCurrentProcess, GetProcessTimes, OpenProcess, OpenProcessToken, OpenThread,
+        QueryFullProcessImageNameW, ResumeThread, TerminateProcess, WaitForSingleObject,
+        PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+        PROCESS_TERMINATE, THREAD_SUSPEND_RESUME,
     };
 
     /// A job that ends every process in it when its last handle closes.
@@ -534,6 +644,36 @@ mod win {
         }
     }
 
+    /// The pid `pid` was started by, from the system's process list.
+    pub fn parent(pid: u32) -> Option<u32> {
+        let snap = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+        if snap == INVALID_HANDLE_VALUE {
+            return None;
+        }
+        let snap = unsafe { OwnedHandle::from_raw_handle(snap) };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        let mut more = unsafe { Process32FirstW(snap.as_raw_handle(), &mut entry) } != 0;
+        while more {
+            if entry.th32ProcessID == pid {
+                return Some(entry.th32ParentProcessID);
+            }
+            more = unsafe { Process32NextW(snap.as_raw_handle(), &mut entry) } != 0;
+        }
+        None
+    }
+
+    /// When `process` was created, in the system's 100 ns ticks.
+    pub fn created(process: &OwnedHandle) -> Option<u64> {
+        let mut times = [FILETIME::default(); 4];
+        let [created, exited, kernel, user] = &mut times;
+        let ok = unsafe { GetProcessTimes(process.as_raw_handle(), created, exited, kernel, user) };
+        let at = times[0];
+        (ok != 0).then(|| (u64::from(at.dwHighDateTime) << 32) | u64::from(at.dwLowDateTime))
+    }
+
     pub fn terminate(process: &OwnedHandle, wait: Duration) -> bool {
         unsafe {
             TerminateProcess(process.as_raw_handle(), 1);
@@ -628,16 +768,25 @@ pub(crate) mod tests {
     /// A copy of this test binary named `file` (with the system's executable suffix) in
     /// `dir`, run as `role`.
     pub(crate) fn me_as(dir: &Path, file: &str, role: &str) -> Command {
+        me_at(&copy_of_me(dir, file), role)
+    }
+
+    /// A copy of this test binary named `file` (with the system's executable suffix) in `dir`.
+    pub(crate) fn copy_of_me(dir: &Path, file: &str) -> PathBuf {
         let copy = dir.join(format!("{file}{}", std::env::consts::EXE_SUFFIX));
         std::fs::copy(std::env::current_exe().unwrap(), &copy).unwrap();
-        let mut cmd = me(role);
-        let args: Vec<_> = cmd.get_args().map(ToOwned::to_owned).collect();
-        let envs: Vec<_> = cmd
-            .get_envs()
-            .filter_map(|(k, v)| Some((k.to_owned(), v?.to_owned())))
-            .collect();
-        cmd = command(copy);
-        cmd.args(args).envs(envs);
+        copy
+    }
+
+    /// The copy of this test binary at `exe`, run as `role`.
+    fn me_at(exe: &Path, role: &str) -> Command {
+        let model = me(role);
+        let mut cmd = command(exe);
+        cmd.args(model.get_args()).envs(
+            model
+                .get_envs()
+                .filter_map(|(k, v)| Some((k.to_owned(), v?.to_owned()))),
+        );
         cmd
     }
 
@@ -654,11 +803,13 @@ pub(crate) mod tests {
     }
 
     /// Not a test: the processes the tests start. A shell starts a sidecar as `spawn` does,
-    /// or without it; a sidecar starts a child and prints both pids; a listener holds a
+    /// or without it; a sidecar starts a child and prints both pids; a starter starts the
+    /// file `LOKKI_TEST_CHILD` as an HTTP listener and prints both pids; a listener holds a
     /// loopback port and prints it; an HTTP listener also prints the first line of each
     /// request, and answers `LOKKI_TEST_STATUS` to one that carries `LOKKI_TEST_CREDENTIAL`
-    /// and 401 to any other, and exits once it has answered 202. A connection that sends
-    /// nothing, as a probe of the port does, is no request.
+    /// and 401 to any other, and exits once it has answered 202 unless `LOKKI_TEST_STAYS` is
+    /// set, as a core whose drain died does. A connection that sends nothing, as a probe of
+    /// the port does, is no request.
     #[test]
     #[ignore = "a role the tests run in a child process"]
     fn role() {
@@ -677,6 +828,12 @@ pub(crate) mod tests {
                 println!("pids {} {}", std::process::id(), child.id());
                 hold();
             }
+            Ok("starter") => {
+                let exe = std::env::var_os("LOKKI_TEST_CHILD").unwrap();
+                let child = me_at(Path::new(&exe), "http").spawn().unwrap();
+                println!("pids {} {}", std::process::id(), child.id());
+                hold();
+            }
             Ok("listener") => {
                 let l = TcpListener::bind("127.0.0.1:0").unwrap();
                 println!("port {}", l.local_addr().unwrap().port());
@@ -687,6 +844,14 @@ pub(crate) mod tests {
                 println!("port {}", l.local_addr().unwrap().port());
                 let credential = std::env::var("LOKKI_TEST_CREDENTIAL").unwrap();
                 let ok: u16 = std::env::var("LOKKI_TEST_STATUS").unwrap().parse().unwrap();
+                let stays = std::env::var_os("LOKKI_TEST_STAYS").is_some();
+                if stays {
+                    // No longer than a holder that never answers.
+                    std::thread::spawn(move || {
+                        hold();
+                        std::process::exit(0);
+                    });
+                }
                 for stream in l.incoming() {
                     // Printed before the answer, so a caller that has its answer can read it.
                     let (_, status) = answer(stream.unwrap(), |head| {
@@ -699,7 +864,7 @@ pub(crate) mod tests {
                             401
                         }
                     });
-                    if status == 202 {
+                    if status == 202 && !stays {
                         return;
                     }
                 }
