@@ -66,19 +66,24 @@ jobs:
       - name: Browser
         # Chromium and WebKit, and the system libraries they need, which the runner image does not carry.
         # With the .deb files cached, dpkg installs them directly: no apt, so no index and no mirror (apt's own resolution
-        # against the image's older index asked for archives it did not have).
-        # Without them (a new Playwright or runner image, or a cache that does not install), `--with-deps` fetches them from the apt mirror.
-        # That fetch took 8-31 s until two runs crawled at ~170 kB/s for 14 and 30+ minutes, so each attempt gets 180 s
-        # and there is one retry, through archive.ubuntu.com instead of the image's first choice, azure.archive.ubuntu.com:
-        # about 7 minutes of the job's 30, counting the kill grace and the lock wait.
+        # against the image's older index asks for archives the cache does not hold).
+        # Without them (a new Playwright or runner image), `--with-deps` fetches them from the apt mirror. So does a run whose
+        # restored entry dpkg cannot install, and it warns: a hit is never saved again, so every run fetches until a new image
+        # or Playwright changes the key, or `gh cache delete` removes the entry.
+        # The fetch usually takes under a minute, but the image's first mirror, azure.archive.ubuntu.com, can crawl at
+        # ~170 kB/s for over half an hour. So each attempt gets 180 s and there is one retry, through archive.ubuntu.com:
+        # at most 450 s, 7.5 minutes of the job's 30, counting the kill grace and the lock wait.
         # `timeout` signals the whole process group, and sudo relays the signal to apt; the retry waits for apt and dpkg to exit,
         # then finishes any half-done dpkg run, so a killed attempt cannot leave the lock held. apt resumes partial downloads.
         working-directory: ui
         run: |
           debs="$HOME/playwright-debs"
-          if ls "$debs"/*.deb >/dev/null 2>&1 && sudo dpkg -i "$debs"/*.deb; then
-            timeout --kill-after=15 180 npx playwright install chromium webkit
-            exit 0
+          if ls "$debs"/*.deb >/dev/null 2>&1; then
+            if sudo dpkg -i "$debs"/*.deb; then
+              timeout --kill-after=15 180 npx playwright install chromium webkit
+              exit 0
+            fi
+            echo "::warning::The cached .deb files did not install; this run fetches them, and so will every run until the cache key changes or the entry is deleted."
           fi
           attempt() { timeout --kill-after=15 "$1" npx playwright install --with-deps chromium webkit; }
           if ! attempt 180; then

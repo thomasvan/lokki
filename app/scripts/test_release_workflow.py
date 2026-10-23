@@ -321,9 +321,10 @@ class SupplyChainTests(unittest.TestCase):
 
 
 class UiWorkflowTests(unittest.TestCase):
-    """The Browser step downloads from an apt mirror that has crawled for 14 and 30+ minutes. A normal
-    run installs from cached .deb files and fetches nothing; a run that must fetch has bounded
-    attempts, the second through another mirror, and their sum stays well inside the job's timeout."""
+    """The apt mirror the Browser step fetches from can crawl for longer than the job may run. A
+    normal run installs from cached .deb files and fetches nothing; a run that must fetch has bounded
+    attempts, the second through another mirror, whose sum stays well inside the job's timeout, and
+    fails loudly when both fail. Neither attempt lets apt install what it cannot authenticate."""
 
     def setUp(self):
         self.job = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]
@@ -346,6 +347,18 @@ class UiWorkflowTests(unittest.TestCase):
         self.assertRegex(self.run, r'sudo dpkg -i "\$debs"/\*\.deb')
         self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', self.run)
 
+    def test_a_cached_entry_that_does_not_install_is_named_and_fetched_past(self):
+        # A hit is never saved again, so such an entry sends every run down the download path.
+        warning = self.run.index("::warning::The cached .deb files did not install")
+        self.assertLess(self.run.index("sudo dpkg -i"), warning)
+        self.assertLess(warning, self.run.index("attempt()"))
+
+    def test_apt_installs_only_what_it_can_authenticate(self):
+        # Option and configuration spellings alike: `--allow-unauthenticated`, `APT::Get::AllowUnauthenticated`.
+        flat = self.run.lower().replace("-", "")
+        for bypass in ("trusted=yes", "allowunauthenticated", "allowinsecure"):
+            self.assertNotIn(bypass, flat)
+
     def test_a_miss_is_bounded_retried_once_through_another_mirror_and_inside_the_job_timeout(self):
         grace = re.findall(r'timeout --kill-after=(\d+) "\$1" npx playwright install --with-deps', self.run)
         self.assertEqual(len(grace), 1, "one bounded attempt, called twice")
@@ -359,6 +372,8 @@ class UiWorkflowTests(unittest.TestCase):
         # The retry's mirror is written after the first attempt and put back when the step ends.
         self.assertLess(self.run.index("attempt 180"), self.run.index("https://archive.ubuntu.com/ubuntu/"))
         self.assertIn("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT", self.run)
+        # The retry failing fails the step, with the reason in the run's annotations.
+        self.assertRegex(self.run, r'(?m)^\s*attempt \d+ \|\| \{ echo "::error::[^"]+"; exit [1-9]\d*; \}$')
 
 
 if __name__ == "__main__":
