@@ -5,8 +5,8 @@
 #
 # A normal fetch of the app's packages takes about a minute, but the image's first apt mirror,
 # azure.archive.ubuntu.com, can crawl for half an hour. So each attempt gets 240 s and there is
-# one retry, through archive.ubuntu.com: at most 705 s, counting the kill grace, the lock wait and
-# the bounded finish of a killed dpkg run. Both running out fails the step with an ::error::, and
+# one retry, through archive.ubuntu.com: at most 715 s, counting the kill grace, the lock wait, the
+# wait after a kill and the bounded finish of a killed dpkg run. Both running out fails the step with an ::error::, and
 # so does anything else that ends the script early. The image's other source,
 # packages.microsoft.com, is not in the mirror list, so a stall there is retried through the
 # same host.
@@ -18,12 +18,18 @@
 # cache to keep. The release job passes no --debs, so everything it installs is fetched from the
 # archive.
 #
-# `timeout`, uutils coreutils' on this image, runs as root and signals its process group, which
-# holds apt-get. apt starts dpkg in a session of its own, outside that group: a first attempt
-# killed while dpkg unpacked left dpkg running, and it exited by itself within the next 2 s.
-# Then `dpkg --configure -a` configured what it had unpacked, and the retry installed the rest.
-# The retry waits 60 s for apt and dpkg to exit and kills what is left, dpkg included, because
-# dpkg is built to be stopped at any point. apt resumes partial downloads.
+# `timeout`, uutils coreutils' on this image, runs as root and leads a process group of its own,
+# which holds apt-get. On a hosted runner, a first attempt cut at its bound returned at the bound,
+# its 15 s kill grace unused, with apt-get still exiting; 2 s later apt-get was gone. The log
+# shows no signal, so it does not show which processes `timeout` signalled. apt starts dpkg in a
+# session of its own, outside that group, and dpkg's maintainer scripts run in that session: at
+# the return dpkg and two of its `sh` children were alive, and the terminal apt gives dpkg had
+# hung up as apt-get exited. 2 s later dpkg was gone; what ended it, the log does not show. Then
+# `dpkg --configure -a` configured what it had unpacked, and the retry installed the rest.
+# The retry waits 60 s for apt, apt-get and dpkg to exit. If any is left, it kills dpkg's session
+# with what runs in it, then every process named apt, apt-get or dpkg, and waits up to 10 s for
+# them to be gone, so that `dpkg --configure -a` finds dpkg's lock free. No run has shown what a
+# killed dpkg leaves. apt resumes partial downloads.
 set -euo pipefail
 trap 'echo "::error::apt-install.sh, line $LINENO: \`$BASH_COMMAND\` failed with exit $?."' ERR
 
@@ -46,15 +52,31 @@ attempt() {
 }
 if ! attempt 240 "$@"; then
   echo "::warning::The first attempt failed or ran out of time; retrying once, through archive.ubuntu.com."
-  for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done
-  sudo pkill -KILL -x 'apt|apt-get|dpkg' || true
-  sudo timeout --kill-after=15 120 dpkg --configure -a \
-    || { echo "::error::dpkg did not finish the first attempt's half-done run within 120 s, so the retry cannot install."; exit 1; }
+  # apt, apt-get and dpkg gone within $1 checks 2 s apart
+  gone() { for _ in $(seq "$1"); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || return 0; sleep 2; done; return 1; }
+  if ! gone 30; then
+    # `pkill -s` kills the sessions these pids lead; a dpkg that leads none kills nothing more.
+    if sessions=$(pgrep -d, -x dpkg); then sudo pkill -KILL -s "$sessions" || true; fi
+    sudo pkill -KILL -x 'apt|apt-get|dpkg' || true
+    gone 5 || { echo "::error::apt or dpkg was still running 10 s after SIGKILL, so the retry cannot install."; exit 1; }
+  fi
+  finish=0
+  sudo timeout --kill-after=15 120 dpkg --configure -a || finish=$?
+  case "$finish" in
+    0) ;;
+    124|137) echo "::error::dpkg --configure -a did not finish the first attempt's half-done run within 120 s, so the retry cannot install."; exit 1 ;;
+    *) echo "::error::dpkg --configure -a failed with exit $finish, so the retry cannot install."; exit 1 ;;
+  esac
   [ -f /etc/apt/apt-mirrors.txt ] \
     || { echo "::error::The image has no /etc/apt/apt-mirrors.txt, so the retry has no mirror list to point at archive.ubuntu.com."; exit 1; }
   # Only this attempt: the image's mirror list is put back when the script ends, whatever way it ends.
   sudo cp /etc/apt/apt-mirrors.txt "$RUNNER_TEMP/apt-mirrors.txt"
-  trap 'sudo cp "$RUNNER_TEMP/apt-mirrors.txt" /etc/apt/apt-mirrors.txt' EXIT
+  # A function: the ERR trap does not reach into one, so a restore that fails is named once, by its own line.
+  restore() {
+    sudo cp "$RUNNER_TEMP/apt-mirrors.txt" /etc/apt/apt-mirrors.txt \
+      || { echo "::error::apt-install.sh could not put the image's mirror list back into /etc/apt/apt-mirrors.txt."; exit 1; }
+  }
+  trap restore EXIT
   printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\n' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
   attempt 240 "$@" || { echo "::error::The Linux packages did not install in two attempts of 240 s each."; exit 1; }
 fi

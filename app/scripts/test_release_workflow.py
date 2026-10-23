@@ -382,15 +382,17 @@ class BoundedFetchTests(unittest.TestCase):
                 bounds = [int(m.group(1)) for m in attempts]
                 self.assertEqual(len(bounds), 2, "one try and one retry")
                 self.assertLessEqual(max(bounds), 300)
-                self.assertIn("for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done", run)
+                self.assertIn("""gone() { for _ in $(seq "$1"); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || return 0; sleep 2; done; return 1; }""", run)
+                self.assertIn('if sessions=$(pgrep -d, -x dpkg); then sudo pkill -KILL -s "$sessions" || true; fi', run)
                 self.assertIn("sudo pkill -KILL -x 'apt|apt-get|dpkg' || true", run)
                 finish = re.findall(r"sudo timeout --kill-after=(\d+) (\d+) dpkg --configure -a", run)
                 self.assertEqual(len(finish), 1, "the killed attempt's dpkg run is finished within a bound")
-                # Two attempts with their kill grace, the lock wait (30 x 2 s) and the finish leave most of the job for the rest.
-                worst = (sum(bounds) + 2 * int(grace) + 60 + sum(int(n) for n in finish[0])) / 60
+                # Two attempts with their kill grace, the waits before and after the kill (35 x 2 s) and the finish leave most
+                # of the job for the rest.
+                worst = (sum(bounds) + 2 * int(grace) + 70 + sum(int(n) for n in finish[0])) / 60
                 self.assertLess(worst, timeout_minutes / 3)
                 # The retry's mirror is written between the two attempts and put back when the step ends.
-                trap = run.index("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT")
+                trap = run.index("trap restore EXIT")
                 mirror = run.index("https://archive.ubuntu.com/ubuntu/")
                 self.assertLess(attempts[0].start(), trap)
                 self.assertLess(trap, mirror)
@@ -429,7 +431,7 @@ class LinuxPackagesTests(unittest.TestCase):
         for body in _run_blocks(_text()):
             self.assertIsNone(APT_CALL.search(body), body)
         code = [l for l in _read(APT_INSTALL).splitlines() if not l.lstrip().startswith("#")]
-        calls = [l for l in code if re.search(r"(?<![\w-])apt(-get)? +[a-z]", l)]
+        calls = [l for l in code if re.search(r"(?<![\w-])apt(-get)? +[a-z]", re.sub(r'"::error::[^"]*"', "", l))]
         self.assertEqual(len(calls), 1, calls)
         self.assertRegex(calls[0], r"""^\s*sudo timeout --kill-after=\d+ "\$bound" sh -c 'apt-get update && apt-get install -y "\$@"' """)
 
