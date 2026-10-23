@@ -474,21 +474,31 @@ class RouteMatrixTests(_ControlHarness):
 
     def test_a_body_sent_without_a_token_is_answered_401_not_reset(self):
         # The gate answers before the body is read, and closes. A close over bytes it never
-        # read resets the connection, and a client can lose the 401 to the reset: it errored
-        # as ConnectionAbortedError on Windows. A client still sending when the reset comes
-        # loses it on any system, so this one sends a body of several megabytes through a
-        # small send buffer.
-        body = b"x" * (6 << 20)
-        for method, path in (("POST", "/v1/responses"), ("POST", "/api/shutdown"), ("PUT", "/api/settings")):
-            with self.subTest(path):
-                sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
-                self.addCleanup(sock.close)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
-                head = (f"{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
-                        f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n\r\n")
-                sock.sendall(head.encode() + body)
-                with sock.makefile("rb") as answer:
-                    self.assertEqual(answer.readline().split()[1:2], [b"401"])
+        # read resets the connection, and the client can lose the 401 to the reset: it
+        # errored as ConnectionAbortedError on Windows.
+        def through_a_small_buffer(sock, head):
+            # Still sending when the reset comes: lost on any system.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+            sock.sendall(head + b"x" * (6 << 20))
+
+        def after_a_moment(sock, head):
+            # Read once the reset is in: Windows drops the answer it had not read.
+            sock.sendall(head)
+            time.sleep(0.05)
+            sock.sendall(b"{}")
+            time.sleep(0.5)
+
+        sizes = {through_a_small_buffer: 6 << 20, after_a_moment: 2}
+        for send, size in sizes.items():
+            for method, path in (("POST", "/v1/responses"), ("POST", "/api/shutdown"), ("PUT", "/api/settings")):
+                with self.subTest(send.__name__, path=path):
+                    sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
+                    self.addCleanup(sock.close)
+                    head = (f"{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                            f"Content-Type: application/json\r\nContent-Length: {size}\r\n\r\n")
+                    send(sock, head.encode())
+                    with sock.makefile("rb") as answer:
+                        self.assertEqual(answer.readline().split()[1:2], [b"401"])
         self.assertEqual(handler.begin_drain.call_count, 0)
 
     def test_a_client_token_is_403_on_every_operator_route(self):
