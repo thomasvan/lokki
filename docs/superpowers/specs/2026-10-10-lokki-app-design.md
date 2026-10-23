@@ -839,4 +839,4 @@ lokki/
 - The hosted macOS and Windows release jobs have not run on this account; the
   first release is Linux-only unless minutes exist.
 - The macOS install step stays off until a Developer ID signs the build.
-- The updater answers 404 while the repository is private.
+- The updater answered 404 until the repository went public on 2026-10-22.
