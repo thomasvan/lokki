@@ -1,6 +1,7 @@
 //! Every process the shell starts, and what the shell can learn of a process it did not
 //! start. A child made here opens no console window on Windows. A sidecar's whole tree
 //! stops with it, and on Windows with the shell too, however the shell ends.
+#![allow(dead_code)]
 use std::ffi::OsStr;
 use std::io;
 use std::path::PathBuf;

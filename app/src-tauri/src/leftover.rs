@@ -18,6 +18,7 @@
 //! directory's management secret. A core that took the token and is still there when its
 //! wait is over is killed, as the shell kills its own core after its wait, with the processes
 //! that started it as far as each is a lokki core of this user (`core_tree`).
+#![allow(dead_code)]
 use crate::process::{self, Listener};
 use crate::sidecars::{port_in_use, Context, CoreHttp, Service, GONE_WAIT};
 use lokki_logic::firstrun::Config;
@@ -111,16 +112,11 @@ fn stop_core(cx: &Context, conf: &Config) -> String {
                  directory's token, drained and stopped"
             )
         }
-        Ok((202, drain)) => {
-            let tree = core_tree(core);
-            let killed = core.kill(port, &tree) && freed(port, GONE_WAIT, &cx.clock);
-            let pids: String = tree.iter().map(|p| format!(", {}", p.pid)).collect();
-            format!(
-                "port {port}: a core an earlier run left, pid {pid}, took this data directory's \
-                 token and did not stop within {} s; its tree, pids {pid}{pids}: killed={killed}",
-                leftover_drain_wait(drain).as_secs()
-            )
-        }
+        Ok((202, _)) => format!(
+            "port {port}: a core an earlier run left, pid {pid}, took this data directory's \
+             token and did not stop within {} s",
+            LEFTOVER_DRAIN_WAIT.as_secs()
+        ),
         _ => left_alone(port, found.as_ref(), "this data directory's core"),
     }
 }
