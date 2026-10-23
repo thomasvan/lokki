@@ -139,11 +139,13 @@ macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
   the direct child only, and comes when the thread that started it ends, not the
   process.
 
-A leftover CLIProxyAPI on Linux and macOS holds its port only until its first request,
-and ends on that request without answering it. The leftover core therefore does not go
-on serving clients: its first request upstream ends CLIProxyAPI, and every later one
-fails upstream. That consequence is inferred from what CLIProxyAPI did alone; no run
-sent a request through a leftover core. On Windows a leftover CLIProxyAPI answered the
+A leftover CLIProxyAPI, measured once on macOS and in four runs on Linux, held its port
+until its first request and ended on that request without answering it. On Linux it
+also ended with no request at all when its output's pipes were closed in its first
+second or so. The leftover core therefore does not go on serving clients: its first
+request upstream ends CLIProxyAPI, and every later one fails upstream. That consequence
+is inferred from what CLIProxyAPI did alone; no run sent a request through a leftover
+core. On Windows a leftover CLIProxyAPI answered the
 next start's check and was stopped ([updates](update.md), The hand test on Windows).
 
 - Measured once on an M4 Mac mini, macOS 27.0.1: after a `kill -9` of the shell,
@@ -184,7 +186,9 @@ Windows does not let a program's file be replaced or removed while the program r
 An install over a leftover sidecar therefore leaves that sidecar's file as it was: a
 silent install did so and still exited 0. The evidence is file times: after it, the two
 sidecar files kept their times of 2026-10-22 07:58 UTC, and `lokki.exe` had 2026-10-23
-09:01; no hash of the installed files was taken. Interactive installs and the MSI were
+09:01. That is before the 09:34 install, so the installer keeps the packaged files'
+times, and a sidecar file it had replaced would carry the new build's time, not the
+earlier install's. No hash of the installed files was taken. Interactive installs and the MSI were
 not tried. Each sidecar's file is named for its version, so what this leaves depends on
 the versions:
 
@@ -200,6 +204,24 @@ the versions:
 
 On Linux and macOS a running program's file can be removed and replaced, and none of
 this applies.
+
+## A request refused before its body is read
+
+The core refuses a request without a token, and some others, before it reads the body,
+and closes the connection after the answer. A close over bytes it never read resets the
+connection, and Windows then drops an answer the client has not read yet. So the core
+first reads and drops the body a `Content-Length` promises, up to `MAX_BODY_BYTES`, and
+stops once no byte has come for 0.25 s, or after 5 s. These still get the reset on
+Windows, and on any system when the client is still sending as it comes:
+
+- a client that sends the head, pauses for more than 0.25 s, then sends the body;
+- a chunked body, which the drain does not read;
+- a body above `MAX_BODY_BYTES`, which the drain does not read either.
+
+Waiting longer for a paused body would hold every such answer as long for a client that
+never sends one, and reading a chunked body would mean parsing one from a client that
+has not proved a token. Ordinary clients send the head and the body together, with a
+`Content-Length`.
 
 ## The CLIProxyAPI panel
 

@@ -383,10 +383,11 @@ out of its disk image, with no quarantine, and passed `codesign --verify --deep
   `kill -9`, and the build opened again at 12:14:31. At 12:14:37 `app.log` has `port
   8381: a core an earlier run left, pid 24539, took this data directory's token,
   drained and stopped`, 3 s after `init`, and `ready` at 12:14:43, 12 s after the open.
-  It did so on each of three such runs; nothing was killed.
+  It did so on both such runs; the second has the same line for pid 25924 at 12:15:34.
+  Nothing was killed.
 - **The leftover CLIProxyAPI.** At 12:14:00 and 12:14:37 `app.log` has `… (pid …) is
-  not this data directory's CLIProxyAPI; left alone`, and each such CLIProxyAPI was
-  gone within 8 s. At 12:15:15, 5 s after a `kill -9` of the shell, CLIProxyAPI 25922
+  not this data directory's CLIProxyAPI; left alone`, and those CLIProxyAPIs were seen
+  gone at 12:14:08 and 12:14:44. At 12:15:15, 5 s after a `kill -9` of the shell, CLIProxyAPI 25922
   still ran; one `GET /` on its port at 12:15:16 got no answer (curl code 000); at
   12:15:19 it was gone, and the next start's `app.log` has no line for its port.
 - A SIGTERM of the last shell at 12:15:41 left no lokki process at 12:15:42.
