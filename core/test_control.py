@@ -472,6 +472,25 @@ class RouteMatrixTests(_ControlHarness):
         for route, status in self._each({}):
             self.assertEqual(status, 401, route)
 
+    def test_a_body_sent_without_a_token_is_answered_401_not_reset(self):
+        # The gate answers before the body is read, and closes. A close over bytes it never
+        # read resets the connection, and a client can lose the 401 to the reset: it errored
+        # as ConnectionAbortedError on Windows. A client still sending when the reset comes
+        # loses it on any system, so this one sends a body of several megabytes through a
+        # small send buffer.
+        body = b"x" * (6 << 20)
+        for method, path in (("POST", "/v1/responses"), ("POST", "/api/shutdown"), ("PUT", "/api/settings")):
+            with self.subTest(path):
+                sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
+                self.addCleanup(sock.close)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+                head = (f"{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                        f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n\r\n")
+                sock.sendall(head.encode() + body)
+                with sock.makefile("rb") as answer:
+                    self.assertEqual(answer.readline().split()[1:2], [b"401"])
+        self.assertEqual(handler.begin_drain.call_count, 0)
+
     def test_a_client_token_is_403_on_every_operator_route(self):
         for route, status in self._each({"X-Relay-Token": CLIENT_TOKEN}):
             if route[1] in OPERATOR_ONLY:
