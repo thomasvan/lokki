@@ -238,8 +238,8 @@ jobs:
   release-linux:
     name: The Linux installers, signed
     needs: prepare
-    # The CI job's image; no cache, so a release builds from the tag alone, and apt checks the
-    # signature of every package the build is made with.
+    # The CI job's image; no cache, so a release builds from the tag alone, and apt authenticates
+    # every package it installs against the archive's signed index.
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
