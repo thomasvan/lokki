@@ -320,5 +320,46 @@ class SupplyChainTests(unittest.TestCase):
         self.assertNotIn("secrets.", outside)
 
 
+class UiWorkflowTests(unittest.TestCase):
+    """The Browser step downloads from an apt mirror that has crawled for 14 and 30+ minutes. A normal
+    run installs from cached .deb files and fetches nothing; a run that must fetch has bounded
+    attempts, the second through another mirror, and their sum stays well inside the job's timeout."""
+
+    def setUp(self):
+        self.job = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]
+        self.steps = self.job["steps"]
+        self.run = next(s for s in self.steps if s.get("name") == "Browser")["run"]
+
+    def test_the_system_libraries_are_cached_by_playwright_version_and_runner_image(self):
+        names = [s.get("name") for s in self.steps]
+        cache = next(s for s in self.steps if s.get("with", {}).get("path") == "~/playwright-debs")
+        self.assertRegex(cache["uses"], r"^actions/cache@[0-9a-f]{40}$")
+        self.assertIn("steps.libs.outputs.playwright", cache["with"]["key"])
+        self.assertIn("steps.libs.outputs.image", cache["with"]["key"])
+        libs = next(s for s in self.steps if s.get("id") == "libs")
+        self.assertIn("playwright --version", libs["run"])
+        self.assertIn("$ImageOS-$ImageVersion", libs["run"])
+        self.assertLess(names.index(libs["name"]), self.steps.index(cache))
+        self.assertLess(self.steps.index(cache), names.index("Browser"))
+
+    def test_a_cache_hit_installs_without_downloading(self):
+        self.assertRegex(self.run, r'sudo dpkg -i "\$debs"/\*\.deb')
+        self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', self.run)
+
+    def test_a_miss_is_bounded_retried_once_through_another_mirror_and_inside_the_job_timeout(self):
+        grace = re.findall(r'timeout --kill-after=(\d+) "\$1" npx playwright install --with-deps', self.run)
+        self.assertEqual(len(grace), 1, "one bounded attempt, called twice")
+        bounds = [int(n) for n in re.findall(r"(?m)^\s*(?:if ! )?attempt (\d+)[;\s|]", self.run)]
+        self.assertEqual(len(bounds), 2, "one try and one retry")
+        self.assertLessEqual(max(bounds), 300)
+        # Two attempts, the kill grace, and the lock wait (30 x 2 s) leave most of the job for the rest.
+        worst = (sum(bounds) + 2 * int(grace[0]) + 60) / 60
+        self.assertLess(worst, self.job["timeout-minutes"] / 3)
+        self.assertIn("dpkg --configure -a", self.run)
+        # The retry's mirror is written after the first attempt and put back when the step ends.
+        self.assertLess(self.run.index("attempt 180"), self.run.index("https://archive.ubuntu.com/ubuntu/"))
+        self.assertIn("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT", self.run)
+
+
 if __name__ == "__main__":
     unittest.main()
