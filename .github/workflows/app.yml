@@ -178,6 +178,17 @@ jobs:
       - name: Rust tests
         working-directory: app/src-tauri
         run: cargo test --locked --workspace
+      # TEMPORARY, removed in the next commit: the stop test is red when no CTRL_BREAK_EVENT is sent.
+      - name: "Mutation: the sidecar stop sends nothing"
+        if: runner.os == 'Windows'
+        working-directory: app/src-tauri
+        shell: bash
+        run: |
+          sed -i 's/GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid) != 0/true/' src/process.rs
+          grep -n 'let sent = true;' src/process.rs
+          if cargo test --locked --workspace -- a_sidecar_hears_the_stop; then echo "mutation survived"; exit 1; fi
+          echo "mutation killed: the stop test is red without the event"
+          git checkout -- src/process.rs
 
   prepare:
     name: The draft release
