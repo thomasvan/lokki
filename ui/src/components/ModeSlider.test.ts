@@ -284,6 +284,22 @@ describe("ModeSlider", () => {
     expect(puts(core.fetch)).toEqual(['{"routing":"relay"}']);
   });
 
+  it("ends a drag whose release was missed at the next move with no button down, and not at a move with one down", async () => {
+    const core = modeCore("auto", 30);
+    render(ModeSlider);
+    await drag(40, 45);
+    await fireEvent(window, new PointerEvent("pointermove", { pointerId: 1, buttons: 1 }));
+    await fireEvent(window, new PointerEvent("pointermove", { pointerId: 2, buttons: 0 }));   // another pointer's
+    await settle();
+    expect(puts(core.fetch)).toEqual([]);
+    await fireEvent(window, new PointerEvent("pointermove", { pointerId: 1, buttons: 0 }));
+    await settle();
+    expect(puts(core.fetch)).toEqual([AT_45]);
+    await fireEvent(window, new PointerEvent("pointermove", { pointerId: 1, buttons: 0 }));   // nothing is held now
+    await settle();
+    expect(puts(core.fetch)).toEqual([AT_45]);
+  });
+
   it("writes once when a drag is let go outside the window, and nothing when the browser cancels it", async () => {
     const core = modeCore("auto", 30);
     render(ModeSlider);
