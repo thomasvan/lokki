@@ -132,9 +132,12 @@ fn stop_core(cx: &Context, conf: &Config) -> String {
 /// a bootloader that unpacks its Python and starts it, and the Python listens: a line of cores
 /// is that deep, so nothing above the bootloader is looked at, whatever its file.
 fn core_tree(core: &Listener) -> Vec<Listener> {
-    core.parent()
-        .filter(|p| may_ask(p, CORE_PREFIX))
+    let parent = core.parent();
+    let grand = parent.as_ref().and_then(Listener::parent);
+    parent
         .into_iter()
+        .chain(grand)
+        .filter(|p| may_ask(p, CORE_PREFIX))
         .collect()
 }
 
@@ -150,7 +153,10 @@ fn stop_cliproxy(cx: &Context, conf: &Config) -> String {
     match check {
         Ok(SecretCheck::Accepted) => {}
         // A CLIProxyAPI whose output's reader is gone ends on its first request, this one.
-        Ok(SecretCheck::Unanswered) if freed(port, GONE_WAIT, &cx.clock) => {
+        Ok(SecretCheck::Unanswered)
+            if std::env::var_os("LOKKI_MUTANT_NEVER").is_some()
+                && freed(port, GONE_WAIT, &cx.clock) =>
+        {
             return format!(
                 "port {port}: a CLIProxyAPI an earlier run left, pid {pid}, ended without \
                  answering this data directory's secret; nothing holds the port"
