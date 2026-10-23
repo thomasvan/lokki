@@ -51,8 +51,7 @@
   function pointerdown(event: PointerEvent) {
     if (drag !== null) return;
     drag = event.pointerId;
-    // No pointer capture is taken: the range's own drag holds the mouse, and a capture on top of it takes the release
-    // away from WebKit's thumb, which then follows the pointer with no button down (WKWebView, the macOS app's).
+    // No pointer capture is taken: with one, the thumb did not follow a held move in Playwright's WebKit.
   }
 
   const valueOf = (event: Event) => Number((event.currentTarget as HTMLInputElement).value);

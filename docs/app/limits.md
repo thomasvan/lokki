@@ -123,18 +123,22 @@ unless `management.disable-control-panel` is set in its configuration.
 ## Platforms and engines no one has checked
 
 The mode slider has been checked by automated tests with a real mouse drag, not
-by hand, in Chromium and in Playwright's WebKit on Linux (WebKitGTK, the same
-engine family as WKWebView, the macOS app's webview). The WebKit run drags the
-thumb with a press, move and release, then moves the mouse with no button down.
-It found that the pointer capture the slider took on press kept WebKit's own
-thumb drag from seeing the release; the slider takes none now, and the same test
-fails with it. Not checked: WKWebView itself, whose input handling is Apple's
-build and not Playwright's, Firefox, and touch input. The slider was also
-rendered once in WebKitGTK. Nor has anyone checked which order an engine
-delivers `pointerup` and `change` in (the slider writes once, on the first), or
-whether a release outside the window delivers `pointerup` to the window. In
-Firefox the fill may end short of or past the thumb's centre: its thumb is 16 px
-wide, and the fill assumes 20 px.
+by hand, in Chromium and in Playwright's WebKit. That WebKit runs headless as
+WebKit's WPE port: a `ps` taken during a run lists `minibrowser-wpe/bin/MiniBrowser
+--headless`, `WPENetworkProcess` and `WPEWebProcess`. Its test presses, moves and
+releases, then moves the mouse with no button down. With a pointer capture taken
+on press the thumb did not follow a held move in that WebKit; without it, it does.
+The slider takes no capture. Why the capture stops the drag is not known, and the
+thumb following the mouse with no button down, as seen on macOS, did not
+reproduce there. Not checked: WKWebView itself, which is Apple's port and not
+WPE, WebKitGTK (the Linux app's webview), Firefox, and touch input. The only
+look at the UI in WebKitGTK was a CSS check (`oklch()`), not the slider. Nor has
+anyone checked which order an engine delivers `pointerup` and `change` in (the
+slider writes once, on the first), or whether a release outside the window
+delivers `pointerup` to the window. A move with no button down that an engine
+sends during a real drag would end it early; no engine is known to. In Firefox
+the fill may end short of or past the thumb's centre: its thumb is 16 px wide,
+and the fill assumes 20 px.
 
 A move of the drag's pointer with no button down is not part of the drag and
 ends it, writing the position then held. If a pointer loses its release and its

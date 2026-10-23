@@ -1,7 +1,8 @@
 import { test, expect } from "./core.ts";
 
-// The mode slider's drag with a real mouse, in each engine the project runs. WKWebView, the macOS app's webview,
-// is WebKit; ui.spec.ts holds the rest of the slider in Chromium.
+// The mode slider's drag with a real mouse, in each engine the project runs: Chromium and Playwright's WebKit (its
+// WPE port, headless), which stands near WKWebView, the macOS app's webview, but is not it. ui.spec.ts holds the rest
+// of the slider in Chromium.
 test("a press, move and release drags the slider's thumb, and a later move with no button does not", async ({ page, core }) => {
   const puts: string[] = [];
   page.on("request", (r) => { if (r.method() === "PUT" && new URL(r.url()).pathname === "/api/settings") puts.push(r.postData() ?? ""); });

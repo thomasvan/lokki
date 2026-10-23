@@ -82,12 +82,13 @@ form while the accounts are unread), then "every model" or "3 models" from
 stops: a drag once, when the pointer lets go, by whichever an engine fires first
 of `pointerup` (heard on the slider and, for a release outside it, on the window),
 `change`, the loss of a touch's capture (`lostpointercapture`), or a move of the
-drag's pointer with no button down. The slider takes no pointer capture itself: one
-taken on press kept WebKit's own thumb drag from seeing the release. The drag is its own pointer's: the `pointerId` of its
-`pointerdown` is kept, and a `pointerup`, `pointercancel` or `lostpointercapture`
-from another pointer (a second touch) neither ends nor cancels it, while a
-`pointerup` with no drag down does nothing. While the pointer is down nothing writes, a key step moving the drag's
-position and a lost focus writing nothing; a drag the browser cancels
+drag's pointer with no button down. The slider takes no pointer capture itself; with
+one, the thumb did not follow a held move in Playwright's WebKit. The drag is its own
+pointer's: the `pointerId` of its `pointerdown` is kept, and a `pointerup`,
+`pointercancel` or `lostpointercapture` from another pointer (a second touch) neither
+ends nor cancels it, while a `pointerup` with no drag down does nothing. While the
+pointer is down nothing writes, a key step moving the drag's position and a lost focus
+writing nothing; a drag the browser cancels
 (`pointercancel`) writes nothing and goes back to what the core reports, and a slider
 that goes away mid-drag leaves nothing held. The keys are its own, not the range's
 native step: the arrows move 1, PageUp and PageDown 10, Home and End to the ends, and

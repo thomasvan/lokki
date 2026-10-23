@@ -32,7 +32,8 @@ export default defineConfig({
   // `npm run e2e` runs chromium and webkit; `npm run screens` writes the screenshots (e2e/screens.ts).
   projects: [
     { name: "chromium", testMatch: "*.spec.ts", use: { ...devices["Desktop Chrome"] } },
-    // WebKit is the engine of WKWebView, the macOS app's webview: the slider's drag only (e2e/slider.spec.ts).
+    // Playwright's WebKit (its WPE port, headless), not WKWebView, the macOS app's webview: the slider's drag only
+    // (e2e/slider.spec.ts).
     { name: "webkit", testMatch: "slider.spec.ts", use: { ...devices["Desktop Safari"] } },
     { name: "screens", testMatch: "screens.ts", use: { ...devices["Desktop Chrome"], viewport: { width: 1100, height: 760 } } },
   ],
