@@ -131,11 +131,19 @@ impl Shell {
             .ok()
             .map(|s| s.trim().to_string());
         if self.lock.get().is_none() {
-            let file = leftover::lock(dir, &self.cx.clock).map_err(|e| Failure {
-                title: "lokki is already running".into(),
-                what: e,
-                name: "start".into(),
-                tail: String::new(),
+            let file = leftover::lock(dir, &self.cx.clock).map_err(|e| {
+                let (title, what) = match e {
+                    leftover::NotLocked::Held(what) => ("lokki is already running", what),
+                    leftover::NotLocked::Failed(what) => {
+                        ("lokki could not lock its data directory", what)
+                    }
+                };
+                Failure {
+                    title: title.into(),
+                    what,
+                    name: "start".into(),
+                    tail: String::new(),
+                }
             })?;
             let _ = self.lock.set(file);
         }

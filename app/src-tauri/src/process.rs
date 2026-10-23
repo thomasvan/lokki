@@ -100,6 +100,8 @@ pub struct Listener {
     pub pid: u32,
     /// Its executable, when the system says.
     pub exe: Option<PathBuf>,
+    /// Whether it runs as the user the shell runs as; false when the system does not say.
+    pub same_user: bool,
     #[cfg(windows)]
     handle: std::os::windows::io::OwnedHandle,
     #[cfg(target_os = "linux")]
@@ -114,18 +116,26 @@ pub fn listener(port: u16) -> Option<Listener> {
     let found = win::open(pid).map(|handle| Listener {
         pid,
         exe: win::image(&handle),
+        same_user: win::same_user(&handle),
         handle,
     })?;
     #[cfg(target_os = "linux")]
-    let found = pidfd_open(pid).map(|pidfd| Listener {
-        pid,
-        exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
-        pidfd,
+    let found = pidfd_open(pid).map(|pidfd| {
+        use std::os::unix::fs::MetadataExt;
+        Listener {
+            pid,
+            exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
+            // `/proc/<pid>` belongs to the process's effective user.
+            same_user: std::fs::metadata(format!("/proc/{pid}"))
+                .is_ok_and(|m| m.uid() == unsafe { libc::geteuid() }),
+            pidfd,
+        }
     })?;
     #[cfg(target_os = "macos")]
     let found = Listener {
         pid,
         exe: proc_pidpath(pid),
+        same_user: proc_uid(pid) == Some(unsafe { libc::geteuid() }),
     };
     (owner(port) == Some(pid)).then_some(found)
 }
@@ -240,17 +250,26 @@ fn owner(port: u16) -> Option<u32> {
 
 #[cfg(target_os = "macos")]
 fn owner(port: u16) -> Option<u32> {
-    let out = command("/usr/sbin/lsof")
+    // Bounded: a start that asks holds the sidecars' lock, and a quit waits on it.
+    const LSOF_WAIT: Duration = Duration::from_secs(3);
+    let mut child = command("/usr/sbin/lsof")
         .args(["-nP", "-t", &format!("-iTCP:{port}"), "-sTCP:LISTEN"])
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .output()
+        .spawn()
         .ok()?;
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .next()?
-        .trim()
-        .parse()
-        .ok()
+    let end = std::time::Instant::now() + LSOF_WAIT;
+    while child.try_wait().ok()?.is_none() {
+        if std::time::Instant::now() >= end {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let mut out = String::new();
+    std::io::Read::read_to_string(&mut child.stdout.take()?, &mut out).ok()?;
+    out.lines().next()?.trim().parse().ok()
 }
 
 #[cfg(windows)]
@@ -263,6 +282,22 @@ fn pidfd_open(pid: u32) -> Option<std::os::fd::OwnedFd> {
     use std::os::fd::FromRawFd;
     let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid as libc::pid_t, 0) };
     (fd >= 0).then(|| unsafe { std::os::fd::OwnedFd::from_raw_fd(fd as libc::c_int) })
+}
+
+#[cfg(target_os = "macos")]
+fn proc_uid(pid: u32) -> Option<libc::uid_t> {
+    let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    let size = size_of::<libc::proc_bsdinfo>() as libc::c_int;
+    let n = unsafe {
+        libc::proc_pidinfo(
+            pid as libc::c_int,
+            libc::PROC_PIDTBSDINFO,
+            0,
+            std::ptr::from_mut(&mut info).cast(),
+            size,
+        )
+    };
+    (n == size).then_some(info.pbi_uid)
 }
 
 #[cfg(target_os = "macos")]
@@ -295,6 +330,9 @@ mod win {
         TCP_TABLE_OWNER_PID_LISTENER,
     };
     use windows_sys::Win32::Networking::WinSock::AF_INET;
+    use windows_sys::Win32::Security::{
+        EqualSid, GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER,
+    };
     use windows_sys::Win32::System::Console::{
         AttachConsole, FreeConsole, GenerateConsoleCtrlEvent, CTRL_BREAK_EVENT,
     };
@@ -307,9 +345,10 @@ mod win {
         JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     };
     use windows_sys::Win32::System::Threading::{
-        OpenProcess, OpenThread, QueryFullProcessImageNameW, ResumeThread, TerminateProcess,
-        WaitForSingleObject, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
-        PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, THREAD_SUSPEND_RESUME,
+        GetCurrentProcess, OpenProcess, OpenProcessToken, OpenThread, QueryFullProcessImageNameW,
+        ResumeThread, TerminateProcess, WaitForSingleObject, PROCESS_NAME_WIN32,
+        PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+        THREAD_SUSPEND_RESUME,
     };
 
     /// A job that ends every process in it when its last handle closes.
@@ -462,6 +501,39 @@ mod win {
         (ok != 0).then(|| PathBuf::from(String::from_utf16_lossy(&buf[..len as usize])))
     }
 
+    /// Whether `process` runs as the user of this process: the two tokens' user SIDs are
+    /// equal. False when either token cannot be read.
+    pub fn same_user(process: &OwnedHandle) -> bool {
+        // TOKEN_USER and the SID it points to, in one buffer of pointer alignment.
+        fn user(process: HANDLE) -> Option<Vec<usize>> {
+            let mut token: HANDLE = std::ptr::null_mut();
+            if unsafe { OpenProcessToken(process, TOKEN_QUERY, &mut token) } == 0 {
+                return None;
+            }
+            let token = unsafe { OwnedHandle::from_raw_handle(token) };
+            let mut buf = vec![0usize; 64];
+            let mut len = 0u32;
+            let ok = unsafe {
+                GetTokenInformation(
+                    token.as_raw_handle(),
+                    TokenUser,
+                    buf.as_mut_ptr().cast(),
+                    (buf.len() * size_of::<usize>()) as u32,
+                    &mut len,
+                )
+            };
+            (ok != 0).then_some(buf)
+        }
+        let sid = |buf: &[usize]| unsafe { (*buf.as_ptr().cast::<TOKEN_USER>()).User.Sid };
+        match (
+            user(process.as_raw_handle()),
+            user(unsafe { GetCurrentProcess() }),
+        ) {
+            (Some(theirs), Some(ours)) => unsafe { EqualSid(sid(&theirs), sid(&ours)) != 0 },
+            _ => false,
+        }
+    }
+
     pub fn terminate(process: &OwnedHandle, wait: Duration) -> bool {
         unsafe {
             TerminateProcess(process.as_raw_handle(), 1);
@@ -472,9 +544,9 @@ mod win {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    use std::io::{BufRead, BufReader};
+    use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
     use std::path::Path;
 
@@ -488,7 +560,7 @@ mod tests {
                 let path = entry.path();
                 if path.extension().is_some_and(|e| e == "rs") {
                     let text = std::fs::read_to_string(&path).unwrap();
-                    let code = text.split("\nmod tests {").next().unwrap().to_string();
+                    let code = text.split("mod tests {").next().unwrap().to_string();
                     files.push((path, code));
                 }
             }
@@ -499,16 +571,23 @@ mod tests {
 
     #[test]
     fn every_process_the_shell_starts_opens_no_console_window() {
+        // The check reads text: it holds the forms a call is written in, with any spacing
+        // and through a renamed import, and not an alias made some other way.
         let mut news = Vec::new();
         for (path, code) in shell_sources() {
             let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            let code: String = code.split_whitespace().collect();
             news.extend(code.matches("Command::new(").map(|_| name.clone()));
+            assert!(
+                !code.contains("Commandas"),
+                "{name}: Command is imported under another name"
+            );
             // Flags replace the ones set before: each call names the window flag again.
             for (at, _) in code.match_indices(".creation_flags(") {
-                let call = &code[at..at + code[at..].find(')').unwrap()];
+                let call = whole_call(&code[at..]);
                 assert!(
                     call.contains("CREATE_NO_WINDOW"),
-                    "{name}: {call}) drops CREATE_NO_WINDOW"
+                    "{name}: {call} drops CREATE_NO_WINDOW"
                 );
             }
         }
@@ -519,8 +598,22 @@ mod tests {
         );
     }
 
+    /// `text` up to the parenthesis that closes its first one.
+    fn whole_call(text: &str) -> &str {
+        let mut depth = 0;
+        for (i, c) in text.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' if depth == 1 => return &text[..=i],
+                ')' => depth -= 1,
+                _ => {}
+            }
+        }
+        text
+    }
+
     /// This test binary, run as one of the roles `role` plays.
-    fn me(role: &str) -> Command {
+    pub(crate) fn me(role: &str) -> Command {
         let mut cmd = command(std::env::current_exe().unwrap());
         cmd.args([
             "process::tests::role",
@@ -532,8 +625,24 @@ mod tests {
         cmd
     }
 
+    /// A copy of this test binary named `file` (with the system's executable suffix) in
+    /// `dir`, run as `role`.
+    pub(crate) fn me_as(dir: &Path, file: &str, role: &str) -> Command {
+        let copy = dir.join(format!("{file}{}", std::env::consts::EXE_SUFFIX));
+        std::fs::copy(std::env::current_exe().unwrap(), &copy).unwrap();
+        let mut cmd = me(role);
+        let args: Vec<_> = cmd.get_args().map(ToOwned::to_owned).collect();
+        let envs: Vec<_> = cmd
+            .get_envs()
+            .filter_map(|(k, v)| Some((k.to_owned(), v?.to_owned())))
+            .collect();
+        cmd = command(copy);
+        cmd.args(args).envs(envs);
+        cmd
+    }
+
     /// Reads `child`'s output until a line starts with `prefix`, and returns the rest.
-    fn line_after(child: &mut Child, prefix: &str) -> String {
+    pub(crate) fn line_after(child: &mut Child, prefix: &str) -> String {
         let out = BufReader::new(child.stdout.as_mut().unwrap());
         for line in out.lines() {
             let line = line.unwrap();
@@ -546,7 +655,9 @@ mod tests {
 
     /// Not a test: the processes the tests start. A shell starts a sidecar as `spawn` does,
     /// or without it; a sidecar starts a child and prints both pids; a listener holds a
-    /// loopback port and prints it.
+    /// loopback port and prints it; an HTTP listener also prints the first line of each
+    /// request, and answers `LOKKI_TEST_STATUS` to one that carries `LOKKI_TEST_CREDENTIAL`
+    /// and 401 to any other, and exits once it has answered 202.
     #[test]
     #[ignore = "a role the tests run in a child process"]
     fn role() {
@@ -570,8 +681,50 @@ mod tests {
                 println!("port {}", l.local_addr().unwrap().port());
                 hold();
             }
+            Ok("http") => {
+                let l = TcpListener::bind("127.0.0.1:0").unwrap();
+                println!("port {}", l.local_addr().unwrap().port());
+                let credential = std::env::var("LOKKI_TEST_CREDENTIAL").unwrap();
+                let ok: u16 = std::env::var("LOKKI_TEST_STATUS").unwrap().parse().unwrap();
+                for stream in l.incoming() {
+                    let head = answer(stream.unwrap(), |head| {
+                        if head.contains(&credential) {
+                            ok
+                        } else {
+                            401
+                        }
+                    });
+                    println!("request {}", head.0.lines().next().unwrap_or_default());
+                    if head.1 == 202 {
+                        return;
+                    }
+                }
+            }
             _ => hold(),
         }
+    }
+
+    /// Reads one request head from `stream` and answers it with `status(head)` and a body
+    /// of `drain_seconds` 0. Returns the head and the status.
+    pub(crate) fn answer(
+        mut stream: std::net::TcpStream,
+        status: impl Fn(&str) -> u16,
+    ) -> (String, u16) {
+        let mut head = Vec::new();
+        let mut byte = [0u8];
+        while !head.ends_with(b"\r\n\r\n") && stream.read(&mut byte).unwrap_or(0) == 1 {
+            head.push(byte[0]);
+        }
+        let head = String::from_utf8_lossy(&head).into_owned();
+        let status = status(&head);
+        let body = r#"{"drain_seconds": 0}"#;
+        let _ = write!(
+            stream,
+            "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        (head, status)
     }
 
     #[test]
@@ -580,6 +733,7 @@ mod tests {
         let port = own.local_addr().unwrap().port();
         let found = listener(port).expect("this process's listener is found");
         assert_eq!(found.pid, std::process::id());
+        assert!(found.same_user, "this process runs as its own user");
         let exe = |p: &Path| std::fs::canonicalize(p).unwrap();
         assert_eq!(
             found.exe.as_deref().map(exe),
