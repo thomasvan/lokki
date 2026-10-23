@@ -140,15 +140,14 @@ pub fn listener(port: u16) -> Option<Listener> {
 /// process's effective user.
 #[cfg(target_os = "linux")]
 fn same_user(pid: u32) -> bool {
-    let _ = pid;
-    true
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata(format!("/proc/{pid}")).is_ok_and(|m| m.uid() == unsafe { libc::geteuid() })
 }
 
 /// Whether `pid` runs as the user the shell runs as: its effective user.
 #[cfg(target_os = "macos")]
 fn same_user(pid: u32) -> bool {
-    let _ = pid;
-    true
+    proc_bsdinfo(pid).map(|i| i.pbi_uid) == Some(unsafe { libc::geteuid() })
 }
 
 impl Listener {
@@ -400,8 +399,7 @@ fn output_within(cmd: &mut Command, wait: Duration) -> Option<String> {
         .stderr(Stdio::null())
         .spawn()
         .ok()?;
-    let _ = wait;
-    if child.wait().is_err() {
+    if !ends_within(&mut child, wait) {
         let _ = child.kill();
         ends_within(&mut child, Duration::from_millis(500));
         return None;
@@ -677,9 +675,6 @@ mod win {
                 )
             };
             (ok != 0).then_some(buf)
-        }
-        if !process.as_raw_handle().is_null() {
-            return true;
         }
         let sid = |buf: &[usize]| unsafe { (*buf.as_ptr().cast::<TOKEN_USER>()).User.Sid };
         match (
