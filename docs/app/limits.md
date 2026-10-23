@@ -222,6 +222,10 @@ Windows, and on any system when the client is still sending as it comes:
 - a chunked body, which the drain does not read;
 - a body above `MAX_BODY_BYTES`, which the drain does not read either.
 
+No run has sent a chunked or an over-cap body without a token: that those two get the
+reset on Windows is the mechanism above applied, not measured. The tests show only that
+the drain skips them in time.
+
 Waiting longer for a paused body would hold every such answer as long for a client that
 never sends one, and reading a chunked body would mean parsing one from a client that
 has not proved a token. Ordinary clients send the head and the body together, with a

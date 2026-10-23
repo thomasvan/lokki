@@ -285,6 +285,11 @@ directory were moved aside first and put back afterwards.
 
 ## The hand test on Windows
 
+The times in this section and the ones under it are the machine's own clock, as its
+scripts and `app.log` print them, with a `Z`, and they are not converted. That clock
+was about 50 minutes behind UTC when it was measured at 13:39 that day (main's build at
+909fd89, below); it was not measured earlier.
+
 On 2026-10-23 lokki 0.1.0 was run by hand on a Windows 11 machine. Measured over ssh
 before the install and read again after the run: Windows 11 Education 10.0.26300, build
 26300, 64-bit; WebView2 156.0.4314.42 (the EdgeUpdate client key); an uninstall entry
@@ -294,7 +299,7 @@ Its core reported revision 17a0316, and `app.log`, which records an install that
 asked for and never an offer, has no update line: no install was asked for.
 
 What was measured from outside lokki: its processes and listeners, sampled about every
-5 seconds from 05:27 UTC, a line for each change; and at 05:55:30 the install, the data
+5 seconds from 05:27, a line for each change; and at 05:55:30 the install, the data
 directory, its ACLs, a count of the secrets found in the logs, and the tail of
 `logs/app.log`.
 
@@ -328,7 +333,8 @@ What the person at the machine reported:
 
 Later that day the same machine was given the Windows installer of app run 39927837172
 (7469b5d), whose SHA-256 is `df465b7edcf713c9882c73b69e6f6cf96304eeb7bab2d235fa31859e6bac6463`,
-over a running lokki 0.1.0. Measured over ssh, the sampler as before:
+over a running lokki 0.1.0. Its times are the machine's clock, which was about 50
+minutes behind UTC later that day (above). Measured over ssh, the sampler as before:
 
 - At 09:34:38 the 0.1.0 shell, pid 14916, was ended with `TerminateProcess`. CLIProxyAPI
   (7772, on 8317) and the core's bootloader (9816) with its Python child (14604, on
@@ -369,9 +375,7 @@ installer of app run 39952841108 (the push of 909fd89 to `main`), whose SHA-256 
 `67462d1c258e55060108789ae6fe353146713a5112c83aae13cfd9cbba478eee`. Every install was
 silent and run over ssh, and so were both `TerminateProcess` ends of a shell. Every
 open, from the Start menu, and every restart and Quit was done by the person at the
-machine. The times are the machine's own clock, as the scripts and `app.log` print
-them, with a `Z`: that clock was about 50 minutes behind UTC (it read 13:39:32 at
-14:29:24 UTC), and the times are not converted. Measured over ssh:
+machine. The machine's clock read 13:39:32 at 14:29:24 UTC. Measured over ssh:
 
 - 0.1.0's installer, over the installed #7 build with nothing running, exited 0 at
   13:39:22.
@@ -408,11 +412,16 @@ them, with a `Z`: that clock was about 50 minutes behind UTC (it read 13:39:32 a
 
 What the person at the machine reported, after the run: no terminal window appeared.
 They were connected to the machine over Remote Desktop when they reported it; the record
-does not say whether they were for the run itself.
+does not say whether they were for the run itself. Measured beside it: at 13:53:12 and
+again at 13:55:29 the sidecars had two `conhost.exe` children between them (`conhost
+children: 2`); whether either had a window was not measured.
 
-Not tried: a leftover of a fixed core on Windows, which ending the shell cannot make,
-since the job ends the sidecars with it; an interactive install, the MSI, and the
-in-app update from 0.1.0 to 0.1.1.
+Not tried: a leftover of a fixed core on Windows, an interactive install, the MSI, and
+the in-app update from 0.1.0 to 0.1.1. Ending the shell should not leave a fixed core:
+each sidecar runs in a job of its own that ends its processes when its last handle
+closes, and only the shell holds that handle (`spawn` and `Job` in
+`app/src-tauri/src/process.rs`). What was measured is that the sidecars were gone within
+1 s of the shell's end; that the job ended them is inferred.
 
 ## The leftover hand test on an M4 Mac mini
 

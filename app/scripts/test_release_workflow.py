@@ -327,11 +327,117 @@ class SupplyChainTests(unittest.TestCase):
         self.assertNotIn("secrets.", outside)
 
 
+APT_INSTALL = os.path.join(HERE, "apt-install.sh")
+APT_INSTALL_RUN = "bash app/scripts/apt-install.sh"
+
+
+def _bounded_fetches():
+    """(where, the fetch's shell text, the timeout of the shortest job that runs it) for each
+    fetch from the apt mirror a workflow makes."""
+    ui = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]
+    browser = next(s for s in ui["steps"] if s.get("name") == "Browser")["run"]
+    app = yaml.safe_load(_text())["jobs"]
+    linux = min(app[j]["timeout-minutes"] for j in ("linux", "release-linux"))
+    return [("ui.yml Browser", browser, ui["timeout-minutes"]), ("apt-install.sh", _read(APT_INSTALL), linux)]
+
+
+class BoundedFetchTests(unittest.TestCase):
+    """The apt mirror a runner fetches from can crawl for longer than a job may run. Every fetch
+    from it has bounded attempts, the second through another mirror, whose sum stays well inside
+    the job's timeout, and fails loudly when both fail. No attempt lets apt install what it cannot
+    authenticate."""
+
+    def test_apt_installs_only_what_it_can_authenticate(self):
+        for where, run, _ in _bounded_fetches():
+            # Option and configuration spellings alike: `--allow-unauthenticated`, `APT::Get::AllowUnauthenticated`.
+            flat = run.lower().replace("-", "")
+            for bypass in ("trusted=yes", "allowunauthenticated", "allowinsecure"):
+                self.assertNotIn(bypass, flat, where)
+
+    def test_a_fetch_is_bounded_retried_once_through_another_mirror_and_inside_the_job_timeout(self):
+        for where, run, timeout_minutes in _bounded_fetches():
+            with self.subTest(where):
+                grace = re.findall(r'timeout --kill-after=(\d+) "\$(?:1|bound)" ', run)
+                self.assertEqual(len(grace), 1, "one bounded attempt, called twice")
+                bounds = [int(n) for n in re.findall(r'(?m)^\s*(?:if ! )?attempt (\d+)(?: "\$@")?[;\s|]', run)]
+                self.assertEqual(len(bounds), 2, "one try and one retry")
+                self.assertLessEqual(max(bounds), 300)
+                # Two attempts, the kill grace, and the lock wait (30 x 2 s) leave most of the job for the rest.
+                worst = (sum(bounds) + 2 * int(grace[0]) + 60) / 60
+                self.assertLess(worst, timeout_minutes / 3)
+                self.assertIn("for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done", run)
+                self.assertIn("dpkg --configure -a", run)
+                # The retry's mirror is written after the first attempt and put back when the step ends.
+                self.assertLess(run.index(f"attempt {bounds[0]}"), run.index("https://archive.ubuntu.com/ubuntu/"))
+                self.assertIn("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT", run)
+                # The retry failing fails the step, with the reason in the run's annotations.
+                self.assertRegex(run, r'(?m)^\s*attempt \d+(?: "\$@")? \|\| \{ echo "::error::[^"]+"; exit [1-9]\d*; \}$')
+
+
+class LinuxPackagesTests(unittest.TestCase):
+    """app.yml's two Linux jobs install their packages through apt-install.sh, the one bounded
+    fetch, and nothing in app.yml calls apt itself. The CI job installs from an earlier run's .deb
+    files when it can. The release job takes no cache: dpkg checks no signature on a cached file,
+    and a release builds from its tag and the archive alone. It installs the packages the CI job
+    built with, less the smoke's display."""
+
+    SMOKE = {"xvfb", "xauth", "dbus"}
+
+    def setUp(self):
+        self.jobs = yaml.safe_load(_text())["jobs"]
+
+    def _install(self, job):
+        runs = [s for s in self.jobs[job]["steps"] if APT_INSTALL_RUN in s.get("run", "")]
+        self.assertEqual(len(runs), 1, job)
+        return runs[0]
+
+    def _packages(self, job):
+        words = shlex.split(self._install(job)["run"])
+        packages = words[words.index("app/scripts/apt-install.sh") + 1:]
+        if packages[:1] == ["--debs"]:
+            packages = packages[2:]
+        if packages == ["$LINUX_PACKAGES"]:
+            packages = self.jobs[job]["env"]["LINUX_PACKAGES"].split()
+        return packages
+
+    def test_nothing_in_app_yml_calls_apt_but_the_script(self):
+        # The command names alone, not the script's or the cache's path.
+        for body in _run_blocks(_text()):
+            self.assertIsNone(re.search(r"(?<![\w/~-])(?:apt-get|apt|dpkg)(?![\w.-])", body), body)
+        self.assertIn("apt-get install", _read(APT_INSTALL))
+
+    def test_the_release_installs_what_ci_built_with_less_the_smokes_display_and_no_cache(self):
+        ci, release = set(self._packages("linux")), set(self._packages("release-linux"))
+        self.assertLessEqual({"libwebkit2gtk-4.1-dev", "libgtk-3-dev", "patchelf"}, ci)
+        self.assertEqual(release, ci - self.SMOKE)
+        self.assertNotIn("--debs", self._install("release-linux")["run"])
+        for step in self.jobs["release-linux"]["steps"]:
+            self.assertNotRegex(step.get("uses", ""), r"^actions/cache@")
+
+    def test_ci_restores_the_deb_files_for_its_image_and_packages_before_installing(self):
+        steps = self.jobs["linux"]["steps"]
+        cache = next(s for s in steps if s.get("with", {}).get("path") == "~/apt-debs")
+        self.assertRegex(cache["uses"], r"^actions/cache@[0-9a-f]{40}$")
+        key = next(s for s in steps if s.get("id") == "debs")
+        self.assertEqual(cache["with"]["key"], "${{ steps.debs.outputs.key }}")
+        self.assertIn("$ImageOS-$ImageVersion", key["run"])
+        self.assertIn('printf %s "$LINUX_PACKAGES" | sha256sum', key["run"])
+        install = self._install("linux")
+        self.assertIn("--debs ~/apt-debs ", install["run"])
+        self.assertLess(steps.index(key), steps.index(cache))
+        self.assertLess(steps.index(cache), steps.index(install))
+
+    def test_a_cache_hit_installs_without_downloading(self):
+        script = _read(APT_INSTALL)
+        hit = script.index('sudo dpkg -i "$debs"/*.deb')
+        self.assertLess(hit, script.index("::warning::The cached .deb files did not install"))
+        self.assertLess(script.index("::warning::The cached .deb files did not install"), script.index("attempt()"))
+        self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', script)
+
+
 class UiWorkflowTests(unittest.TestCase):
-    """The apt mirror the Browser step fetches from can crawl for longer than the job may run. A
-    normal run installs from cached .deb files and fetches nothing; a run that must fetch has bounded
-    attempts, the second through another mirror, whose sum stays well inside the job's timeout, and
-    fails loudly when both fail. Neither attempt lets apt install what it cannot authenticate."""
+    """A normal run of the Browser step installs from cached .deb files and fetches nothing from the
+    apt mirror; BoundedFetchTests holds the fetch a miss makes."""
 
     def setUp(self):
         self.job = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]
@@ -359,28 +465,6 @@ class UiWorkflowTests(unittest.TestCase):
         warning = self.run.index("::warning::The cached .deb files did not install")
         self.assertLess(self.run.index("sudo dpkg -i"), warning)
         self.assertLess(warning, self.run.index("attempt()"))
-
-    def test_apt_installs_only_what_it_can_authenticate(self):
-        # Option and configuration spellings alike: `--allow-unauthenticated`, `APT::Get::AllowUnauthenticated`.
-        flat = self.run.lower().replace("-", "")
-        for bypass in ("trusted=yes", "allowunauthenticated", "allowinsecure"):
-            self.assertNotIn(bypass, flat)
-
-    def test_a_miss_is_bounded_retried_once_through_another_mirror_and_inside_the_job_timeout(self):
-        grace = re.findall(r'timeout --kill-after=(\d+) "\$1" npx playwright install --with-deps', self.run)
-        self.assertEqual(len(grace), 1, "one bounded attempt, called twice")
-        bounds = [int(n) for n in re.findall(r"(?m)^\s*(?:if ! )?attempt (\d+)[;\s|]", self.run)]
-        self.assertEqual(len(bounds), 2, "one try and one retry")
-        self.assertLessEqual(max(bounds), 300)
-        # Two attempts, the kill grace, and the lock wait (30 x 2 s) leave most of the job for the rest.
-        worst = (sum(bounds) + 2 * int(grace[0]) + 60) / 60
-        self.assertLess(worst, self.job["timeout-minutes"] / 3)
-        self.assertIn("dpkg --configure -a", self.run)
-        # The retry's mirror is written after the first attempt and put back when the step ends.
-        self.assertLess(self.run.index("attempt 180"), self.run.index("https://archive.ubuntu.com/ubuntu/"))
-        self.assertIn("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT", self.run)
-        # The retry failing fails the step, with the reason in the run's annotations.
-        self.assertRegex(self.run, r'(?m)^\s*attempt \d+ \|\| \{ echo "::error::[^"]+"; exit [1-9]\d*; \}$')
 
 
 if __name__ == "__main__":
