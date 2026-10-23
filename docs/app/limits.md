@@ -188,7 +188,11 @@ silent install did so and still exited 0. The evidence is file times: after it, 
 sidecar files kept their times of 2026-10-22 07:58 UTC, and `lokki.exe` had 2026-10-23
 09:01. That is before the 09:34 install, so the installer keeps the packaged files'
 times, and a sidecar file it had replaced would carry the new build's time, not the
-earlier install's. No hash of the installed files was taken. Interactive installs and the MSI were
+earlier install's. No hash of the installed files was taken. A second run, of `main`'s
+build at 909fd89 ([updates](update.md), The hand test on Windows), showed the same and
+the size too: over a running 0.1.0, the held files kept their times and the old core's
+size, 10,539,519 bytes; the next install, with nothing running, replaced them, the core
+with 10,539,913 bytes. Interactive installs and the MSI were
 not tried. Each sidecar's file is named for its version, so what this leaves depends on
 the versions:
 

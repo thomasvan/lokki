@@ -362,6 +362,58 @@ What is inferred:
   When the shell ends without its stop): it took the token and never exited, so every
   start failed on its port. The next start now kills such a core.
 
+### main's build at 909fd89 over a running v0.1.0
+
+On 2026-10-23 the same Windows 11 machine retested #10's fix as merged: the Windows
+installer of app run 39952841108 (the push of 909fd89 to `main`), whose SHA-256 is
+`67462d1c258e55060108789ae6fe353146713a5112c83aae13cfd9cbba478eee`. Every install was
+silent and run over ssh, and so were both `TerminateProcess` ends of a shell. Every
+open, from the Start menu, and every restart and Quit was done by the person at the
+machine. The times are the machine's own clock, as the scripts and `app.log` print
+them, with a `Z`: that clock was about 50 minutes behind UTC (it read 13:39:32 at
+14:29:24 UTC), and the times are not converted. Measured over ssh:
+
+- 0.1.0's installer, over the installed #7 build with nothing running, exited 0 at
+  13:39:22.
+- 0.1.0 was opened, and once it was ready its shell, pid 15244, was ended with
+  `TerminateProcess` at 13:50:40. CLIProxyAPI (8736, on 8317) and the core's bootloader
+  (13128) with its Python child (13360, on 8381) still ran and listened.
+- 909fd89's installer ran from 13:50:46 and exited 0 at 13:50:57, the three still
+  running. `lokki.exe` was replaced (16,266,752 bytes, dated 12:32:30);
+  `cliproxy-8_0_23.exe` and `lokki-core-0_1_0.exe` kept their times of 07:58:34 and
+  07:58:50 of the day before, and the core its size, 10,539,519 bytes.
+- The new shell, pid 15316, started at 13:52:37. Its `app.log`:
+  - 13:53:03 `port 8381: a core an earlier run left, pid 13360, took this data
+    directory's token and did not stop within 20 s; its tree, pids 13360, 13128:
+    killed=true`;
+  - 13:53:03 `port 8317: a CLIProxyAPI an earlier run left, pid 8736, stopped`;
+  - 13:53:09 `ready`, 32 s after the shell started.
+- At 13:53:12 none of the three leftovers was alive. The core then running was the
+  0.1.0 file the install had left, started by the new shell.
+- `app.log` has `restart of cliproxy asked` at 13:54:56 and 13:55:13. Each was followed
+  by `core stopped …: drained=true killed=false` and `cliproxy stopped …: drained=true
+  killed=false`, and by `ready` 10 s after the ask, at 13:55:06 and 13:55:23.
+- The shell was ended with `TerminateProcess` at 13:55:30, with sidecars 6060, 14748 and
+  13584. At 1 s, 2 s and 5 s after, none of the three was alive and nothing listened on
+  8317 or 8381.
+- 909fd89's installer, with nothing running, exited 0 at 13:56:02 and replaced every
+  file: `cliproxy-8_0_23.exe` (71,834,624 bytes) dated 2026-10-23 12:24:20,
+  `lokki-core-0_1_0.exe` (10,539,913 bytes) 12:24:40, `lokki.exe` 12:32:30.
+- The next start ran `init` at 13:56:55 and was `ready` at 13:57:07, its listeners on
+  `127.0.0.1` only, and its `core.log` has
+  `revision=909fd890d2e6c7569acaaa83af63ca922e683038`.
+- `app.log` has `quitting` at 13:57:25, and at 13:57:26 `core stopped, pid 9372:
+  drained=true killed=false` and `cliproxy stopped, pid 16044: drained=true
+  killed=false`. At 13:57:33 no lokki process ran and nothing listened on 8317 or 8381.
+
+What the person at the machine reported, after the run: no terminal window appeared.
+They were connected to the machine over Remote Desktop when they reported it; the record
+does not say whether they were for the run itself.
+
+Not tried: a leftover of a fixed core on Windows, which ending the shell cannot make,
+since the job ends the sidecars with it; an interactive install, the MSI, and the
+in-app update from 0.1.0 to 0.1.1.
+
 ## The leftover hand test on an M4 Mac mini
 
 On 2026-10-23 two builds were run by hand on an M4 Mac mini, macOS 27.0.1, on a new
