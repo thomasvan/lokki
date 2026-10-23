@@ -88,6 +88,9 @@ the words it gives the user. The read-only and writable checks are the guard.
 
 The shell reads `https://github.com/thomasvan/lokki/releases/latest/download/latest.json`
 (`plugins.updater.endpoints`), and waits up to 30 seconds for it to answer.
+It had no `latest.json` to serve until the first release, `v0.1.0`: a lightweight tag at
+17a0316, built by release run 39744117405 and published on 2026-10-22 at 08:08:08 UTC. The
+second, `v0.1.1`, is recorded under The in-app update from 0.1.0 to 0.1.1, below.
 
 Every package must be signed by the key whose public half is
 `plugins.updater.pubkey`. With `requireSignedVersion`, the signature must also carry
