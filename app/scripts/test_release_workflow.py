@@ -343,7 +343,7 @@ class UiWorkflowTests(unittest.TestCase):
         self.assertLess(self.steps.index(cache), names.index("Browser"))
 
     def test_a_cache_hit_installs_without_downloading(self):
-        self.assertRegex(self.run, r'apt-get install -y --no-download [^\n]*"\$debs"/\*\.deb')
+        self.assertRegex(self.run, r'sudo dpkg -i "\$debs"/\*\.deb')
         self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', self.run)
 
     def test_a_miss_is_bounded_retried_once_through_another_mirror_and_inside_the_job_timeout(self):

@@ -65,7 +65,8 @@ jobs:
           key: playwright-debs-${{ steps.libs.outputs.image }}-${{ steps.libs.outputs.playwright }}
       - name: Browser
         # Chromium and WebKit, and the system libraries they need, which the runner image does not carry.
-        # With the .deb files cached, apt installs from them and may not download (--no-download), and no index is fetched.
+        # With the .deb files cached, dpkg installs them directly: no apt, so no index and no mirror (apt's own resolution
+        # against the image's older index asked for archives it did not have).
         # Without them (a new Playwright or runner image, or a cache that does not install), `--with-deps` fetches them from the apt mirror.
         # That fetch took 8-31 s until two runs crawled at ~170 kB/s for 14 and 30+ minutes, so each attempt gets 180 s
         # and there is one retry, through archive.ubuntu.com instead of the image's first choice, azure.archive.ubuntu.com:
@@ -75,7 +76,7 @@ jobs:
         working-directory: ui
         run: |
           debs="$HOME/playwright-debs"
-          if ls "$debs"/*.deb >/dev/null 2>&1 && sudo apt-get install -y --no-download --no-install-recommends "$debs"/*.deb; then
+          if ls "$debs"/*.deb >/dev/null 2>&1 && sudo dpkg -i "$debs"/*.deb; then
             timeout --kill-after=15 180 npx playwright install chromium webkit
             exit 0
           fi
