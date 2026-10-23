@@ -285,9 +285,13 @@ directory were moved aside first and put back afterwards.
 
 ## The hand test on Windows
 
-On 2026-10-23 lokki 0.1.0 was installed for one user from the release's
-`lokki_0.1.0_x64-setup.exe` and run by hand on Windows 11 Education, build 26300, with
-WebView2 156. Its core reported revision 17a0316. No update was installed.
+On 2026-10-23 lokki 0.1.0 was run by hand on a Windows 11 machine. Measured over ssh
+before the install and read again after the run: Windows 11 Education 10.0.26300, build
+26300, 64-bit; WebView2 156.0.4314.42 (the EdgeUpdate client key); an uninstall entry
+for the user reading "lokki 0.1.0"; and the release's `lokki_0.1.0_x64-setup.exe`,
+fetched again there, 30,618,427 bytes, whose SHA-256 equals the release asset's digest.
+Its core reported revision 17a0316, and `app.log` has no update line: no update was
+offered or installed.
 
 What was measured from outside lokki: its processes and listeners, sampled about every
 5 seconds from 05:27 UTC, a line for each change; and at 05:55:30 the install, the data
@@ -314,6 +318,8 @@ directory, its ACLs, a count of the secrets found in the logs, and the tail of
 
 What the person at the machine reported:
 
+- They installed v0.1.0. How it was downloaded, and what Edge or SmartScreen showed,
+  was not reported.
 - `lokki.exe` opened a console window whenever it ran.
 - Closing that window ended the shell at 05:51:20.
 - The start ready at 05:37:41 was opened from the Start menu.
