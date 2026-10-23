@@ -255,7 +255,9 @@ mod tests {
         let core_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../core");
         let run = |args: &[&str]| -> Result<String> {
             // The environment the shell gives a core subcommand: the caller's RELAY_* does not reach it.
-            let mut child = Command::new("python3")
+            // A Windows Python installs `python`, not `python3`.
+            let python = if cfg!(windows) { "python" } else { "python3" };
+            let mut child = Command::new(python)
                 .args(["-m", "lokki_core"])
                 .args(args)
                 .current_dir(&core_dir)

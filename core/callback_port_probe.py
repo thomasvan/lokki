@@ -13,9 +13,9 @@ each system.
 Run it from anywhere: `python3 -B core/callback_port_probe.py`. It only binds, on
 loopback and the wildcard address, one port the OS picks (port 0), and closes
 everything on exit. It reads no file and, run as `python3 -B`, writes none. It
-refuses to go on if the OS picks a port below 1024, 1455 or one of lokki's own ports, so it never
-touches a login in progress or a running lokki. `unittest` discovery does not
-import it: its name does not begin with `test_`.
+refuses to go on if the OS picks a port below 1024, 1455 or one of lokki's own
+ports, so it never touches a login in progress or a running lokki. `unittest`
+discovery does not import it: its name does not begin with `test_`.
 """
 import os, platform, socket, sys, threading
 from http.server import BaseHTTPRequestHandler

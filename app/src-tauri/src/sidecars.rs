@@ -1,6 +1,8 @@
 //! The two sidecars as processes: where their files are, how they start, where their
 //! output goes, when they are ready, and how their whole tree stops. What to do about an
 //! exit is `lokki_logic::supervise`'s.
+use crate::leftover;
+use crate::process::{self, Tree};
 use lokki_logic::firstrun::Config;
 use lokki_logic::logs::{self, Rotating};
 use lokki_logic::supervise::{
@@ -161,25 +163,12 @@ fn utc(secs: u64) -> String {
     )
 }
 
-/// A command in the data directory with the allow-listed environment, in a process group
-/// of its own on POSIX and without a console window on Windows.
+/// A command in the data directory with the allow-listed environment.
 fn command(program: &Path, dir: &Path) -> Command {
-    let mut cmd = Command::new(program);
+    let mut cmd = process::command(program);
     cmd.current_dir(dir)
         .env_clear()
-        .envs(env::for_sidecars(std::env::vars_os()))
-        .stdin(Stdio::null());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        cmd.process_group(0);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+        .envs(env::for_sidecars(std::env::vars_os()));
     cmd
 }
 
@@ -200,17 +189,18 @@ pub fn run_core(dir: &Path, args: &[&str], log: &AppLog) -> Result<String> {
     // `init` runs before the data directory exists: its nearest existing ancestor is the
     // working directory then.
     let cwd = dir.ancestors().find(|p| p.is_dir()).unwrap_or(dir);
-    let mut child = command(&program, cwd)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("could not run {}: {e}", program.display()))?;
+    let (mut child, tree) = process::spawn(
+        command(&program, cwd)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .map_err(|e| format!("could not run {}: {e}", program.display()))?;
     let (out, err) = (
         drain(child.stdout.take().unwrap()),
         drain(child.stderr.take().unwrap()),
     );
-    let mut proc = Proc::new(child);
+    let mut proc = Proc::new(child, tree);
     let deadline = Instant::now() + SUBCOMMAND_WAIT;
     while !proc.try_wait() {
         if Instant::now() > deadline {
@@ -258,43 +248,21 @@ fn describe(status: Option<ExitStatus>) -> String {
 /// A sidecar process and its tree.
 pub struct Proc {
     child: std::process::Child,
+    tree: Tree,
     status: Option<ExitStatus>,
 }
 
 impl Proc {
-    fn new(child: std::process::Child) -> Proc {
+    fn new(child: std::process::Child, tree: Tree) -> Proc {
         Proc {
             child,
+            tree,
             status: None,
         }
     }
 
     pub fn pid(&self) -> u32 {
         self.child.id()
-    }
-
-    #[cfg(unix)]
-    fn signal_group(&self, signal: libc::c_int) {
-        // The group's id is the leader's pid (`process_group(0)`). The kernel keeps that id
-        // from reuse while any member is alive, which is when this signal matters.
-        unsafe {
-            libc::kill(-(self.child.id() as libc::pid_t), signal);
-        }
-    }
-
-    #[cfg(windows)]
-    fn taskkill(&self, force: bool) {
-        use std::os::windows::process::CommandExt;
-        let mut cmd = Command::new("taskkill");
-        cmd.args(["/T", "/PID", &self.child.id().to_string()]);
-        if force {
-            cmd.arg("/F");
-        }
-        let _ = cmd
-            .creation_flags(0x0800_0000)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
     }
 }
 
@@ -309,8 +277,7 @@ impl Child for Proc {
                 self.status = Some(status);
                 // A one-file PyInstaller bootloader can die and leave its Python child
                 // holding the port; nothing of the tree outlives its leader.
-                #[cfg(unix)]
-                self.signal_group(libc::SIGKILL);
+                self.tree.kill();
                 true
             }
             Err(_) => true,
@@ -321,23 +288,15 @@ impl Child for Proc {
         if self.status.is_some() {
             return;
         }
-        #[cfg(unix)]
-        self.signal_group(libc::SIGTERM);
-        #[cfg(windows)]
-        self.taskkill(false);
+        // One that cannot be sent is waited out like one not heard, then killed.
+        self.tree.interrupt();
     }
 
     fn kill_tree(&mut self) {
         if self.status.is_some() {
             return;
         }
-        #[cfg(unix)]
-        self.signal_group(libc::SIGKILL);
-        #[cfg(windows)]
-        {
-            self.taskkill(true);
-            let _ = self.child.kill();
-        }
+        self.tree.kill();
         if let Ok(status) = self.child.wait() {
             self.status = Some(status);
         }
@@ -533,10 +492,12 @@ impl Sidecars {
         };
         let port = service.port(conf);
         // Something already answering on the port is not this sidecar: lokki never takes
-        // over a CLIProxyAPI, or a core, it did not start.
+        // over a CLIProxyAPI, or a core, it did not start (`leftover` stops what an earlier
+        // run left before the first start).
         if port_in_use(port) {
             return Err(format!(
-                "port {port} is already in use by another program, so lokki did not start {}",
+                "port {port} is already in use by {}, so lokki did not start {}",
+                leftover::holder(port),
                 service.title()
             ));
         }
@@ -706,7 +667,7 @@ impl Sidecars {
 /// Whether any member of the process group `pid` leads is still alive.
 /// `pid` is a group leader the shell started, so a member that answers `EPERM` cannot be
 /// ours: only `ESRCH` says the group is gone. On Windows the probe is the leader's pid alone;
-/// `taskkill /T` took its tree.
+/// the end of its job took its tree.
 #[cfg(unix)]
 pub fn group_alive(pid: u32) -> bool {
     let answered = unsafe { libc::kill(-(pid as libc::pid_t), 0) };
@@ -715,12 +676,10 @@ pub fn group_alive(pid: u32) -> bool {
 
 #[cfg(windows)]
 pub fn group_alive(pid: u32) -> bool {
-    use std::os::windows::process::CommandExt;
     let filter = format!("PID eq {pid}");
     let pid = pid.to_string();
-    Command::new("tasklist")
+    process::command("tasklist")
         .args(["/FI", &filter, "/NH"])
-        .creation_flags(0x0800_0000)
         .stderr(Stdio::null())
         .output()
         .map(|out| {
@@ -733,7 +692,7 @@ pub fn group_alive(pid: u32) -> bool {
 }
 
 /// Whether something accepts connections on `127.0.0.1:<port>`.
-fn port_in_use(port: u16) -> bool {
+pub fn port_in_use(port: u16) -> bool {
     TcpStream::connect_timeout(
         &SocketAddr::from(([127, 0, 0, 1], port)),
         Duration::from_millis(500),
@@ -780,12 +739,13 @@ fn spawn(service: Service, dir: &Path, args: &[OsString]) -> Result<Proc> {
         Rotating::new(service.log_path(dir), logs::CAP)
             .map_err(|e| format!("could not open logs/{}.log: {e}", service.name()))?,
     ));
-    let mut child = command(&program, dir)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("could not start {}: {e}", program.display()))?;
+    let (mut child, tree) = process::spawn(
+        command(&program, dir)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .map_err(|e| format!("could not start {}: {e}", program.display()))?;
     let pipes: [Box<dyn Read + Send>; 2] = [
         Box::new(child.stdout.take().unwrap()),
         Box::new(child.stderr.take().unwrap()),
@@ -801,7 +761,7 @@ fn spawn(service: Service, dir: &Path, args: &[OsString]) -> Result<Proc> {
             }
         });
     }
-    Ok(Proc::new(child))
+    Ok(Proc::new(child, tree))
 }
 
 /// The last `n` lines of a log, for the error page.
@@ -923,22 +883,18 @@ mod tests {
         assert_eq!(tail(&dir.path().join("missing.log"), 50), "");
     }
 
-    /// A `sleep 30` leading a process group of its own, as `command` starts a sidecar.
+    /// A `sleep 30` started as a sidecar is.
     #[cfg(unix)]
-    fn sleeper() -> std::process::Child {
-        use std::os::unix::process::CommandExt;
-        Command::new("sleep")
-            .arg("30")
-            .process_group(0)
-            .spawn()
-            .unwrap()
+    fn sleeper() -> Proc {
+        let (child, tree) = process::spawn(process::command("sleep").arg("30")).unwrap();
+        Proc::new(child, tree)
     }
 
     #[cfg(unix)]
     #[test]
     fn a_process_group_is_alive_until_its_members_are_gone() {
-        let mut child = sleeper();
-        let pid = child.id();
+        let mut proc = sleeper();
+        let pid = proc.pid();
         let side = Sidecars {
             stopped: vec![(Service::Core, pid)],
             ..Default::default()
@@ -951,8 +907,7 @@ mod tests {
             "a live group outlasts the wait"
         );
         assert!(clock.now() >= GONE_WAIT, "the wait ran its full limit");
-        unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
-        child.wait().unwrap();
+        proc.kill_tree();
         assert!(!group_alive(pid), "a group whose only member is reaped");
         let clock = FakeClock::default();
         assert_eq!(side.alive_after_stop(&clock, GONE_WAIT), vec![]);
@@ -986,7 +941,7 @@ mod tests {
         let (cx, conf) = stop_rig(dir.path());
         let stop = |side: &mut Sidecars, service| side.stop(&cx, &conf, "", service);
         let stop_a_child = |side: &mut Sidecars| {
-            let proc = Proc::new(sleeper());
+            let proc = sleeper();
             let pid = proc.pid();
             side.cliproxy.proc = Some(proc);
             stop(side, Service::Cliproxy);
@@ -1023,7 +978,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (cx, conf) = stop_rig(dir.path());
         let side = Mutex::new(Sidecars::default());
-        let proc = Proc::new(sleeper());
+        let proc = sleeper();
         let pid = proc.pid();
         Sidecars::lock(&side).cliproxy.proc = Some(proc);
         let _ = std::panic::catch_unwind(|| {

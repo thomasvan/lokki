@@ -63,18 +63,21 @@ What was measured:
   resolved to `['127.0.0.1']` only there, a connection to `localhost:<port>`
   reached `127.0.0.1` with a socket on `[::1]`, and the core's listener
   answered; that depends on the host's `/etc/hosts`.
-- macOS (Intel, macOS 26.7.1, 2026-10-22, an earlier copy of
-  `core/callback_port_probe.py`, run at 8236d37: the committed file adds the
-  docstring, the port guard and a "not tried" branch for an option or an
-  address family a system lacks, and drops a `sys.path` line; the measuring is the same. It used the
-  core's own listener class, which keeps `SO_REUSEADDR` on POSIX, on a port
-  the OS picked): while the listener held `127.0.0.1:<port>`, no other socket
-  bound that address, with no option, `SO_REUSEADDR`, `SO_REUSEPORT` or both
-  (`EADDRINUSE`). A wildcard `0.0.0.0:<port>` bound beside it only with
-  `SO_REUSEADDR` or `SO_REUSEPORT`; `[::1]` and `[::]` bound with any of the
-  four. `localhost` resolved to `['127.0.0.1', '::1']`, and with a socket on
-  `[::1]` a connection to `localhost:<port>` reached `127.0.0.1`, and the core's
-  listener answered a request to `127.0.0.1:<port>`.
+- macOS (Intel, macOS 26.7.1, 2026-10-22, on a port the OS picked): while the
+  listener held `127.0.0.1:<port>`, no other socket bound that address, with no
+  option, `SO_REUSEADDR`, `SO_REUSEPORT` or both (`EADDRINUSE`). A wildcard
+  `0.0.0.0:<port>` bound beside it only with `SO_REUSEADDR` or `SO_REUSEPORT`;
+  `[::1]` and `[::]` bound with any of the four. `localhost` resolved to
+  `['127.0.0.1', '::1']`, and with a socket on `[::1]` a connection to
+  `localhost:<port>` reached `127.0.0.1`, and the core's listener answered a
+  request to `127.0.0.1:<port>`. This ran an earlier copy of
+  `core/callback_port_probe.py`, at 8236d37, with the core's own listener class,
+  which keeps `SO_REUSEADDR` on POSIX. The committed file adds the docstring, the
+  port guard and a "not tried" branch for an option or an address family a
+  system lacks. It reads the listener's reply to its end
+  (`core/callback_port_probe.py:76-78`), where the earlier copy read one
+  `recv(200)`, and it drops a `sys.path` line. The measuring is otherwise the
+  same.
 
 The Linux output, in full:
 
@@ -114,6 +117,33 @@ Eyeballs may try `::1` whatever order the resolver gives.
 
 CLIProxyAPI makes two version checks when it starts, one from npm and one
 whose source its log does not name; that traffic is its own.
+
+## When the shell ends without its stop
+
+Quitting lokki stops both sidecars, the core drained first, and so does SIGTERM,
+SIGINT or SIGHUP to the shell on Linux and macOS. A shell that ends without running
+that stop (a crash; on Windows, End task in Task Manager or a logoff; on Linux and
+macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
+
+- On Windows each sidecar runs in a job of its own, set to end every process in it
+  when its last handle closes, and only the shell holds that handle. When the shell
+  ends, however it ends, the system ends the sidecar and every process it started,
+  the core's Python child included. The core is not drained: a request in flight is
+  cut. A sidecar is suspended until it is in its job, so a shell that ends in that
+  moment leaves it suspended, holding no port, until the next reboot.
+- On Linux and macOS each sidecar leads a process group of its own, which a signal to
+  the shell does not reach. A shell that ends this way leaves both sidecars running
+  and holding their ports, the core still serving clients with the settings it
+  started with. The next start of lokki on that data directory stops them
+  ([first run](first-run.md)); until then nothing does. Neither system has an object
+  that ends a process tree when its holder dies: Linux's parent-death signal reaches
+  the direct child only, and comes when the thread that started it ends, not the
+  process.
+
+A leftover CLIProxyAPI is stopped by its pid. Windows and Linux hold that pid while
+lokki checks and stops the process, by a handle and a pidfd. macOS has neither: lokki
+checks that the pid still holds the port before each signal, and a process that exits
+between that check and the signal could lend its pid to another.
 
 ## The CLIProxyAPI panel
 

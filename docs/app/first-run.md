@@ -80,16 +80,32 @@ a signal, such as logging out or running `kill` for its process; lokki drains
 the core and stops CLIProxyAPI as it exits.
 
 The bundled error page titles are “lokki could not set up its data directory”,
-“lokki could not start its services”, “lokki could not open its window”, and
-“lokki stopped the core” or “lokki stopped CLIProxyAPI” after four exits within
-a minute. It shows a sentence describing the failure and, when there is a log,
-the last lines of the named log. “Try again” repeats first run after a data
-directory failure, repeats startup after a service or window failure, or starts
-the stopped sidecar again after it exhausts its restarts.
+“lokki is already running”, “lokki could not start its services”, “lokki could
+not open its window”, and “lokki stopped the core” or “lokki stopped CLIProxyAPI”
+after four exits within a minute. It shows a sentence describing the failure and,
+when there is a log, the last lines of the named log. “Try again” repeats first run
+after a data directory failure, repeats startup after a service or window failure, or
+starts the stopped sidecar again after it exhausts its restarts.
 
-Before starting either sidecar, lokki checks whether another program answers
-on its configured port. If so, it refuses to start that sidecar and shows the
-error page with the port conflict and relevant log. This can happen when another
+While it runs, lokki holds a lock on `lokki.lock` in the data directory, and the
+system lets it go when lokki ends, however it ends. A second lokki on the same data
+directory does not get it within 5 seconds and shows “lokki is already running”.
+
+Holding the lock, lokki knows that no other lokki runs on its data directory, so
+what answers on the core's or CLIProxyAPI's port before its first start is a sidecar
+an earlier run left (see [Limits](limits.md), When the shell ends without its stop)
+or another program. It stops one only when it is certain the process is its own for
+this data directory, whatever version of lokki started it:
+
+- a core that accepts the data directory's operator token is asked to drain and stop
+  through `POST /api/shutdown`;
+- a CLIProxyAPI that accepts the data directory's management secret and runs a
+  CLIProxyAPI file beside this lokki's executable is stopped by its pid: SIGTERM,
+  then SIGKILL after 5 seconds, on Linux and macOS; killed at once on Windows.
+
+`logs/app.log` has a line for each port it found held and what it did. Anything else
+it leaves alone: it does not start that sidecar, and the error page says what holds
+the port, by program and pid where the system says. This can happen when another
 CLIProxyAPI or relay already uses that port.
 
 Quit drains the core before stopping it, then stops CLIProxyAPI. To reset lokki,

@@ -3,6 +3,8 @@
 mod capability;
 mod commands;
 mod errorpage;
+mod leftover;
+mod process;
 mod sidecars;
 mod tray;
 pub mod update;
@@ -67,6 +69,8 @@ pub struct Shell {
     tray: OnceLock<tray::Tray>,
     /// Set once, in `setup`.
     update: OnceLock<Updater>,
+    /// The data directory's lock, taken by the first boot and held until the shell ends.
+    lock: OnceLock<std::fs::File>,
 }
 
 impl Shell {
@@ -126,6 +130,15 @@ impl Shell {
         *self.secret.lock().unwrap() = std::fs::read_to_string(&conf.management_secret_file)
             .ok()
             .map(|s| s.trim().to_string());
+        if self.lock.get().is_none() {
+            let file = leftover::lock(dir, &self.cx.clock).map_err(|e| Failure {
+                title: "lokki is already running".into(),
+                what: e,
+                name: "start".into(),
+                tail: String::new(),
+            })?;
+            let _ = self.lock.set(file);
+        }
         let mut side = self.side();
         if self.quitting.load(Ordering::SeqCst) || self.installing.load(Ordering::SeqCst) {
             return Ok(());
@@ -137,6 +150,9 @@ impl Shell {
             }
         };
         stop_both(&mut side);
+        for line in leftover::stop(&self.cx, &conf) {
+            self.cx.log.line(line);
+        }
         if let Err((service, e)) = side.start_all(&self.cx, &conf) {
             stop_both(&mut side);
             return Err(Failure {
@@ -558,6 +574,7 @@ pub fn run() {
                 granted: Mutex::new(Default::default()),
                 tray: OnceLock::new(),
                 update: OnceLock::new(),
+                lock: OnceLock::new(),
             });
             let _ = shell.update.set(Machine::new(
                 PluginSource::new(

@@ -82,7 +82,7 @@ pub trait ShutdownHttp {
 pub trait Child {
     /// Whether the process has exited.
     fn try_wait(&mut self) -> bool;
-    /// SIGTERM to the group (`taskkill /T` without `/F` on Windows).
+    /// SIGTERM to the group (`CTRL_BREAK_EVENT` to its console process group on Windows).
     fn terminate(&mut self);
     /// The whole process tree.
     fn kill_tree(&mut self);
@@ -110,7 +110,7 @@ const MAX_DRAIN_SECS: f64 = 3600.0;
 /// `drain_seconds` or because it refused the order and SIGTERM starts the drain: the
 /// schema's default `drain_seconds` (15) plus the grace.
 const UNKNOWN_DRAIN_WAIT: Duration = Duration::from_secs(15 + DRAIN_GRACE_SECS as u64);
-const CLIPROXY_WAIT: Duration = Duration::from_secs(5);
+pub const CLIPROXY_WAIT: Duration = Duration::from_secs(5);
 
 /// Polls until the child exits or `limit` has passed on `clock`; true when it exited.
 fn exited_within(child: &mut impl Child, clock: &impl Clock, limit: Duration) -> bool {
@@ -140,6 +140,15 @@ fn kill_unless_exited(child: &mut impl Child, clock: &impl Clock, limit: Duratio
     }
 }
 
+/// How long a core that took the order to drain has: its `drain_seconds` and the grace,
+/// or `UNKNOWN_DRAIN_WAIT` for want of a usable `drain_seconds`.
+pub fn drain_wait(drain: Option<f64>) -> Duration {
+    match drain.filter(|d| d.is_finite() && *d >= 0.0) {
+        Some(d) => Duration::from_secs_f64(d.min(MAX_DRAIN_SECS) + DRAIN_GRACE_SECS),
+        None => UNKNOWN_DRAIN_WAIT,
+    }
+}
+
 /// Orders the core to drain with `POST /api/shutdown`, and kills it only once
 /// `drain_seconds + 5` s from the 202 have passed. Any other answer means it is alive
 /// but did not take the order, so SIGTERM starts its drain; no answer means nothing
@@ -151,13 +160,7 @@ pub fn stop_core(
     clock: &impl Clock,
 ) -> Stopped {
     match http.post_shutdown(token) {
-        Ok((202, drain)) => {
-            let wait = match drain.filter(|d| d.is_finite() && *d >= 0.0) {
-                Some(d) => Duration::from_secs_f64(d.min(MAX_DRAIN_SECS) + DRAIN_GRACE_SECS),
-                None => UNKNOWN_DRAIN_WAIT,
-            };
-            kill_unless_exited(child, clock, wait)
-        }
+        Ok((202, drain)) => kill_unless_exited(child, clock, drain_wait(drain)),
         Ok(_) => {
             child.terminate();
             kill_unless_exited(child, clock, UNKNOWN_DRAIN_WAIT)

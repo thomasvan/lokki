@@ -1,7 +1,11 @@
 use std::path::{Path, PathBuf};
 
-/// Removes the files of `dir` that start with `lokki-core-` or `cliproxy-` and are not in
-/// `keep`; the removed paths come back. Directories are skipped, and so is a removal that fails.
+/// What the file of each sidecar starts with, whatever its version.
+pub const CORE_PREFIX: &str = "lokki-core-";
+pub const CLIPROXY_PREFIX: &str = "cliproxy-";
+
+/// Removes the files of `dir` that start with a sidecar's prefix and are not in `keep`; the
+/// removed paths come back. Directories are skipped, and so is a removal that fails.
 pub fn prune(dir: &Path, keep: &[&str]) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -11,7 +15,7 @@ pub fn prune(dir: &Path, keep: &[&str]) -> Vec<PathBuf> {
         .filter(|e| {
             let name = e.file_name();
             let name = name.to_string_lossy();
-            (name.starts_with("lokki-core-") || name.starts_with("cliproxy-"))
+            (name.starts_with(CORE_PREFIX) || name.starts_with(CLIPROXY_PREFIX))
                 && !keep.contains(&&*name)
                 && e.file_type().is_ok_and(|t| !t.is_dir())
         })
