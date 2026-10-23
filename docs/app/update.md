@@ -435,8 +435,9 @@ times are the files' own, so they come from the build.
 
 Before the update, 0.1.0 was installed silently with nothing running: the release's
 NSIS installer (SHA-256 `a6f51e6c…`) exited 0 at 15:08:41, leaving `lokki.exe` of
-16,260,608 bytes and `lokki-core-0_1_0.exe` of 10,539,519. Measured from `app.log` and
-process samples every 2 s:
+16,260,608 bytes and `lokki-core-0_1_0.exe` of 10,539,519. The release's signer reports
+running that install over ssh; the record does not measure who ran it. Measured from
+`app.log` and process samples every 2 s:
 
 - 15:21:10 `ready`: the core, pid 700, with its listener 17208 on `127.0.0.1:8381`, and
   CLIProxyAPI, pid 10260, on `127.0.0.1:8317`. The person at the machine had opened
