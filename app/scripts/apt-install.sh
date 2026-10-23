@@ -50,8 +50,8 @@ attempt() {
   shift
   sudo timeout --kill-after=15 "$bound" sh -c 'apt-get update && apt-get install -y "$@"' apt-install "$@"
 }
-# TEMPORARY: a 20 s first attempt, no lock wait, and the processes and dpkg states around the kill.
-if ! attempt 20 "$@"; then
+# TEMPORARY: a 10 s first attempt, no lock wait, and the processes and dpkg states around the kill.
+if ! attempt 10 "$@"; then
   echo "== TEMPORARY the first attempt returned"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|dpkg-deb|http|https|store|gpgv|frontend|ldconfig|update-alternat|systemctl|deb-systemd-hel|install-info|mandb)$/'
   echo "::warning::The first attempt failed or ran out of time; retrying once, through archive.ubuntu.com."
   # apt, apt-get and dpkg gone within $1 checks 2 s apart
