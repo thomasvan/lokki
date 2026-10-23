@@ -48,7 +48,7 @@ jobs:
         id: debs
         run: echo "key=app-linux-debs-$ImageOS-$ImageVersion-$(printf %s "$LINUX_PACKAGES" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
       - name: Tauri's Linux packages and the smoke's display (.deb files) from an earlier run
-        # What the next step fetches from the apt mirror, kept so that a normal run downloads nothing from it.
+        # What the next step fetches from the apt mirror, kept so that a normal run downloads only the index from it.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/apt-debs

@@ -8,10 +8,12 @@
 # one retry, through archive.ubuntu.com: at most 570 s, counting the kill grace and the lock wait.
 # Both running out fails the step with an ::error::.
 #
-# With --debs, DIR holds an earlier run's .deb files, restored by actions/cache: dpkg installs
-# them and nothing is fetched. A fetch copies the .deb files it fetched into DIR for the cache to
-# keep. dpkg checks no signature, so the release job passes no --debs: everything it installs is
-# fetched by apt, which checks the archive's.
+# With --debs, DIR holds an earlier run's .deb files, restored by actions/cache. They go into
+# apt's own archive directory before the first attempt, so apt fetches only what they lack and
+# orders the install itself: `dpkg -i` of the whole set fails on systemd's pre-dependency and
+# leaves the system broken. After the install, the archive directory is copied into DIR for the
+# cache to keep. The release job passes no --debs, so everything it installs is fetched from the
+# archive.
 #
 # `timeout` runs as root and signals its whole process group, apt's methods and dpkg included; the
 # retry waits for apt and dpkg to exit, then finishes any half-done dpkg run, so a killed attempt
@@ -23,10 +25,7 @@ if [ "${1:-}" = --debs ]; then debs="$2"; shift 2; fi
 [ "$#" -gt 0 ] || { echo "usage: apt-install.sh [--debs DIR] PACKAGE..." >&2; exit 2; }
 
 if [ -n "$debs" ] && ls "$debs"/*.deb >/dev/null 2>&1; then
-  if sudo dpkg -i "$debs"/*.deb; then
-    exit 0
-  fi
-  echo "::warning::The cached .deb files did not install; this run fetches them, and so will every run until the cache key changes or the entry is deleted."
+  sudo cp "$debs"/*.deb /var/cache/apt/archives/
 fi
 
 attempt() {

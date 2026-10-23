@@ -376,10 +376,9 @@ class BoundedFetchTests(unittest.TestCase):
 
 class LinuxPackagesTests(unittest.TestCase):
     """app.yml's two Linux jobs install their packages through apt-install.sh, the one bounded
-    fetch, and nothing in app.yml calls apt itself. The CI job installs from an earlier run's .deb
-    files when it can. The release job takes no cache: dpkg checks no signature on a cached file,
-    and a release builds from its tag and the archive alone. It installs the packages the CI job
-    built with, less the smoke's display."""
+    fetch, and nothing in app.yml calls apt itself. The CI job hands apt an earlier run's .deb
+    files when it has them. The release job takes no cache: a release builds from its tag and the
+    archive alone. It installs the packages the CI job built with, less the smoke's display."""
 
     SMOKE = {"xvfb", "xauth", "dbus"}
 
@@ -427,11 +426,13 @@ class LinuxPackagesTests(unittest.TestCase):
         self.assertLess(steps.index(key), steps.index(cache))
         self.assertLess(steps.index(cache), steps.index(install))
 
-    def test_a_cache_hit_installs_without_downloading(self):
+    def test_a_cache_hit_is_installed_by_apt_from_its_archive_directory(self):
+        # `dpkg -i` of the whole set fails on systemd's pre-dependency and leaves dpkg broken; apt
+        # orders the install, and fetches only what the cached files lack.
         script = _read(APT_INSTALL)
-        hit = script.index('sudo dpkg -i "$debs"/*.deb')
-        self.assertLess(hit, script.index("::warning::The cached .deb files did not install"))
-        self.assertLess(script.index("::warning::The cached .deb files did not install"), script.index("attempt()"))
+        code = "\n".join(l for l in script.splitlines() if not l.lstrip().startswith("#"))
+        self.assertNotIn("dpkg -i", code)
+        self.assertLess(script.index('sudo cp "$debs"/*.deb /var/cache/apt/archives/'), script.index("if ! attempt"))
         self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', script)
 
 
