@@ -313,6 +313,7 @@ class Handler(BaseHTTPRequestHandler):
             self._sse_error(message)
             return
         body = json.dumps(error_object(message, status=status)).encode()
+        self._drop_unread_body()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         if retry_after:
