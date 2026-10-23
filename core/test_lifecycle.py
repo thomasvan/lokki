@@ -600,24 +600,25 @@ class OutputReaderGoneTests(unittest.TestCase):
         self.upstream = SlowUpstream(pause=0)
         self.addCleanup(self.upstream.close)
 
-    def test_a_core_whose_output_reader_is_gone_still_stops(self):
-        rows = [("POST /api/shutdown",
-                 lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {})),
-                ("SIGTERM", RelayProcess.term)]
-        for label, stop in rows:
-            with self.subTest(label):
-                if label == "SIGTERM" and os.name == "nt":
-                    self.skipTest("SIGTERM is a hard kill on Windows")
-                relay = RelayProcess(self, self.upstream, pipes=True)
-                relay.wait_ready()
-                relay.proc.stdout.close()
-                relay.proc.stderr.close()
-                stop(relay)
-                try:
-                    code = relay.proc.wait(timeout=relay.drain_seconds + 5)
-                except subprocess.TimeoutExpired:
-                    self.fail(f"{label}: the core did not exit within its drain window")
-                self.assertEqual(code, 0, label)
+    # One test per stop, so that a verbose run names each one's result.
+    def test_a_core_whose_output_reader_is_gone_still_stops_on_post_shutdown(self):
+        self._stops(lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {}))
+
+    @unittest.skipIf(os.name == "nt", "SIGTERM is a hard kill on Windows")
+    def test_a_core_whose_output_reader_is_gone_still_stops_on_sigterm(self):
+        self._stops(RelayProcess.term)
+
+    def _stops(self, stop):
+        relay = RelayProcess(self, self.upstream, pipes=True)
+        relay.wait_ready()
+        relay.proc.stdout.close()
+        relay.proc.stderr.close()
+        stop(relay)
+        try:
+            code = relay.proc.wait(timeout=relay.drain_seconds + 5)
+        except subprocess.TimeoutExpired:
+            self.fail("the core did not exit within its drain window")
+        self.assertEqual(code, 0)
 
     def test_a_line_with_no_reader_is_dropped(self):
         def no_reader():
