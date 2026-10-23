@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/playwright-debs
-          key: playwright-debs-${{ steps.libs.outputs.image }}-${{ steps.libs.outputs.playwright }}
+          key: playwright-debs-${{ steps.libs.outputs.image }}-${{ steps.libs.outputs.playwright }}-demo
       - name: Browser
         # Chromium and WebKit, and the system libraries they need, which the runner image does not carry.
         # With the .deb files cached, dpkg installs them directly: no apt, so no index and no mirror (apt's own resolution
@@ -81,7 +81,7 @@ jobs:
             exit 0
           fi
           attempt() { timeout --kill-after=15 "$1" npx playwright install --with-deps chromium webkit; }
-          if ! attempt 180; then
+          if ! attempt 4; then
             echo "::warning::The first attempt failed or ran past 180 s; retrying once, through archive.ubuntu.com."
             for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done
             sudo pkill -x 'apt|apt-get' || true
