@@ -600,24 +600,68 @@ class OutputReaderGoneTests(unittest.TestCase):
         self.upstream = SlowUpstream(pause=0)
         self.addCleanup(self.upstream.close)
 
-    def test_a_core_whose_output_reader_is_gone_still_stops(self):
-        rows = [("POST /api/shutdown",
-                 lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {})),
-                ("SIGTERM", RelayProcess.term)]
-        for label, stop in rows:
+    # One test per stop, so that a verbose run names each one's result.
+    def test_a_core_whose_output_reader_is_gone_still_stops_on_post_shutdown(self):
+        self._stops(lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {}))
+
+    @unittest.skipIf(os.name == "nt", "SIGTERM is a hard kill on Windows")
+    def test_a_core_whose_output_reader_is_gone_still_stops_on_sigterm(self):
+        self._stops(RelayProcess.term)
+
+    def _stops(self, stop):
+        relay = RelayProcess(self, self.upstream, pipes=True)
+        relay.wait_ready()
+        relay.proc.stdout.close()
+        relay.proc.stderr.close()
+        stop(relay)
+        try:
+            code = relay.proc.wait(timeout=relay.drain_seconds + 5)
+        except subprocess.TimeoutExpired:
+            self.fail("the core did not exit within its drain window")
+        self.assertEqual(code, 0)
+
+    def test_a_line_with_no_reader_is_dropped(self):
+        def no_reader():
+            r, w = os.pipe()
+            os.close(r)
+            return open(w, "w", encoding="utf-8", buffering=1)
+
+        def closed():
+            stream = open(os.devnull, "w", encoding="utf-8")
+            stream.close()
+            return stream
+
+        for label, make in [("a pipe whose read end is gone", no_reader), ("a closed stream", closed)]:
             with self.subTest(label):
-                if label == "SIGTERM" and os.name == "nt":
-                    self.skipTest("SIGTERM is a hard kill on Windows")
-                relay = RelayProcess(self, self.upstream, pipes=True)
-                relay.wait_ready()
-                relay.proc.stdout.close()
-                relay.proc.stderr.close()
-                stop(relay)
-                try:
-                    code = relay.proc.wait(timeout=relay.drain_seconds + 5)
-                except subprocess.TimeoutExpired:
-                    self.fail(f"{label}: the core did not exit within its drain window")
-                self.assertEqual(code, 0, label)
+                stream = make()
+                self.addCleanup(_close, stream)
+                gone = handler._ReaderMayBeGone(stream)
+                self.assertEqual(gone.write("a line\n"), len("a line\n"))
+                gone.flush()
+
+    def test_a_drain_that_raises_still_leaves(self):
+        """The wrapper keeps a print from raising; anything else that raises on the drain's
+        thread must still end the process."""
+        exits = []
+
+        def dies(_seconds):
+            raise RuntimeError("the drain died")
+
+        with mock.patch.object(handler.os, "_exit", exits.append), \
+                mock.patch.object(handler, "wait_for_active_runs", dies), \
+                mock.patch.object(handler.time, "sleep", lambda _s: None), \
+                mock.patch("builtins.print"):
+            with self.assertRaises(RuntimeError):
+                handler._drain_and_exit([])
+        self.assertEqual(exits, [0])
+
+
+def _close(stream):
+    """Closes `stream`, whose last flush may raise: the file is closed either way."""
+    try:
+        stream.close()
+    except (OSError, ValueError):
+        pass
 
 
 class ReloadThreadTests(unittest.TestCase):

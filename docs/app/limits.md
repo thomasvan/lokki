@@ -133,12 +133,37 @@ macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
   moment leaves it suspended, holding no port, until the next reboot.
 - On Linux and macOS each sidecar leads a process group of its own, which a signal to
   the shell does not reach. A shell that ends this way leaves both sidecars running
-  and holding their ports, the core still serving clients with the settings it
-  started with. The next start of lokki on that data directory stops them
+  and holding their ports. The next start of lokki on that data directory stops them
   ([first run](first-run.md)); until then nothing does. Neither system has an object
   that ends a process tree when its holder dies: Linux's parent-death signal reaches
   the direct child only, and comes when the thread that started it ends, not the
   process.
+
+A leftover CLIProxyAPI, measured once on macOS and in four runs on Linux, held its port
+until its first request and ended on that request without answering it. On Linux it
+also ended with no request at all when its output's pipes were closed in its first
+second or so. The leftover core therefore does not go on serving clients: its first
+request upstream ends CLIProxyAPI, and every later one fails upstream. That consequence
+is inferred from what CLIProxyAPI did alone; no run sent a request through a leftover
+core. On Windows a leftover CLIProxyAPI answered the
+next start's check and was stopped ([updates](update.md), The hand test on Windows).
+
+- Measured once on an M4 Mac mini, macOS 27.0.1: after a `kill -9` of the shell,
+  CLIProxyAPI was still alive 5 s later; one `GET /` got no answer (curl code 000); 3 s
+  later it was gone.
+- Measured on Linux x86_64 with the CLIProxyAPI 8.0.23 that `app/cliproxy.lock` pins,
+  its output on pipes whose read ends were then closed, on a port the system chose:
+  - with the pipes closed 1 to 5 s after it started, it stayed alive and listening for
+    60 s with nothing connecting (4 runs), and through a connection that sent nothing,
+    as lokki's probe of a port is (3 runs);
+  - its first `GET /` was closed with no bytes back, and 3 s later it had ended on
+    SIGPIPE, exit status −13 (4 runs of 4);
+  - with the pipes closed 1 to 1.3 s after it started, it ended on SIGPIPE within 2 to
+    5 s with no request in 3 runs of 4, at a line of its own start-up output, as
+    the timing suggests.
+- Inferred, not proven: CLIProxyAPI writes a line to its output for each request, and
+  a Go program whose write to a broken pipe on fd 1 or 2 fails ends on SIGPIPE. On
+  Windows such a write returns an error instead.
 
 A core whose shell has ended still drains and exits on `POST /api/shutdown` or
 SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of lokki
@@ -159,8 +184,16 @@ lend its pid to another.
 
 Windows does not let a program's file be replaced or removed while the program runs.
 An install over a leftover sidecar therefore leaves that sidecar's file as it was: a
-silent install did so and still exited 0. Interactive installs and the MSI were not
-tried. Each sidecar's file is named for its version, so what this leaves depends on
+silent install did so and still exited 0. The evidence is file times: after it, the two
+sidecar files kept their times of 2026-10-22 07:58 UTC, and `lokki.exe` had 2026-10-23
+09:01. That is before the 09:34 install, so the installer keeps the packaged files'
+times, and a sidecar file it had replaced would carry the new build's time, not the
+earlier install's. No hash of the installed files was taken. A second run, of `main`'s
+build at 909fd89 ([updates](update.md), The hand test on Windows), showed the same and
+the size too: over a running 0.1.0, the held files kept their times and the old core's
+size, 10,539,519 bytes; the next install, with nothing running, replaced them, the core
+with 10,539,913 bytes. Interactive installs and the MSI were
+not tried. Each sidecar's file is named for its version, so what this leaves depends on
 the versions:
 
 - When the new build carries the same name, lokki runs the file the earlier install
@@ -175,6 +208,24 @@ the versions:
 
 On Linux and macOS a running program's file can be removed and replaced, and none of
 this applies.
+
+## A request refused before its body is read
+
+The core refuses a request without a token, and some others, before it reads the body,
+and closes the connection after the answer. A close over bytes it never read resets the
+connection, and Windows then drops an answer the client has not read yet. So the core
+first reads and drops the body a `Content-Length` promises, up to `MAX_BODY_BYTES`, and
+stops once no byte has come for 0.25 s, or after 5 s. These still get the reset on
+Windows, and on any system when the client is still sending as it comes:
+
+- a client that sends the head, pauses for more than 0.25 s, then sends the body;
+- a chunked body, which the drain does not read;
+- a body above `MAX_BODY_BYTES`, which the drain does not read either.
+
+Waiting longer for a paused body would hold every such answer as long for a client that
+never sends one, and reading a chunked body would mean parsing one from a client that
+has not proved a token. Ordinary clients send the head and the body together, with a
+`Content-Length`.
 
 ## The CLIProxyAPI panel
 
@@ -191,8 +242,10 @@ releases, then moves the mouse with no button down. With a pointer capture taken
 on press the thumb did not follow a held move in that WebKit; without it, it does.
 The slider takes no capture. Why the capture stops the drag is not known, and the
 thumb following the mouse with no button down, as seen on macOS, did not
-reproduce there. Not checked: WKWebView itself, which is Apple's port and not
-WPE, WebKitGTK (the Linux app's webview), Firefox, and touch input. The only
+reproduce there. In WKWebView, Apple's port and not WPE, the person at an Intel Mac
+with macOS 26.7.1 reported that the drag works, on the x64 disk image of app run
+39927837172 (7469b5d). That is reported, not measured: nothing recorded the drag. Not
+checked: WebKitGTK (the Linux app's webview), Firefox, and touch input. The only
 look at the UI in WebKitGTK was a CSS check (`oklch()`), not the slider. Nor has
 anyone checked which order an engine delivers `pointerup` and `change` in (the
 slider writes once, on the first), or whether a release outside the window

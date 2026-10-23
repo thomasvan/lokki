@@ -8,16 +8,17 @@
 //! lokki runs on this data directory, so no live shell owns what answers on its ports.
 //!
 //! The listener is found and held first (`process::listener`). It is sent a credential only
-//! when it runs as the user the shell runs as, whose files already hold every credential,
-//! and runs a sidecar's file: `lokki-core-*` for the core, `cliproxy-*` for CLIProxyAPI,
-//! from whichever lokki started it, so that a leftover of an AppImage's earlier mount or of a
-//! file an upgrade replaced qualifies. A program of another user that took the port first
-//! is sent nothing. The credential then proves the data directory: the core is stopped
-//! through its own `POST /api/shutdown` with this data directory's operator token, and
-//! CLIProxyAPI, which has no such call, by its held pid once it accepts this data
-//! directory's management secret. A core that took the token and is still there when its
-//! wait is over is killed, as the shell kills its own core after its wait, with the processes
-//! that started it as far as each is a lokki core of this user (`core_tree`).
+//! when it runs as the user the shell runs as, whose programs outside a sandbox can already
+//! read every credential, and runs a sidecar's file: `lokki-core-*` for the core,
+//! `cliproxy-*` for CLIProxyAPI, from whichever lokki started it, so that a leftover of an
+//! AppImage's earlier mount or of a file an upgrade replaced qualifies. A program of another
+//! user that took the port first is sent nothing. The credential then proves the data
+//! directory: the core is stopped through its own `POST /api/shutdown` with this data
+//! directory's operator token, and CLIProxyAPI, which has no such call, by its held pid once
+//! it accepts this data directory's management secret. A core that took the token and is
+//! still there when its wait is over is killed, as the shell kills its own core after its
+//! wait, with the processes that started it as far as each is a lokki core of this user
+//! (`core_tree`).
 use crate::process::{self, Listener};
 use crate::sidecars::{port_in_use, Context, CoreHttp, Service, GONE_WAIT};
 use lokki_logic::firstrun::Config;
@@ -33,6 +34,8 @@ pub const LOCK_FILE: &str = "lokki.lock";
 /// is still exiting.
 const LOCK_WAIT: Duration = Duration::from_secs(5);
 /// The most a start waits for a leftover core's drain, whatever `drain_seconds` it answers.
+/// The start waits holding the sidecars' lock, which a quit needs, and before any window
+/// opens; a core still there after it is killed.
 const LEFTOVER_DRAIN_WAIT: Duration = Duration::from_secs(30);
 
 /// Why the data directory's lock was not taken, each with the sentence for the error page.
@@ -125,23 +128,14 @@ fn stop_core(cx: &Context, conf: &Config) -> String {
     }
 }
 
-/// The processes that started `core`, from the nearest up, as far as each is a lokki core of
-/// this user: the one-file bootloader that started its Python. Nothing outside that line is
-/// in it, and a process that fails the rule ends it.
+/// The process that started `core`, when it is a lokki core of this user. A one-file core is
+/// a bootloader that unpacks its Python and starts it, and the Python listens: a line of cores
+/// is that deep, so nothing above the bootloader is looked at, whatever its file.
 fn core_tree(core: &Listener) -> Vec<Listener> {
-    let mut tree: Vec<Listener> = Vec::new();
-    // A line of cores is two deep; the bound keeps any answer the system gives from
-    // holding a start.
-    while tree.len() < 4 {
-        let Some(parent) = tree.last().unwrap_or(core).parent() else {
-            break;
-        };
-        if !may_ask(&parent, CORE_PREFIX) {
-            break;
-        }
-        tree.push(parent);
-    }
-    tree
+    core.parent()
+        .filter(|p| may_ask(p, CORE_PREFIX))
+        .into_iter()
+        .collect()
 }
 
 fn stop_cliproxy(cx: &Context, conf: &Config) -> String {
@@ -150,12 +144,20 @@ fn stop_cliproxy(cx: &Context, conf: &Config) -> String {
     let Some(proxy) = found.as_ref().filter(|l| may_ask(l, CLIPROXY_PREFIX)) else {
         return left_alone(port, found.as_ref(), "a lokki CLIProxyAPI of this user");
     };
-    let answers = std::fs::read_to_string(&conf.management_secret_file)
-        .is_ok_and(|secret| takes_secret(&cx.http, port, secret.trim()));
-    if !answers {
-        return left_alone(port, found.as_ref(), "this data directory's CLIProxyAPI");
-    }
+    let check = std::fs::read_to_string(&conf.management_secret_file)
+        .map(|secret| check_secret(&cx.http, port, secret.trim()));
     let pid = proxy.pid;
+    match check {
+        Ok(SecretCheck::Accepted) => {}
+        // A CLIProxyAPI whose output's reader is gone ends on its first request, this one.
+        Ok(SecretCheck::Unanswered) if freed(port, GONE_WAIT, &cx.clock) => {
+            return format!(
+                "port {port}: a CLIProxyAPI an earlier run left, pid {pid}, ended without \
+                 answering this data directory's secret; nothing holds the port"
+            )
+        }
+        _ => return left_alone(port, found.as_ref(), "this data directory's CLIProxyAPI"),
+    }
     if proxy.stop(port, CLIPROXY_WAIT) && freed(port, GONE_WAIT, &cx.clock) {
         format!("port {port}: a CLIProxyAPI an earlier run left, pid {pid}, stopped")
     } else {
@@ -173,13 +175,25 @@ fn left_alone(port: u16, found: Option<&Listener>, what: &str) -> String {
     format!("port {port}: {} is not {what}; left alone", name(found))
 }
 
-/// Whether CLIProxyAPI on `port` accepts `secret` on its management API.
-fn takes_secret(http: &reqwest::blocking::Client, port: u16, secret: &str) -> bool {
-    http.get(format!("http://127.0.0.1:{port}/v0/management/debug"))
+/// What CLIProxyAPI on `port` does with `secret` on its management API.
+#[derive(Debug, PartialEq)]
+enum SecretCheck {
+    Accepted,
+    Refused,
+    Unanswered,
+}
+
+fn check_secret(http: &reqwest::blocking::Client, port: u16, secret: &str) -> SecretCheck {
+    match http
+        .get(format!("http://127.0.0.1:{port}/v0/management/debug"))
         .timeout(Duration::from_secs(5))
         .bearer_auth(secret)
         .send()
-        .is_ok_and(|r| r.status().as_u16() == 200)
+    {
+        Ok(r) if r.status().as_u16() == 200 => SecretCheck::Accepted,
+        Ok(_) => SecretCheck::Refused,
+        Err(_) => SecretCheck::Unanswered,
+    }
 }
 
 /// Whether a listener may be sent a credential: see the module's comment.
@@ -230,7 +244,7 @@ fn freed(port: u16, limit: Duration, clock: &impl Clock) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process::tests::{answer, copy_of_me, line_after, me_as};
+    use crate::process::tests::{answer, copy_of_me, end, line_after, me_as};
     use crate::sidecars::{AppLog, RealClock};
     use crate::testing::FakeClock;
     use std::io::{BufRead, BufReader};
@@ -420,20 +434,36 @@ mod tests {
 
     #[test]
     fn a_core_that_took_the_token_and_stays_is_killed_with_the_cores_that_started_it() {
-        // (label, the file of the process that started the core, whether that is killed)
-        let rows = [
+        // (label, the files of the processes that started the core, the farthest first; how
+        // many of them, from the nearest up, are killed with it)
+        let rows: [(&str, &[&str], usize); 4] = [
             (
                 "started by a one-file core's bootloader",
-                "lokki-core-boot",
-                true,
+                &["lokki-core-boot"],
+                1,
             ),
-            ("started by a program that is not a core", "launcher", false),
+            ("started by a program that is not a core", &["launcher"], 0),
+            (
+                "a core above a program that is not one",
+                &["lokki-core-outer", "launcher"],
+                0,
+            ),
+            (
+                "a core above the bootloader",
+                &["lokki-core-outer", "lokki-core-boot"],
+                1,
+            ),
         ];
-        for (label, starter, starter_killed) in rows {
+        for (label, starters, killed) in rows {
             let tmp = tempfile::tempdir().unwrap();
-            let core = copy_of_me(tmp.path(), "lokki-core-test");
-            let mut parent = me_as(tmp.path(), starter, "starter")
-                .env("LOKKI_TEST_CHILD", &core)
+            let files: Vec<PathBuf> = starters
+                .iter()
+                .skip(1)
+                .map(|f| copy_of_me(tmp.path(), f))
+                .chain([copy_of_me(tmp.path(), "lokki-core-test")])
+                .collect();
+            let mut top = me_as(tmp.path(), starters[0], "starter")
+                .env("LOKKI_TEST_CHILD", std::env::join_paths(&files).unwrap())
                 .env(
                     "LOKKI_TEST_CREDENTIAL",
                     format!("x-relay-token: {TOKEN}\r\n"),
@@ -443,28 +473,92 @@ mod tests {
                 .stdout(Stdio::piped())
                 .spawn()
                 .unwrap();
-            // The two print on one pipe, in either order.
-            let (mut pids, mut port) = (None, None);
-            let out = BufReader::new(parent.stdout.as_mut().unwrap());
+            // Every process of the line prints on one pipe, in any order: a starter its pid
+            // and its child's, the core its port.
+            let (mut parent_of, mut port) = (std::collections::HashMap::new(), None);
+            let out = BufReader::new(top.stdout.as_mut().unwrap());
             for line in out.lines().map_while(std::result::Result::ok) {
-                pids = pids.or_else(|| line.strip_prefix("pids ").map(str::to_string));
+                if let Some(pids) = line.strip_prefix("pids ") {
+                    let (parent, child) = pids.split_once(' ').unwrap();
+                    parent_of.insert(child.to_string(), parent.to_string());
+                }
                 port = port.or_else(|| line.strip_prefix("port ").map(|p| p.parse().unwrap()));
-                if pids.is_some() && port.is_some() {
+                if parent_of.len() == starters.len() && port.is_some() {
                     break;
                 }
             }
-            let (pids, port): (String, u16) = (pids.unwrap(), port.unwrap());
+            let port: u16 = port.unwrap();
+            let starter_pids: Vec<&String> = parent_of.values().collect();
+            let core = parent_of
+                .keys()
+                .find(|k| !starter_pids.contains(k))
+                .unwrap()
+                .clone();
+            // The line from the core up.
+            let mut line = vec![core];
+            while let Some(parent) = parent_of.get(line.last().unwrap()) {
+                line.push(parent.clone());
+            }
             let (cx, conf) = rig(port);
-            let line = stop_core(&cx, &conf);
-            let parent_gone = (0..50).any(|_| {
+            let said = stop_core(&cx, &conf);
+            let tree = line[..=killed].join(", ");
+            let top_gone = (0..20).any(|_| {
                 std::thread::sleep(Duration::from_millis(100));
-                parent.try_wait().unwrap().is_some()
+                top.try_wait().unwrap().is_some()
             });
-            let _ = parent.kill();
-            let _ = parent.wait();
-            assert!(!port_in_use(port), "{label}: the core is gone: {line}");
-            assert!(line.contains("killed=true"), "{label}: {line}");
-            assert_eq!(parent_gone, starter_killed, "{label}: pids {pids}: {line}");
+            // What the stop left of the line, which a start would not.
+            for pid in &line[killed + 1..] {
+                end(pid.parse().unwrap());
+            }
+            let _ = top.wait();
+            assert!(!port_in_use(port), "{label}: the core is gone: {said}");
+            let want = format!("its tree, pids {tree}: killed=true");
+            assert!(said.contains(&want), "{label}: {want}: {said}");
+            let top_killed = killed == starters.len();
+            assert_eq!(top_gone, top_killed, "{label}: {said}");
+        }
+    }
+
+    #[test]
+    fn a_cliproxy_that_ends_on_the_secret_check_is_said_to_have_ended() {
+        // (label, the holder's role, whether the port is free after, what the line says)
+        let rows = [
+            (
+                "it ends without answering",
+                "ends-on-a-request",
+                true,
+                "ended without answering this data directory's secret",
+            ),
+            (
+                "it closes the request unanswered and stays",
+                "closes-on-a-request",
+                false,
+                "left alone",
+            ),
+        ];
+        for (label, role, free, says) in rows {
+            let tmp = tempfile::tempdir().unwrap();
+            let secret_file = tmp.path().join("cliproxy-mgmt.secret");
+            std::fs::write(&secret_file, format!("{SECRET}\n")).unwrap();
+            let mut holder = me_as(tmp.path(), "cliproxy-test", role)
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let port: u16 = line_after(&mut holder, "port ").parse().unwrap();
+            let (cx, mut conf) = rig(0);
+            conf.cliproxy_port = port;
+            conf.management_secret_file = secret_file;
+            let said = stop_cliproxy(&cx, &conf);
+            let _ = holder.kill();
+            let _ = holder.wait();
+            assert!(said.contains(says), "{label}: {said}");
+            assert_eq!(said.contains("left alone"), !free, "{label}: {said}");
+            if free {
+                assert!(
+                    said.contains(&format!("pid {}", holder.id())),
+                    "{label}: {said}"
+                );
+            }
         }
     }
 
@@ -568,8 +662,8 @@ mod tests {
             }
         });
         let http = reqwest::blocking::Client::new();
-        assert!(takes_secret(&http, port, "right"));
-        assert!(!takes_secret(&http, port, "wrong"));
+        assert_eq!(check_secret(&http, port, "right"), SecretCheck::Accepted);
+        assert_eq!(check_secret(&http, port, "wrong"), SecretCheck::Refused);
     }
 
     #[test]

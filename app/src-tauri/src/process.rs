@@ -114,6 +114,8 @@ pub struct Listener {
 
 /// The process that holds `port` in the listening state on this machine, if the system
 /// says. It is found, held, and found again: a pid that no longer holds the port is not it.
+/// macOS has no hold and asks `lsof` once. A second ask would only catch the pid reused in
+/// between, which needs the holder to have ended, and its port can change hands then anyway.
 pub fn listener(port: u16) -> Option<Listener> {
     let pid = owner(port)?;
     #[cfg(windows)]
@@ -122,16 +124,30 @@ pub fn listener(port: u16) -> Option<Listener> {
         exe: win::image(&handle),
         same_user: win::same_user(&handle),
         handle,
-    })?;
+    });
     #[cfg(target_os = "linux")]
-    let found = pidfd_open(pid).map(|pidfd| held(pid, pidfd))?;
+    let found = pidfd_open(pid).map(|pidfd| held(pid, pidfd));
     #[cfg(target_os = "macos")]
-    let found = Listener {
+    let found = Some(Listener {
         pid,
         exe: proc_pidpath(pid),
-        same_user: proc_bsdinfo(pid).map(|i| i.pbi_uid) == Some(unsafe { libc::geteuid() }),
-    };
-    (owner(port) == Some(pid)).then_some(found)
+        same_user: same_user(pid),
+    });
+    found.filter(|_| cfg!(target_os = "macos") || owner(port) == Some(pid))
+}
+
+/// Whether `pid` runs as the user the shell runs as. `/proc/<pid>` belongs to the
+/// process's effective user.
+#[cfg(target_os = "linux")]
+fn same_user(pid: u32) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata(format!("/proc/{pid}")).is_ok_and(|m| m.uid() == unsafe { libc::geteuid() })
+}
+
+/// Whether `pid` runs as the user the shell runs as: its effective user.
+#[cfg(target_os = "macos")]
+fn same_user(pid: u32) -> bool {
+    proc_bsdinfo(pid).map(|i| i.pbi_uid) == Some(unsafe { libc::geteuid() })
 }
 
 impl Listener {
@@ -179,7 +195,9 @@ impl Listener {
             let pid = win::parent(self.pid)?;
             let handle = win::open(pid)?;
             // Windows keeps a parent's pid after the parent is gone, and the pid may name a
-            // later process: the parent is the one that was created before its child.
+            // later process: the parent is the one that was created before its child. That
+            // holds whether or not the child still runs, so it is not asked: a later process
+            // under the pid was created after the parent ended, which is after the child began.
             (win::created(&handle)? <= win::created(&self.handle)?).then(|| Listener {
                 pid,
                 exe: win::image(&handle),
@@ -203,7 +221,7 @@ impl Listener {
             Some(Listener {
                 pid,
                 exe: proc_pidpath(pid),
-                same_user: proc_bsdinfo(pid).map(|i| i.pbi_uid) == Some(unsafe { libc::geteuid() }),
+                same_user: same_user(pid),
             })
         }
     }
@@ -287,13 +305,10 @@ impl Listener {
 /// `pid`, held by `pidfd`, with what `/proc` says of it.
 #[cfg(target_os = "linux")]
 fn held(pid: u32, pidfd: std::os::fd::OwnedFd) -> Listener {
-    use std::os::unix::fs::MetadataExt;
     Listener {
         pid,
         exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
-        // `/proc/<pid>` belongs to the process's effective user.
-        same_user: std::fs::metadata(format!("/proc/{pid}"))
-            .is_ok_and(|m| m.uid() == unsafe { libc::geteuid() }),
+        same_user: same_user(pid),
         pidfd,
     }
 }
@@ -364,24 +379,48 @@ fn owner(port: u16) -> Option<u32> {
 fn owner(port: u16) -> Option<u32> {
     // Bounded: a start that asks holds the sidecars' lock, and a quit waits on it.
     const LSOF_WAIT: Duration = Duration::from_secs(3);
-    let mut child = command("/usr/sbin/lsof")
-        .args(["-nP", "-t", &format!("-iTCP:{port}"), "-sTCP:LISTEN"])
+    let mut lsof = command("/usr/sbin/lsof");
+    lsof.args(["-nP", "-t", &format!("-iTCP:{port}"), "-sTCP:LISTEN"]);
+    output_within(&mut lsof, LSOF_WAIT)?
+        .lines()
+        .next()?
+        .trim()
+        .parse()
+        .ok()
+}
+
+/// What `cmd` prints, if it ends within `wait`. One that does not is killed and given a
+/// moment more, never waited for: a kill does not end a process stuck in the kernel, as on
+/// a hung network mount.
+#[cfg(any(target_os = "macos", test))]
+fn output_within(cmd: &mut Command, wait: Duration) -> Option<String> {
+    let mut child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .ok()?;
-    let end = std::time::Instant::now() + LSOF_WAIT;
-    while child.try_wait().ok()?.is_none() {
-        if std::time::Instant::now() >= end {
-            let _ = child.kill();
-            let _ = child.wait();
-            return None;
-        }
-        std::thread::sleep(Duration::from_millis(20));
+    if !ends_within(&mut child, wait) {
+        let _ = child.kill();
+        ends_within(&mut child, Duration::from_millis(500));
+        return None;
     }
     let mut out = String::new();
     std::io::Read::read_to_string(&mut child.stdout.take()?, &mut out).ok()?;
-    out.lines().next()?.trim().parse().ok()
+    Some(out)
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn ends_within(child: &mut Child, wait: Duration) -> bool {
+    let end = std::time::Instant::now() + wait;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) if std::time::Instant::now() < end => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            _ => return false,
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -793,6 +832,18 @@ pub(crate) mod tests {
         cmd
     }
 
+    /// Ends the process `pid` at once, if it still runs.
+    pub(crate) fn end(pid: u32) {
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(pid as libc::pid_t, libc::SIGKILL);
+        }
+        #[cfg(windows)]
+        if let Some(process) = win::open(pid) {
+            win::terminate(&process, Duration::from_secs(5));
+        }
+    }
+
     /// Reads `child`'s output until a line starts with `prefix`, and returns the rest.
     pub(crate) fn line_after(child: &mut Child, prefix: &str) -> String {
         let out = BufReader::new(child.stdout.as_mut().unwrap());
@@ -807,8 +858,10 @@ pub(crate) mod tests {
 
     /// Not a test: the processes the tests start. A shell starts a sidecar as `spawn` does,
     /// or without it; a sidecar starts a child and prints both pids; a starter starts the
-    /// file `LOKKI_TEST_CHILD` as an HTTP listener and prints both pids; a listener holds a
-    /// loopback port and prints it; an HTTP listener also prints the first line of each
+    /// first file of the list `LOKKI_TEST_CHILD`, as a starter of the rest or, the last, as
+    /// an HTTP listener, and prints both pids; a listener holds a loopback port and prints
+    /// it, and one that ends on a request or closes it ends on the first request or closes
+    /// each unanswered; an HTTP listener also prints the first line of each
     /// request, and answers `LOKKI_TEST_STATUS` to one that carries `LOKKI_TEST_CREDENTIAL`
     /// and 401 to any other, and exits once it has answered 202 unless `LOKKI_TEST_STAYS` is
     /// set, as a core whose drain died does. A connection that sends nothing, as a probe of
@@ -832,10 +885,39 @@ pub(crate) mod tests {
                 hold();
             }
             Ok("starter") => {
-                let exe = std::env::var_os("LOKKI_TEST_CHILD").unwrap();
-                let child = me_at(Path::new(&exe), "http").spawn().unwrap();
+                let files = std::env::var_os("LOKKI_TEST_CHILD").unwrap();
+                let mut line: Vec<PathBuf> = std::env::split_paths(&files).collect();
+                let file = line.remove(0);
+                let child = if line.is_empty() {
+                    me_at(&file, "http").spawn().unwrap()
+                } else {
+                    me_at(&file, "starter")
+                        .env("LOKKI_TEST_CHILD", std::env::join_paths(line).unwrap())
+                        .spawn()
+                        .unwrap()
+                };
                 println!("pids {} {}", std::process::id(), child.id());
                 hold();
+            }
+            Ok("ends-on-a-request") => {
+                let l = TcpListener::bind("127.0.0.1:0").unwrap();
+                println!("port {}", l.local_addr().unwrap().port());
+                for stream in l.incoming() {
+                    if stream.unwrap().read(&mut [0u8]).unwrap_or(0) == 1 {
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Ok("closes-on-a-request") => {
+                let l = TcpListener::bind("127.0.0.1:0").unwrap();
+                println!("port {}", l.local_addr().unwrap().port());
+                std::thread::spawn(move || {
+                    hold();
+                    std::process::exit(0);
+                });
+                for stream in l.incoming() {
+                    drop(stream);
+                }
             }
             Ok("listener") => {
                 let l = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -931,6 +1013,39 @@ pub(crate) mod tests {
             assert_eq!(signal, Some(libc::SIGTERM), "asked to stop, not killed");
         }
         assert!(listener(port).is_none(), "nothing holds the port");
+    }
+
+    #[test]
+    fn a_process_of_another_user_is_not_this_users() {
+        // pid 1 runs as root, and the System process, pid 4, as SYSTEM. A test run as root
+        // runs as pid 1's user, so the row says nothing then and is skipped.
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(!same_user(1), "pid 1");
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::{FromRawHandle, OwnedHandle};
+            use windows_sys::Win32::System::Threading::{
+                OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+            };
+            let raw = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, 4) };
+            assert!(!raw.is_null(), "the System process can be asked about");
+            let system = unsafe { OwnedHandle::from_raw_handle(raw) };
+            assert!(!win::same_user(&system), "the System process");
+        }
+    }
+
+    #[test]
+    fn a_command_that_does_not_end_is_given_up_within_its_wait() {
+        let start = std::time::Instant::now();
+        let out = output_within(&mut me("listener"), Duration::from_millis(300));
+        assert_eq!(out, None);
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "{:?}",
+            start.elapsed()
+        );
     }
 
     #[cfg(unix)]

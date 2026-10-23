@@ -472,6 +472,70 @@ class RouteMatrixTests(_ControlHarness):
         for route, status in self._each({}):
             self.assertEqual(status, 401, route)
 
+    def test_a_body_sent_without_a_token_is_answered_401_not_reset(self):
+        # The gate answers before the body is read, and closes. A close over bytes it never
+        # read resets the connection, and the client can lose the 401 to the reset: it
+        # errored as ConnectionAbortedError on Windows.
+        def through_a_small_buffer(sock, head):
+            # Still sending when the reset comes: lost on any system.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+            sock.sendall(head + b"x" * (6 << 20))
+
+        def after_a_moment(sock, head):
+            # Read once the reset is in: Windows drops the answer it had not read.
+            sock.sendall(head)
+            time.sleep(0.05)
+            sock.sendall(b"{}")
+            time.sleep(0.5)
+
+        sizes = {through_a_small_buffer: 6 << 20, after_a_moment: 2}
+        for send, size in sizes.items():
+            for method, path in (("POST", "/v1/responses"), ("POST", "/api/shutdown"), ("PUT", "/api/settings")):
+                with self.subTest(send.__name__, path=path):
+                    sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
+                    self.addCleanup(sock.close)
+                    head = (f"{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                            f"Content-Type: application/json\r\nContent-Length: {size}\r\n\r\n")
+                    send(sock, head.encode())
+                    with sock.makefile("rb") as answer:
+                        self.assertEqual(answer.readline().split()[1:2], [b"401"])
+        self.assertEqual(handler.begin_drain.call_count, 0)
+
+    def test_the_drain_of_an_unread_body_stops_at_its_bounds(self):
+        # Before an error the core reads a body nothing read, but never waits on it: it stops
+        # once no byte has come for 0.25 s, and does not read a chunked body or one above
+        # MAX_BODY_BYTES at all. Each client below sends no body, or trickles bytes that a
+        # drain would go on reading for seconds; each is answered in under one.
+        sized = "Content-Length: 1000\r\n"
+        rows = [
+            ("a promised body that never comes", sized, False),
+            ("a chunked body", "Transfer-Encoding: chunked\r\nContent-Length: 1000000\r\n", True),
+            ("a body above MAX_BODY_BYTES", f"Content-Length: {config.MAX_BODY_BYTES + 1}\r\n", True),
+        ]
+        for label, framing, trickle in rows:
+            with self.subTest(label):
+                sock = socket.create_connection(("127.0.0.1", self.port), timeout=10)
+                self.addCleanup(sock.close)
+                stop = threading.Event()
+                self.addCleanup(stop.set)
+
+                def drip():
+                    with contextlib.suppress(OSError):
+                        while not stop.wait(0.1):
+                            sock.sendall(b"x" * 64)
+
+                start = time.monotonic()
+                sock.sendall((f"POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                              f"{framing}\r\n").encode())
+                if trickle:
+                    threading.Thread(target=drip, daemon=True).start()
+                with sock.makefile("rb") as answer:
+                    status = answer.readline().split()[1:2]
+                elapsed = time.monotonic() - start
+                stop.set()
+                self.assertEqual(status, [b"401"], label)
+                self.assertLess(elapsed, 1.0, label)
+
     def test_a_client_token_is_403_on_every_operator_route(self):
         for route, status in self._each({"X-Relay-Token": CLIENT_TOKEN}):
             if route[1] in OPERATOR_ONLY:

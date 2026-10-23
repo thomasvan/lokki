@@ -467,7 +467,8 @@ class GateTests(_Fake):
 
     def test_the_gate_answers_before_the_body_is_read(self):
         # A body is promised and never sent. A relay that read it first would wait out the
-        # connection's 30 s timeout; one that checks the token first answers at once.
+        # connection's 30 s timeout; one that checks the token first answers once the drain
+        # of the unread body has waited 0.25 s for a byte (RouteMatrixTests pins that bound).
         head = ("POST /v1/images/generations HTTP/1.1\r\nHost: x\r\nX-Relay-Token: wrong\r\n"
                 "Content-Type: application/json\r\nContent-Length: 1000000\r\n\r\n").encode()
         sock = raw_request(self.port, head, read=False, timeout=5)

@@ -44,3 +44,11 @@ jobs:
         working-directory: core
         env:
           RELAY_RUNS_LOG: ${{ runner.temp }}/runs.jsonl
+      - name: The stop with the output's readers gone, by name
+        # The quiet suite prints a dot per test. On Windows a write to a pipe with no reader
+        # fails differently than on POSIX, so this class's result is shown there by name.
+        if: runner.os == 'Windows'
+        run: python -m unittest -v test_lifecycle.OutputReaderGoneTests
+        working-directory: core
+        env:
+          RELAY_RUNS_LOG: ${{ runner.temp }}/runs.jsonl

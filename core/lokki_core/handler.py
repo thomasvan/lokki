@@ -313,6 +313,7 @@ class Handler(BaseHTTPRequestHandler):
             self._sse_error(message)
             return
         body = json.dumps(error_object(message, status=status)).encode()
+        self._drop_unread_body()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         if retry_after:
@@ -357,6 +358,7 @@ class Handler(BaseHTTPRequestHandler):
     def _read_raw_body(self, limit=None):
         """The request body's bytes, held to `limit` (`MAX_BODY_BYTES` unless the route
         has a cap of its own), whichever way the client framed it."""
+        self._body_unread = False
         limit = config.MAX_BODY_BYTES if limit is None else limit
         transfer = self.headers.get("Transfer-Encoding")
         if transfer is not None:
@@ -371,6 +373,43 @@ class Handler(BaseHTTPRequestHandler):
                          "send 'chunked' or a Content-Length")
             return self._read_chunked(limit)
         return self._read_sized(limit)
+
+    # Draining a body no one read stops once its bytes stop coming for this long, or after
+    # the whole wait: an error is never held up by a client that is not sending.
+    _DRAIN_IDLE_SECONDS = 0.25
+    _DRAIN_SECONDS = 5.0
+
+    def _drop_unread_body(self):
+        """Reads and drops a body sized by `Content-Length` that nothing read, up to
+        `MAX_BODY_BYTES`, before an error closes the connection. A close over bytes it
+        never read resets the connection, and a client can lose the answer to the reset:
+        one that sent a body with no token got a reset instead of its 401. A chunked or
+        larger body, or one still unsent when the drain stops, is closed over."""
+        if not getattr(self, "_body_unread", False):
+            return
+        self._body_unread = False
+        if self.headers.get("Transfer-Encoding") is not None:
+            return
+        try:
+            left = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            return
+        if left > config.MAX_BODY_BYTES:
+            return
+        end = time.monotonic() + self._DRAIN_SECONDS
+        timeout = self.connection.gettimeout()
+        self.connection.settimeout(self._DRAIN_IDLE_SECONDS)
+        try:
+            while left > 0 and time.monotonic() < end:
+                chunk = self.rfile.read1(min(left, 1 << 16))
+                if not chunk:
+                    break
+                left -= len(chunk)
+        except OSError:
+            pass
+        finally:
+            with contextlib.suppress(OSError):
+                self.connection.settimeout(timeout)
 
     def _read_json_body(self, capture=True, return_raw=False):
         """Parse the request body, answering 400 instead of raising so the
@@ -632,6 +671,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self._response_started = False
+        self._body_unread = True
         try:
             self._do_POST()
         except ResponseError as e:
@@ -646,6 +686,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         self._response_started = False
+        self._body_unread = True
         try:
             self._do_PUT()
         except ResponseError as e:
