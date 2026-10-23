@@ -217,17 +217,20 @@ impl Listener {
         #[cfg(windows)]
         {
             let _ = port;
-            ancestors
+            // Every one is ended, whichever of them fails.
+            let gone: Vec<bool> = ancestors
                 .iter()
                 .chain([self])
-                .fold(true, |gone, p| win::terminate(&p.handle, KILL_WAIT) && gone)
+                .map(|p| win::terminate(&p.handle, KILL_WAIT))
+                .collect();
+            gone.into_iter().all(|g| g)
         }
         #[cfg(target_os = "linux")]
         {
             let _ = port;
             let all = || ancestors.iter().chain([self]);
             all().for_each(|p| p.signal(libc::SIGKILL));
-            all().fold(true, |gone, p| p.exited(KILL_WAIT) && gone)
+            all().all(|p| p.exited(KILL_WAIT))
         }
         #[cfg(target_os = "macos")]
         {
