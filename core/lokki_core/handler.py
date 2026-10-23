@@ -1128,9 +1128,41 @@ def wildcard_addresses(addresses):
             if a.rpartition(":")[0] in ("", "0.0.0.0", "::", "*")]
 
 
+class _ReaderMayBeGone:
+    """A standard stream whose write or flush never raises.
+
+    The shell reads the core's output through pipes, and a shell that dies without
+    stopping the core takes their read ends with it. A write then raises (`EPIPE` on
+    POSIX, `EINVAL` on Windows), and a print that raises stops whatever was printing:
+    the drain before it reaches `os._exit`, a request handler mid-request. A line with
+    no reader is dropped instead."""
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, text):
+        try:
+            return self._stream.write(text)
+        except (OSError, ValueError):
+            return len(text)
+
+    def flush(self):
+        try:
+            self._stream.flush()
+        except (OSError, ValueError):
+            pass
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
 def main(argv=None):
     """Parse --config, resolve settings, and serve every configured address."""
     global BOUND_LISTEN
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name)
+        if stream is not None and not isinstance(stream, _ReaderMayBeGone):
+            setattr(sys, name, _ReaderMayBeGone(stream))
     argv = list(sys.argv[1:] if argv is None else argv)
     explicit_config = None
     if argv and argv[0] in ("-c", "--config"):
@@ -1235,7 +1267,8 @@ def main(argv=None):
         # The handler therefore only records the request; the drain thread owns
         # the part that is allowed to block, and the printing.
         if not begin_drain():
-            os.write(2, f"signal {signum} again: exiting now\n".encode())
+            with contextlib.suppress(OSError):
+                os.write(2, f"signal {signum} again: exiting now\n".encode())
             os._exit(1)
 
     def on_hup(_signum, _frame):
@@ -1282,27 +1315,32 @@ def _drain_and_exit(servers):
     The settle pause closes the one race the run counter cannot: a connection
     accepted a moment before SIGTERM whose handler had not yet entered a run
     would otherwise be invisible to the drain and cut.
+
+    Whatever raises on the way, the process leaves: a drain that dies on this thread
+    leaves a core that refuses work and never exits.
     """
-    print(f"stopping: refusing new requests, draining up to {config.DRAIN}s", flush=True)
-    time.sleep(0.25)
-    if wait_for_active_runs(config.DRAIN):
-        print(f"drained: no stream was cut ({config.DRAIN}s window)",
-              flush=True)
-    else:
-        print(f"drain window of {config.DRAIN}s expired with "
-              f"{active_run_count()} stream(s) still running; exiting anyway",
-              file=sys.stderr, flush=True)
-    for _, srv in servers:
-        try:
-            srv.shutdown()
-            srv.server_close()
-        except Exception:  # noqa: BLE001 - we are leaving regardless
-            pass
-    print("stopped", flush=True)
-    # os._exit: the request threads are daemons and the loopback sockets are
-    # already closed. Trusting interpreter teardown here risks hanging a deploy
-    # on a thread that will never join, which is the failure the bound exists for.
-    os._exit(0)
+    try:
+        print(f"stopping: refusing new requests, draining up to {config.DRAIN}s", flush=True)
+        time.sleep(0.25)
+        if wait_for_active_runs(config.DRAIN):
+            print(f"drained: no stream was cut ({config.DRAIN}s window)",
+                  flush=True)
+        else:
+            print(f"drain window of {config.DRAIN}s expired with "
+                  f"{active_run_count()} stream(s) still running; exiting anyway",
+                  file=sys.stderr, flush=True)
+        for _, srv in servers:
+            try:
+                srv.shutdown()
+                srv.server_close()
+            except Exception:  # noqa: BLE001 - we are leaving regardless
+                pass
+        print("stopped", flush=True)
+    finally:
+        # os._exit: the request threads are daemons and the loopback sockets are
+        # already closed. Trusting interpreter teardown here risks hanging a deploy
+        # on a thread that will never join, which is the failure the bound exists for.
+        os._exit(0)
 
 
 if __name__ == "__main__":

@@ -140,10 +140,41 @@ macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
   the direct child only, and comes when the thread that started it ends, not the
   process.
 
-A leftover CLIProxyAPI is stopped by its pid. Windows and Linux hold that pid while
-lokki checks and stops the process, by a handle and a pidfd. macOS has neither: lokki
-checks that the pid still holds the port before each signal, and a process that exits
-between that check and the signal could lend its pid to another.
+A core whose shell has ended still drains and exits on `POST /api/shutdown` or
+SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of lokki
+0.1.0 does not. Its drain dies on that write, so it takes the order, answers
+`/healthz` with `draining` and never exits. The next start kills such a core once its
+wait is over ([first run](first-run.md)).
+
+A leftover CLIProxyAPI is stopped by its pid, and so is a leftover core that has to be
+killed, with the processes that started it. Windows and Linux hold each pid while
+lokki checks and stops the process, by a handle and a pidfd. Windows keeps the pid of a
+parent that has ended, and that pid may name a later process, so a parent counts only
+if it was created before its child. macOS has no hold: lokki checks that the pid still
+holds the port before each signal, and that each parent is still the parent of the
+process below it, and a process that exits between that check and the signal could
+lend its pid to another.
+
+## An install over running leftovers
+
+Windows does not let a program's file be replaced or removed while the program runs.
+An install over a leftover sidecar therefore leaves that sidecar's file as it was: a
+silent install did so and still exited 0. Interactive installs and the MSI were not
+tried. Each sidecar's file is named for its version, so what this leaves depends on
+the versions:
+
+- When the new build carries the same name, lokki runs the file the earlier install
+  left until an install made with nothing running replaces it. For CLIProxyAPI that
+  is the same file: `app/cliproxy.lock` pins the archive of each version by its hash.
+  A core keeps its name until `core/VERSION` changes, and two builds of one version
+  can differ.
+- When the name is new, the new file is installed beside the old one. At each start,
+  before it stops any leftover, lokki removes the sidecar files its build does not
+  carry. A file a leftover still runs cannot be removed, and lokki goes on without
+  it, so the old file is removed at the next start after its leftover was stopped.
+
+On Linux and macOS a running program's file can be removed and replaced, and none of
+this applies.
 
 ## The CLIProxyAPI panel
 

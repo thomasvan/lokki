@@ -15,7 +15,9 @@
 //! is sent nothing. The credential then proves the data directory: the core is stopped
 //! through its own `POST /api/shutdown` with this data directory's operator token, and
 //! CLIProxyAPI, which has no such call, by its held pid once it accepts this data
-//! directory's management secret.
+//! directory's management secret. A core that took the token and is still there when its
+//! wait is over is killed, as the shell kills its own core after its wait, with the processes
+//! that started it as far as each is a lokki core of this user (`core_tree`).
 use crate::process::{self, Listener};
 use crate::sidecars::{port_in_use, Context, CoreHttp, Service, GONE_WAIT};
 use lokki_logic::firstrun::Config;
@@ -109,13 +111,37 @@ fn stop_core(cx: &Context, conf: &Config) -> String {
                  directory's token, drained and stopped"
             )
         }
-        Ok((202, _)) => format!(
-            "port {port}: a core an earlier run left, pid {pid}, took this data directory's \
-             token and did not stop within {} s",
-            LEFTOVER_DRAIN_WAIT.as_secs()
-        ),
+        Ok((202, drain)) => {
+            let tree = core_tree(core);
+            let killed = core.kill(port, &tree) && freed(port, GONE_WAIT, &cx.clock);
+            let pids: String = tree.iter().map(|p| format!(", {}", p.pid)).collect();
+            format!(
+                "port {port}: a core an earlier run left, pid {pid}, took this data directory's \
+                 token and did not stop within {} s; its tree, pids {pid}{pids}: killed={killed}",
+                leftover_drain_wait(drain).as_secs()
+            )
+        }
         _ => left_alone(port, found.as_ref(), "this data directory's core"),
     }
+}
+
+/// The processes that started `core`, from the nearest up, as far as each is a lokki core of
+/// this user: the one-file bootloader that started its Python. Nothing outside that line is
+/// in it, and a process that fails the rule ends it.
+fn core_tree(core: &Listener) -> Vec<Listener> {
+    let mut tree: Vec<Listener> = Vec::new();
+    // A line of cores is two deep; the bound keeps any answer the system gives from
+    // holding a start.
+    while tree.len() < 4 {
+        let Some(parent) = tree.last().unwrap_or(core).parent() else {
+            break;
+        };
+        if !may_ask(&parent, CORE_PREFIX) {
+            break;
+        }
+        tree.push(parent);
+    }
+    tree
 }
 
 fn stop_cliproxy(cx: &Context, conf: &Config) -> String {
@@ -204,7 +230,7 @@ fn freed(port: u16, limit: Duration, clock: &impl Clock) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::process::tests::{answer, line_after, me_as};
+    use crate::process::tests::{answer, copy_of_me, line_after, me_as};
     use crate::sidecars::{AppLog, RealClock};
     use crate::testing::FakeClock;
     use std::io::{BufRead, BufReader};
@@ -389,6 +415,56 @@ mod tests {
                 }
                 Sidecar { .. } => assert!(asked, "{label}: it was asked: {line}"),
             }
+        }
+    }
+
+    #[test]
+    fn a_core_that_took_the_token_and_stays_is_killed_with_the_cores_that_started_it() {
+        // (label, the file of the process that started the core, whether that is killed)
+        let rows = [
+            (
+                "started by a one-file core's bootloader",
+                "lokki-core-boot",
+                true,
+            ),
+            ("started by a program that is not a core", "launcher", false),
+        ];
+        for (label, starter, starter_killed) in rows {
+            let tmp = tempfile::tempdir().unwrap();
+            let core = copy_of_me(tmp.path(), "lokki-core-test");
+            let mut parent = me_as(tmp.path(), starter, "starter")
+                .env("LOKKI_TEST_CHILD", &core)
+                .env(
+                    "LOKKI_TEST_CREDENTIAL",
+                    format!("x-relay-token: {TOKEN}\r\n"),
+                )
+                .env("LOKKI_TEST_STATUS", "202")
+                .env("LOKKI_TEST_STAYS", "1")
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap();
+            // The two print on one pipe, in either order.
+            let (mut pids, mut port) = (None, None);
+            let out = BufReader::new(parent.stdout.as_mut().unwrap());
+            for line in out.lines().map_while(std::result::Result::ok) {
+                pids = pids.or_else(|| line.strip_prefix("pids ").map(str::to_string));
+                port = port.or_else(|| line.strip_prefix("port ").map(|p| p.parse().unwrap()));
+                if pids.is_some() && port.is_some() {
+                    break;
+                }
+            }
+            let (pids, port): (String, u16) = (pids.unwrap(), port.unwrap());
+            let (cx, conf) = rig(port);
+            let line = stop_core(&cx, &conf);
+            let parent_gone = (0..50).any(|_| {
+                std::thread::sleep(Duration::from_millis(100));
+                parent.try_wait().unwrap().is_some()
+            });
+            let _ = parent.kill();
+            let _ = parent.wait();
+            assert!(!port_in_use(port), "{label}: the core is gone: {line}");
+            assert!(line.contains("killed=true"), "{label}: {line}");
+            assert_eq!(parent_gone, starter_killed, "{label}: pids {pids}: {line}");
         }
     }
 
