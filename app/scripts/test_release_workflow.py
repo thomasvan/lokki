@@ -362,11 +362,13 @@ class BoundedFetchTests(unittest.TestCase):
                 bounds = [int(n) for n in re.findall(r'(?m)^\s*(?:if ! )?attempt (\d+)(?: "\$@")?[;\s|]', run)]
                 self.assertEqual(len(bounds), 2, "one try and one retry")
                 self.assertLessEqual(max(bounds), 300)
-                # Two attempts, the kill grace, and the lock wait (30 x 2 s) leave most of the job for the rest.
-                worst = (sum(bounds) + 2 * int(grace[0]) + 60) / 60
-                self.assertLess(worst, timeout_minutes / 3)
                 self.assertIn("for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done", run)
-                self.assertIn("dpkg --configure -a", run)
+                self.assertIn("sudo pkill -KILL -x 'apt|apt-get|dpkg' || true", run)
+                finish = re.findall(r"sudo timeout --kill-after=(\d+) (\d+) dpkg --configure -a", run)
+                self.assertEqual(len(finish), 1, "the killed attempt's dpkg run is finished within a bound")
+                # Two attempts with their kill grace, the lock wait (30 x 2 s) and the finish leave most of the job for the rest.
+                worst = (sum(bounds) + 2 * int(grace[0]) + 60 + sum(int(n) for n in finish[0])) / 60
+                self.assertLess(worst, timeout_minutes / 3)
                 # The retry's mirror is written after the first attempt and put back when the step ends.
                 self.assertLess(run.index(f"attempt {bounds[0]}"), run.index("https://archive.ubuntu.com/ubuntu/"))
                 self.assertIn("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT", run)
@@ -433,7 +435,7 @@ class LinuxPackagesTests(unittest.TestCase):
         code = "\n".join(l for l in script.splitlines() if not l.lstrip().startswith("#"))
         self.assertNotIn("dpkg -i", code)
         self.assertLess(script.index('sudo cp "$debs"/*.deb /var/cache/apt/archives/'), script.index("if ! attempt"))
-        self.assertIn('cp /var/cache/apt/archives/*.deb "$debs"/', script)
+        self.assertIn("""find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$debs" {} +""", script)
 
 
 class UiWorkflowTests(unittest.TestCase):
