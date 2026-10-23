@@ -319,14 +319,17 @@ mod tests {
                     let seen = std::sync::Arc::clone(&requests);
                     std::thread::spawn(move || {
                         for stream in listener.incoming() {
-                            let (head, _) = answer(stream.unwrap(), |head| {
+                            // Recorded before the answer; a probe of the port sends nothing.
+                            answer(stream.unwrap(), |head| {
+                                if !head.is_empty() {
+                                    seen.lock().unwrap().push(head.to_string());
+                                }
                                 if head.starts_with("POST") {
                                     202
                                 } else {
                                     200
                                 }
                             });
-                            seen.lock().unwrap().push(head);
                         }
                     });
                     (port, None)
@@ -350,14 +353,14 @@ mod tests {
                     let port: u16 = line_after(&mut child, "port ").parse().unwrap();
                     let out = BufReader::new(child.stdout.take().unwrap());
                     let seen = std::sync::Arc::clone(&requests);
-                    std::thread::spawn(move || {
+                    let reader = std::thread::spawn(move || {
                         for line in out.lines().map_while(std::result::Result::ok) {
                             if let Some(request) = line.strip_prefix("request ") {
                                 seen.lock().unwrap().push(request.to_string());
                             }
                         }
                     });
-                    (port, Some(child))
+                    (port, Some((child, reader)))
                 }
             };
             let (cx, mut conf) = rig(port);
@@ -368,6 +371,12 @@ mod tests {
                 Service::Cliproxy => stop_cliproxy(&cx, &conf),
             };
             assert_eq!(!port_in_use(port), stopped, "{label}: {line}");
+            // The holder's whole output, read to its end, says what it was asked.
+            if let Some((mut child, reader)) = child.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+                reader.join().unwrap();
+            }
             let asked = !requests.lock().unwrap().is_empty();
             match holder {
                 Foreign => {
@@ -379,10 +388,6 @@ mod tests {
                     );
                 }
                 Sidecar { .. } => assert!(asked, "{label}: it was asked: {line}"),
-            }
-            if let Some(child) = child.as_mut() {
-                let _ = child.kill();
-                let _ = child.wait();
             }
         }
     }

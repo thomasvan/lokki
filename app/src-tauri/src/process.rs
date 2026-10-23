@@ -657,7 +657,8 @@ pub(crate) mod tests {
     /// or without it; a sidecar starts a child and prints both pids; a listener holds a
     /// loopback port and prints it; an HTTP listener also prints the first line of each
     /// request, and answers `LOKKI_TEST_STATUS` to one that carries `LOKKI_TEST_CREDENTIAL`
-    /// and 401 to any other, and exits once it has answered 202.
+    /// and 401 to any other, and exits once it has answered 202. A connection that sends
+    /// nothing, as a probe of the port does, is no request.
     #[test]
     #[ignore = "a role the tests run in a child process"]
     fn role() {
@@ -687,15 +688,18 @@ pub(crate) mod tests {
                 let credential = std::env::var("LOKKI_TEST_CREDENTIAL").unwrap();
                 let ok: u16 = std::env::var("LOKKI_TEST_STATUS").unwrap().parse().unwrap();
                 for stream in l.incoming() {
-                    let head = answer(stream.unwrap(), |head| {
+                    // Printed before the answer, so a caller that has its answer can read it.
+                    let (_, status) = answer(stream.unwrap(), |head| {
+                        if let Some(first) = head.lines().next() {
+                            println!("request {first}");
+                        }
                         if head.contains(&credential) {
                             ok
                         } else {
                             401
                         }
                     });
-                    println!("request {}", head.0.lines().next().unwrap_or_default());
-                    if head.1 == 202 {
+                    if status == 202 {
                         return;
                     }
                 }
