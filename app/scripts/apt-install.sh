@@ -18,11 +18,12 @@
 # cache to keep. The release job passes no --debs, so everything it installs is fetched from the
 # archive.
 #
-# `timeout` runs as root and signals its process group, which holds apt-get and its download
-# methods. A killed attempt can leave apt or dpkg holding the lock the retry needs, so the retry
-# waits 60 s for them to exit and then kills what is left, dpkg included: dpkg is built to be
-# stopped at any point, and `dpkg --configure -a` and the retry's install finish what it left.
-# apt resumes partial downloads.
+# `timeout`, uutils coreutils' on this image, runs as root and signals its process group, which
+# holds apt-get. apt starts dpkg in a session of its own, outside that group: a first attempt
+# killed while dpkg unpacked left dpkg running, and it exited by itself within the next 2 s.
+# Then `dpkg --configure -a` configured what it had unpacked, and the retry installed the rest.
+# The retry waits 60 s for apt and dpkg to exit and kills what is left, dpkg included, because
+# dpkg is built to be stopped at any point. apt resumes partial downloads.
 set -euo pipefail
 trap 'echo "::error::apt-install.sh, line $LINENO: \`$BASH_COMMAND\` failed with exit $?."' ERR
 
