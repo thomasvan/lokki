@@ -34,7 +34,7 @@ attempt() {
   shift
   sudo timeout --kill-after=15 "$bound" sh -c 'apt-get update && apt-get install -y "$@"' apt-install "$@"
 }
-if ! attempt 240 "$@"; then
+if ! attempt 5 "$@"; then
   echo "::warning::The first attempt failed or ran out of time; retrying once, through archive.ubuntu.com."
   for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done
   sudo pkill -x 'apt|apt-get' || true
