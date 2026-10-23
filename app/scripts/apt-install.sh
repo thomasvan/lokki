@@ -28,8 +28,14 @@
 # `dpkg --configure -a` configured what it had unpacked, and the retry installed the rest.
 # The retry waits 60 s for apt, apt-get and dpkg to exit. If any is left, it kills dpkg's session
 # with what runs in it, then every process named apt, apt-get or dpkg, and waits up to 10 s for
-# them to be gone, so that `dpkg --configure -a` finds dpkg's lock free. No run has shown what a
-# killed dpkg leaves. apt resumes partial downloads.
+# them to be gone, so that `dpkg --configure -a` finds dpkg's lock free. On a hosted runner, a
+# first attempt cut at 10 s, with no wait, found dpkg unpacking libharfbuzz-icu0, with two `sh` in
+# its session; just after the kill none of them was running. The kill left that package
+# half-installed and marked for reinstallation, and the packages already unpacked unconfigured.
+# `dpkg --configure -a` configured those, left the half-installed one as it was and exited 0, and
+# the retry's install, whose list does not name it, unpacked and configured it again. Kills while
+# dpkg configured left the package it was configuring half-configured, and `dpkg --configure -a`
+# configured it. apt resumes partial downloads.
 set -euo pipefail
 trap 'echo "::error::apt-install.sh, line $LINENO: \`$BASH_COMMAND\` failed with exit $?."' ERR
 
