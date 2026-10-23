@@ -87,8 +87,7 @@ the words it gives the user. The read-only and writable checks are the guard.
 ## The endpoint and the signature
 
 The shell reads `https://github.com/thomasvan/lokki/releases/latest/download/latest.json`
-(`plugins.updater.endpoints`), and waits up to 30 seconds for it to answer. While the
-repository is private, GitHub answers 404 and every check reports that error.
+(`plugins.updater.endpoints`), and waits up to 30 seconds for it to answer.
 
 Every package must be signed by the key whose public half is
 `plugins.updater.pubkey`. With `requireSignedVersion`, the signature must also carry
@@ -285,6 +284,11 @@ directory were moved aside first and put back afterwards.
 
 ## The hand test on Windows
 
+The times in this section and the ones under it are the machine's own clock, as its
+scripts and `app.log` print them, with a `Z`, and they are not converted. That clock
+was about 50 minutes behind UTC when it was measured at 13:39 that day (main's build at
+909fd89, below); it was not measured earlier.
+
 On 2026-10-23 lokki 0.1.0 was run by hand on a Windows 11 machine. Measured over ssh
 before the install and read again after the run: Windows 11 Education 10.0.26300, build
 26300, 64-bit; WebView2 156.0.4314.42 (the EdgeUpdate client key); an uninstall entry
@@ -294,7 +298,7 @@ Its core reported revision 17a0316, and `app.log`, which records an install that
 asked for and never an offer, has no update line: no install was asked for.
 
 What was measured from outside lokki: its processes and listeners, sampled about every
-5 seconds from 05:27 UTC, a line for each change; and at 05:55:30 the install, the data
+5 seconds from 05:27, a line for each change; and at 05:55:30 the install, the data
 directory, its ACLs, a count of the secrets found in the logs, and the tail of
 `logs/app.log`.
 
@@ -328,7 +332,8 @@ What the person at the machine reported:
 
 Later that day the same machine was given the Windows installer of app run 39927837172
 (7469b5d), whose SHA-256 is `df465b7edcf713c9882c73b69e6f6cf96304eeb7bab2d235fa31859e6bac6463`,
-over a running lokki 0.1.0. Measured over ssh, the sampler as before:
+over a running lokki 0.1.0. Its times are the machine's clock, which was about 50
+minutes behind UTC later that day (above). Measured over ssh, the sampler as before:
 
 - At 09:34:38 the 0.1.0 shell, pid 14916, was ended with `TerminateProcess`. CLIProxyAPI
   (7772, on 8317) and the core's bootloader (9816) with its Python child (14604, on
@@ -369,9 +374,7 @@ installer of app run 39952841108 (the push of 909fd89 to `main`), whose SHA-256 
 `67462d1c258e55060108789ae6fe353146713a5112c83aae13cfd9cbba478eee`. Every install was
 silent and run over ssh, and so were both `TerminateProcess` ends of a shell. Every
 open, from the Start menu, and every restart and Quit was done by the person at the
-machine. The times are the machine's own clock, as the scripts and `app.log` print
-them, with a `Z`: that clock was about 50 minutes behind UTC (it read 13:39:32 at
-14:29:24 UTC), and the times are not converted. Measured over ssh:
+machine. The machine's clock read 13:39:32 at 14:29:24 UTC. Measured over ssh:
 
 - 0.1.0's installer, over the installed #7 build with nothing running, exited 0 at
   13:39:22.
@@ -408,11 +411,73 @@ them, with a `Z`: that clock was about 50 minutes behind UTC (it read 13:39:32 a
 
 What the person at the machine reported, after the run: no terminal window appeared.
 They were connected to the machine over Remote Desktop when they reported it; the record
-does not say whether they were for the run itself.
+does not say whether they were for the run itself. Measured beside it: at 13:53:12 and
+again at 13:55:29 the sidecars had two `conhost.exe` children between them (`conhost
+children: 2`); whether either had a window was not measured.
 
-Not tried: a leftover of a fixed core on Windows, which ending the shell cannot make,
-since the job ends the sidecars with it; an interactive install, the MSI, and the
-in-app update from 0.1.0 to 0.1.1.
+Not tried: a leftover of a fixed core on Windows, an interactive install, and the MSI.
+Ending the shell should not leave a fixed core: each sidecar runs in a job of its own
+that ends its processes when its last handle closes, and only the shell holds that
+handle (`spawn` and `Job` in `app/src-tauri/src/process.rs`). What was measured is that
+the sidecars were gone within 1 s of the shell's end; that the job ended them is
+inferred.
+
+### The in-app update from 0.1.0 to 0.1.1
+
+On 2026-10-23 the same Windows 11 machine was updated from 0.1.0 to 0.1.1 from inside
+lokki, through the release `v0.1.1`: a lightweight tag at e9767ae, built by release run
+39982744404 and published at 16:07:22 UTC. Every updater signature in the release
+verifies against `tauri.conf.json`'s key (428AD592CE9CF454) for `version:0.1.1` and
+matches `latest.json`, the Windows package's among them: `lokki_0.1.1_x64-setup.exe`,
+SHA-256 `8929673250396dd6545074c9b4a147ba0d1e4730a59b2a9c499390fad4aa9d9d`. The endpoint
+0.1.0 reads answered `version 0.1.1`. The times are the machine's clock (above); file
+times are the files' own, so they come from the build.
+
+Before the update, 0.1.0 was installed silently with nothing running: the release's
+NSIS installer (SHA-256 `a6f51e6c…`) exited 0 at 15:08:41, leaving `lokki.exe` of
+16,260,608 bytes and `lokki-core-0_1_0.exe` of 10,539,519. The release's signer reports
+running that install over ssh; the record does not measure who ran it. Measured from
+`app.log` and process samples every 2 s:
+
+- 15:21:10 `ready`: the core, pid 700, with its listener 17208 on `127.0.0.1:8381`, and
+  CLIProxyAPI, pid 10260, on `127.0.0.1:8317`. The person at the machine had opened
+  0.1.0.
+- 15:21:33 `update install asked`, asked by the person inside lokki.
+- 15:21:36 `core stopped, pid 700: drained=true killed=false`, and 15:21:42 `cliproxy
+  stopped, pid 10260: drained=false killed=true`. That is 0.1.0's own stop, which ended
+  CLIProxyAPI this way on every Windows run of 0.1.0 (above); the stop 0.1.1 carries
+  drained it in the retest of main's build at 909fd89 (above).
+- 15:21:50 `lokki-0.1.1-installer.exe`, pid 15188, a child of the 0.1.0 shell, pid
+  13748.
+- 15:22:01 `removed an old sidecar file: …\AppData\Local\lokki\lokki-core-0_1_0.exe`.
+- 15:22:03 a new `lokki.exe`, pid 18324, a child of the installer. From 15:22:06 to
+  15:22:10 three short-lived `lokki-core-0_1_1.exe` children of it ran, one with a child
+  of its own, and `app.log` has `lokki-core init` at 15:22:06.
+- 15:22:19 `ready: core on port 8381 pid 5284, cliproxy on port 8317 pid 15728`, 46 s
+  after the ask.
+- At 15:22:25 the processes were `lokki.exe` 18324, CLIProxyAPI 15728, and the core 5284
+  with its listener 7736, on `127.0.0.1:8381` and `127.0.0.1:8317`. No 0.1.0 process
+  was left.
+- The install directory then held `lokki.exe` (16,270,848 bytes, 2026-10-23 16:04:44),
+  `lokki-core-0_1_1.exe` (10,543,069 bytes, 15:59:02) and `cliproxy-8_0_23.exe`
+  (71,834,624 bytes, 15:58:48), and no `lokki-core-0_1_0.exe`. `core.log` has
+  `revision=e9767aee6fdf65f357942b38987dffe578a35da3`, the tag's commit.
+
+What the person at the machine reported after the update: no terminal window appeared,
+and lokki shows version 0.1.1.
+
+What is inferred:
+
+- The new shell removed `lokki-core-0_1_0.exe`. 0.1.0's prune keeps that file, and
+  0.1.1's runs first in `run()`, before the first core start; the line comes 5 s before
+  `init`.
+- The installer ran in the updater's passive mode. No installer window was recorded.
+- The three short-lived `lokki-core-0_1_1.exe` children were the shell's core
+  subcommands.
+
+Not tried: an update from one release to the next on macOS (the Intel hand test above
+updated its own test builds) or on Linux, an update through the MSI, and an update while
+a client was streaming through the core.
 
 ## The leftover hand test on an M4 Mac mini
 
