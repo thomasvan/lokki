@@ -195,7 +195,9 @@ impl Listener {
             let pid = win::parent(self.pid)?;
             let handle = win::open(pid)?;
             // Windows keeps a parent's pid after the parent is gone, and the pid may name a
-            // later process: the parent is the one that was created before its child.
+            // later process: the parent is the one that was created before its child. That
+            // holds whether or not the child still runs, so it is not asked: a later process
+            // under the pid was created after the parent ended, which is after the child began.
             (win::created(&handle)? <= win::created(&self.handle)?).then(|| Listener {
                 pid,
                 exe: win::image(&handle),
@@ -830,6 +832,18 @@ pub(crate) mod tests {
         cmd
     }
 
+    /// Ends the process `pid` at once, if it still runs.
+    pub(crate) fn end(pid: u32) {
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(pid as libc::pid_t, libc::SIGKILL);
+        }
+        #[cfg(windows)]
+        if let Some(process) = win::open(pid) {
+            win::terminate(&process, Duration::from_secs(5));
+        }
+    }
+
     /// Reads `child`'s output until a line starts with `prefix`, and returns the rest.
     pub(crate) fn line_after(child: &mut Child, prefix: &str) -> String {
         let out = BufReader::new(child.stdout.as_mut().unwrap());
@@ -844,8 +858,10 @@ pub(crate) mod tests {
 
     /// Not a test: the processes the tests start. A shell starts a sidecar as `spawn` does,
     /// or without it; a sidecar starts a child and prints both pids; a starter starts the
-    /// file `LOKKI_TEST_CHILD` as an HTTP listener and prints both pids; a listener holds a
-    /// loopback port and prints it; an HTTP listener also prints the first line of each
+    /// first file of the list `LOKKI_TEST_CHILD`, as a starter of the rest or, the last, as
+    /// an HTTP listener, and prints both pids; a listener holds a loopback port and prints
+    /// it, and one that ends on a request or closes it ends on the first request or closes
+    /// each unanswered; an HTTP listener also prints the first line of each
     /// request, and answers `LOKKI_TEST_STATUS` to one that carries `LOKKI_TEST_CREDENTIAL`
     /// and 401 to any other, and exits once it has answered 202 unless `LOKKI_TEST_STAYS` is
     /// set, as a core whose drain died does. A connection that sends nothing, as a probe of
@@ -869,10 +885,39 @@ pub(crate) mod tests {
                 hold();
             }
             Ok("starter") => {
-                let exe = std::env::var_os("LOKKI_TEST_CHILD").unwrap();
-                let child = me_at(Path::new(&exe), "http").spawn().unwrap();
+                let files = std::env::var_os("LOKKI_TEST_CHILD").unwrap();
+                let mut line: Vec<PathBuf> = std::env::split_paths(&files).collect();
+                let file = line.remove(0);
+                let child = if line.is_empty() {
+                    me_at(&file, "http").spawn().unwrap()
+                } else {
+                    me_at(&file, "starter")
+                        .env("LOKKI_TEST_CHILD", std::env::join_paths(line).unwrap())
+                        .spawn()
+                        .unwrap()
+                };
                 println!("pids {} {}", std::process::id(), child.id());
                 hold();
+            }
+            Ok("ends-on-a-request") => {
+                let l = TcpListener::bind("127.0.0.1:0").unwrap();
+                println!("port {}", l.local_addr().unwrap().port());
+                for stream in l.incoming() {
+                    if stream.unwrap().read(&mut [0u8]).unwrap_or(0) == 1 {
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Ok("closes-on-a-request") => {
+                let l = TcpListener::bind("127.0.0.1:0").unwrap();
+                println!("port {}", l.local_addr().unwrap().port());
+                std::thread::spawn(move || {
+                    hold();
+                    std::process::exit(0);
+                });
+                for stream in l.incoming() {
+                    drop(stream);
+                }
             }
             Ok("listener") => {
                 let l = TcpListener::bind("127.0.0.1:0").unwrap();

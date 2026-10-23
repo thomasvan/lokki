@@ -133,12 +133,35 @@ macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
   moment leaves it suspended, holding no port, until the next reboot.
 - On Linux and macOS each sidecar leads a process group of its own, which a signal to
   the shell does not reach. A shell that ends this way leaves both sidecars running
-  and holding their ports, the core still serving clients with the settings it
-  started with. The next start of lokki on that data directory stops them
+  and holding their ports. The next start of lokki on that data directory stops them
   ([first run](first-run.md)); until then nothing does. Neither system has an object
   that ends a process tree when its holder dies: Linux's parent-death signal reaches
   the direct child only, and comes when the thread that started it ends, not the
   process.
+
+A leftover CLIProxyAPI on Linux and macOS holds its port only until its first request,
+and ends on that request without answering it. The leftover core therefore does not go
+on serving clients: its first request upstream ends CLIProxyAPI, and every later one
+fails upstream. That consequence is inferred from what CLIProxyAPI did alone; no run
+sent a request through a leftover core. On Windows a leftover CLIProxyAPI answered the
+next start's check and was stopped ([updates](update.md), The hand test on Windows).
+
+- Measured once on an M4 Mac mini, macOS 27.0.1: after a `kill -9` of the shell,
+  CLIProxyAPI was still alive 5 s later; one `GET /` got no answer (curl code 000); 3 s
+  later it was gone.
+- Measured on Linux x86_64 with the CLIProxyAPI 8.0.23 that `app/cliproxy.lock` pins,
+  its output on pipes whose read ends were then closed, on a port the system chose:
+  - with the pipes closed 1 to 5 s after it started, it stayed alive and listening for
+    60 s with nothing connecting (4 runs), and through a connection that sent nothing,
+    as lokki's probe of a port is (3 runs);
+  - its first `GET /` was closed with no bytes back, and 3 s later it had ended on
+    SIGPIPE, exit status −13 (4 runs of 4);
+  - with the pipes closed 1 to 1.3 s after it started, it ended on SIGPIPE within 2 to
+    5 s with no request in 3 runs of 4, at a line of its own start-up output, as
+    the timing suggests.
+- Inferred, not proven: CLIProxyAPI writes a line to its output for each request, and
+  a Go program whose write to a broken pipe on fd 1 or 2 fails ends on SIGPIPE. On
+  Windows such a write returns an error instead.
 
 A core whose shell has ended still drains and exits on `POST /api/shutdown` or
 SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of lokki
@@ -159,8 +182,10 @@ lend its pid to another.
 
 Windows does not let a program's file be replaced or removed while the program runs.
 An install over a leftover sidecar therefore leaves that sidecar's file as it was: a
-silent install did so and still exited 0. Interactive installs and the MSI were not
-tried. Each sidecar's file is named for its version, so what this leaves depends on
+silent install did so and still exited 0. The evidence is file times: after it, the two
+sidecar files kept their times of 2026-10-22 07:58 UTC, and `lokki.exe` had 2026-10-23
+09:01; no hash of the installed files was taken. Interactive installs and the MSI were
+not tried. Each sidecar's file is named for its version, so what this leaves depends on
 the versions:
 
 - When the new build carries the same name, lokki runs the file the earlier install

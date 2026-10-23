@@ -113,12 +113,17 @@ of another user included, is sent nothing. Then:
   through `POST /api/shutdown`, and is given as long as a quit gives it, at most 30
   seconds: the start waits before any window opens, holding what Quit needs. One still
   there after that is killed, as lokki kills its own core after its drain, together with
-  the processes that started it as far as each also runs as this user and runs a
-  `lokki-core-*` file: the one-file core's bootloader, never the program that started
-  that. Its line in `logs/app.log` names their pids and ends `killed=true`;
-- a CLIProxyAPI that accepts the data directory's management secret is stopped by its
-  pid: SIGTERM, then SIGKILL after 5 seconds, on Linux and macOS; killed at once on
-  Windows.
+  the process that started it when that also runs as this user and runs a
+  `lokki-core-*` file: the one-file core's bootloader, and nothing above it. Its line in
+  `logs/app.log` names their pids and ends `killed=true`, or `killed=false` when one of
+  them is still there;
+- a CLIProxyAPI is sent the data directory's management secret. On Windows a leftover
+  one answers, and one that accepts the secret is stopped by its pid, killed at once.
+  On macOS and Linux a leftover CLIProxyAPI ends on its first request without answering
+  it ([Limits](limits.md), When the shell ends without its stop), and that request is
+  this check: `logs/app.log` says it ended without answering, and the start goes on once
+  its port is free. One that does answer and accepts the secret is stopped by its pid:
+  SIGTERM, then SIGKILL after 5 seconds.
 
 `logs/app.log` has a line for each port it found held and what it did. Anything else
 it leaves alone: it does not start that sidecar, and the error page says what holds

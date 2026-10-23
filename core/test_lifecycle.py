@@ -619,6 +619,49 @@ class OutputReaderGoneTests(unittest.TestCase):
                     self.fail(f"{label}: the core did not exit within its drain window")
                 self.assertEqual(code, 0, label)
 
+    def test_a_line_with_no_reader_is_dropped(self):
+        def no_reader():
+            r, w = os.pipe()
+            os.close(r)
+            return open(w, "w", encoding="utf-8", buffering=1)
+
+        def closed():
+            stream = open(os.devnull, "w", encoding="utf-8")
+            stream.close()
+            return stream
+
+        for label, make in [("a pipe whose read end is gone", no_reader), ("a closed stream", closed)]:
+            with self.subTest(label):
+                stream = make()
+                self.addCleanup(_close, stream)
+                gone = handler._ReaderMayBeGone(stream)
+                self.assertEqual(gone.write("a line\n"), len("a line\n"))
+                gone.flush()
+
+    def test_a_drain_that_raises_still_leaves(self):
+        """The wrapper keeps a print from raising; anything else that raises on the drain's
+        thread must still end the process."""
+        exits = []
+
+        def dies(_seconds):
+            raise RuntimeError("the drain died")
+
+        with mock.patch.object(handler.os, "_exit", exits.append), \
+                mock.patch.object(handler, "wait_for_active_runs", dies), \
+                mock.patch.object(handler.time, "sleep", lambda _s: None), \
+                mock.patch("builtins.print"):
+            with self.assertRaises(RuntimeError):
+                handler._drain_and_exit([])
+        self.assertEqual(exits, [0])
+
+
+def _close(stream):
+    """Closes `stream`, whose last flush may raise: the file is closed either way."""
+    try:
+        stream.close()
+    except (OSError, ValueError):
+        pass
+
 
 class ReloadThreadTests(unittest.TestCase):
     """The one reload thread, in process: it reloads under the settings write lock,
