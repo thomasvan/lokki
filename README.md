@@ -207,9 +207,9 @@ are up. If the hosted macOS and Windows legs cannot run, dispatch the `app`
 workflow with that tag and `platforms: linux`: it reuses the draft and publishes
 a Linux-only release.
 
-Releases live at <https://github.com/thomasvan/lokki/releases>. The updater
-answers only once the repository is public; until then every check reports a 404.
-See [updates](docs/app/update.md) for the states and the install order.
+Releases live at <https://github.com/thomasvan/lokki/releases>. See
+[updates](docs/app/update.md) for the states, the install order, and where an update has
+been tested by hand.
 
 ## License
 
