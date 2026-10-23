@@ -602,11 +602,12 @@ class OutputReaderGoneTests(unittest.TestCase):
 
     def test_a_core_whose_output_reader_is_gone_still_stops(self):
         rows = [("POST /api/shutdown",
-                 lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {}))]
-        if os.name != "nt":
-            rows.append(("SIGTERM", RelayProcess.term))
+                 lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {})),
+                ("SIGTERM", RelayProcess.term)]
         for label, stop in rows:
             with self.subTest(label):
+                if label == "SIGTERM" and os.name == "nt":
+                    self.skipTest("SIGTERM is a hard kill on Windows")
                 relay = RelayProcess(self, self.upstream, pipes=True)
                 relay.wait_ready()
                 relay.proc.stdout.close()
