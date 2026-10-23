@@ -216,8 +216,10 @@ releases, then moves the mouse with no button down. With a pointer capture taken
 on press the thumb did not follow a held move in that WebKit; without it, it does.
 The slider takes no capture. Why the capture stops the drag is not known, and the
 thumb following the mouse with no button down, as seen on macOS, did not
-reproduce there. Not checked: WKWebView itself, which is Apple's port and not
-WPE, WebKitGTK (the Linux app's webview), Firefox, and touch input. The only
+reproduce there. In WKWebView, Apple's port and not WPE, the person at an Intel Mac
+with macOS 26.7.1 reported that the drag works, on the x64 disk image of app run
+39927837172 (7469b5d). That is reported, not measured: nothing recorded the drag. Not
+checked: WebKitGTK (the Linux app's webview), Firefox, and touch input. The only
 look at the UI in WebKitGTK was a CSS check (`oklch()`), not the slider. Nor has
 anyone checked which order an engine delivers `pointerup` and `change` in (the
 slider writes once, on the first), or whether a release outside the window

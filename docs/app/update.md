@@ -323,3 +323,77 @@ What the person at the machine reported:
 - `lokki.exe` opened a console window whenever it ran.
 - Closing that window ended the shell at 05:51:20.
 - The start ready at 05:37:41 was opened from the Start menu.
+
+### #7's build over a running v0.1.0
+
+Later that day the same machine was given the Windows installer of app run 39927837172
+(7469b5d), whose SHA-256 is `df465b7edcf713c9882c73b69e6f6cf96304eeb7bab2d235fa31859e6bac6463`,
+over a running lokki 0.1.0. Measured over ssh, the sampler as before:
+
+- At 09:34:38 the 0.1.0 shell, pid 14916, was ended with `TerminateProcess`. CLIProxyAPI
+  (7772, on 8317) and the core's bootloader (9816) with its Python child (14604, on
+  8381) still ran and listened, at every sample until 10:05:03.
+- The installer ran silently from 09:34:44 and exited 0 at 09:34:56. The install
+  directory then held `cliproxy-8_0_23.exe` and `lokki-core-0_1_0.exe` with their
+  times of 2026-10-22 07:58, `lokki.exe` of 2026-10-23 09:01:42, and `uninstall.exe` of
+  09:34:55.
+- `app.log` has three `init` lines at 10:10:31 and 10:10:32, and "lokki is already
+  running" twice at 10:10:41.
+- At 10:10:56: `port 8381: a core an earlier run left, pid 14604, took this data
+  directory's token and did not stop within 30 s`, and `port 8317: a CLIProxyAPI an
+  earlier run left, pid 7772, stopped`.
+- The new CLIProxyAPI, 13200, started at 10:10:59; at 10:11:00 it logged `stopped …:
+  drained=true killed=false`, and the error page "lokki could not start its services"
+  opened. After a quit at 10:15:27 the next start did the same at 10:16:03 and
+  10:16:07, with CLIProxyAPI 9132.
+- At 10:19:18 core 14604 still listened on 8381 and answered `/healthz` with 200. Its
+  `core.log` was last written at 09:34:31.
+
+What the person at the machine reported: the new build opened with no console window,
+and showed a port-conflict error.
+
+What is inferred:
+
+- The two "already running" lines are two of three starts made within a second, which
+  found the lock held by the first.
+- The new CLIProxyAPI stopped on the `CTRL_BREAK_EVENT` the shell sends: `drained=true`
+  is a stop it heard, which the build sends no other way on Windows.
+- The leftover core was 0.1.0's, whose drain dies on a write no one reads ([Limits](limits.md),
+  When the shell ends without its stop): it took the token and never exited, so every
+  start failed on its port. The next start now kills such a core.
+
+## The leftover hand test on an M4 Mac mini
+
+On 2026-10-23 two builds were run by hand on an M4 Mac mini, macOS 27.0.1, on a new
+default data directory, with the real install and its data moved aside and put back
+after: the release's `lokki_0.1.0_aarch64.dmg` (SHA-256
+`40eac00e8d289c4c9640ff80833812f8a3d5f7ce5bc164df3b3a5d9eb8c6debb`), and the
+`lokki-aarch64-apple-darwin` disk image of app run 39943969755 (#10's head ca1db14,
+SHA-256 `2e23def2a3aa7374be0e6482c453f6e17e799f49b0a4bd13d32ef756cdfb6fae`). Each was copied
+out of its disk image, with no quarantine, and passed `codesign --verify --deep
+--strict`. Measured: process listings, the times of each step, and `logs/app.log`.
+
+- **A 0.1.0 leftover, met by #10's build.** At 12:13:26 the 0.1.0 shell was ended with
+  `kill -9`; CLIProxyAPI and the core's bootloader with its Python child, which held
+  8381, still ran. #10's build was opened at 12:13:34. At 12:14:00 `app.log` has `port
+  8381: a core an earlier run left, pid 22743, took this data directory's token and did
+  not stop within 20 s; its tree, pids 22743, 22742: killed=true`, and `ready` at
+  12:14:06, 32 s after the open.
+- **#10's own leftover, met by #10's build.** At 12:14:28 that shell was ended with
+  `kill -9`, and the build opened again at 12:14:31. At 12:14:37 `app.log` has `port
+  8381: a core an earlier run left, pid 24539, took this data directory's token,
+  drained and stopped`, 3 s after `init`, and `ready` at 12:14:43, 12 s after the open.
+  It did so on each of three such runs; nothing was killed.
+- **The leftover CLIProxyAPI.** At 12:14:00 and 12:14:37 `app.log` has `… (pid …) is
+  not this data directory's CLIProxyAPI; left alone`, and each such CLIProxyAPI was
+  gone within 8 s. At 12:15:15, 5 s after a `kill -9` of the shell, CLIProxyAPI 25922
+  still ran; one `GET /` on its port at 12:15:16 got no answer (curl code 000); at
+  12:15:19 it was gone, and the next start's `app.log` has no line for its port.
+- A SIGTERM of the last shell at 12:15:41 left no lokki process at 12:15:42.
+
+What is inferred, not proven: a CLIProxyAPI whose shell has ended ends on its first
+request without answering it, because it writes a line for the request to the output
+the dead shell read, and Go ends a program on SIGPIPE when a write to a broken pipe on
+fd 1 or 2 fails. The "left alone" lines are that: the check's own request ended it.
+CLIProxyAPI alone was measured doing the same on Linux ([Limits](limits.md), When the
+shell ends without its stop).
