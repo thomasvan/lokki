@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -329,36 +330,69 @@ class SupplyChainTests(unittest.TestCase):
 
 APT_INSTALL = os.path.join(HERE, "apt-install.sh")
 APT_INSTALL_RUN = "bash app/scripts/apt-install.sh"
-# apt, apt-get or dpkg by name or by path, not a path or file named after one (`~/apt-debs`, `apt-install.sh`).
-APT_CALL = re.compile(r"(?<![\w-])(?:apt-get|apt|dpkg)(?![\w.-])")
+# apt, apt-get or dpkg by name or by path, not a directory or file named after one (`/var/cache/apt/archives`,
+# `~/apt-debs`, `apt-install.sh`).
+APT_CALL = re.compile(r"(?<![\w-])(?:apt-get|apt|dpkg)(?![\w./-])")
+PROTOCOL = os.path.join(os.path.dirname(os.path.dirname(HERE)), "WORKSPACE_PROTOCOL.md")
+
+
+def _shell_code(text):
+    """Shell text without its comments, so that a line commented out is a line gone: a `#` that
+    starts a word outside quotes ends its line."""
+    lines, quote = [], None
+    for line in text.splitlines():
+        i, prev = 0, " "
+        while i < len(line):
+            c = line[i]
+            if quote == "'":
+                quote = None if c == "'" else quote
+            elif c == "\\":
+                i += 1
+            elif quote == '"':
+                quote = None if c == '"' else quote
+            elif c in "'\"":
+                quote = c
+            elif c == "#" and prev in " \t;&|(":
+                line = line[:i].rstrip()
+                break
+            prev = c
+            i += 1
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _browser_step():
+    steps = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]["steps"]
+    return next(s for s in steps if s.get("name") == "Browser")["run"]
 
 
 def _bounded_fetches():
-    """(where, the fetch's shell text, the timeout of the shortest job that runs it) for each
-    fetch from the apt mirror a workflow makes: every step of every workflow that names apt,
-    apt-get or dpkg or runs Playwright's `--with-deps`, and apt-install.sh for the jobs that run it."""
+    """(where, the fetch's shell code, the timeout of the shortest job that runs it) for each
+    fetch from the apt mirror a workflow's `run:` steps make: every step that names apt, apt-get
+    or dpkg or runs Playwright's `--with-deps`, and apt-install.sh for the jobs that run it."""
     fetches, script = [], []
     for path in sorted(glob.glob(os.path.join(WORKFLOWS_DIR, "*.y*ml"))):
         for job_id, job in yaml.safe_load(_read(path))["jobs"].items():
             for step in job.get("steps", []):
-                run = step.get("run", "")
+                run = _shell_code(step.get("run", ""))
                 where = f"{os.path.basename(path)} {job_id} {step.get('name', run[:40])}"
                 if APT_INSTALL_RUN in run:
                     script.append((job.get("timeout-minutes") or 0, job_id))
                 if APT_CALL.search(run) or "--with-deps" in run:
                     fetches.append((where, run, job.get("timeout-minutes")))
     if script:
-        fetches.append(("apt-install.sh", _read(APT_INSTALL), min(script)[0] or None))
+        fetches.append(("apt-install.sh", _shell_code(_read(APT_INSTALL)), min(script)[0] or None))
     return fetches
 
 
 class BoundedFetchTests(unittest.TestCase):
     """The apt mirror a runner fetches from can crawl for longer than a job may run. Every fetch
-    from it, wherever a workflow makes one, has one bounded attempt around the fetch itself,
-    called twice, the second through another mirror written between them. What a killed attempt
-    leaves is killed, and its dpkg run finished within a bound. The sum stays well inside the
-    job's timeout, and the retry failing fails loudly. No attempt lets apt install what it cannot
-    authenticate."""
+    from it that a `run:` step makes has one bounded attempt around the fetch itself, called
+    twice, the second through another mirror written between them. Whatever outlives the wait
+    after a killed attempt is killed, dpkg's session with it, and waited for, and its dpkg run is
+    finished within a bound. The sum stays well inside the job's timeout, and the retry failing
+    fails loudly. No attempt lets apt install what it cannot authenticate. Comments are not
+    code here: a line commented out is a line gone. FetchRunTests runs the two fetches there are."""
 
     def test_apt_installs_only_what_it_can_authenticate(self):
         for where, run, _ in _bounded_fetches():
@@ -382,29 +416,41 @@ class BoundedFetchTests(unittest.TestCase):
                 bounds = [int(m.group(1)) for m in attempts]
                 self.assertEqual(len(bounds), 2, "one try and one retry")
                 self.assertLessEqual(max(bounds), 300)
-                self.assertIn("for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done", run)
-                self.assertIn("sudo pkill -KILL -x 'apt|apt-get|dpkg' || true", run)
+                self.assertIn("""gone() { for _ in $(seq "$1"); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || return 0; sleep 2; done; return 1; }""", run)
+                waits = [int(n) for n in re.findall(r"\bgone (\d+)\b", run)]
+                self.assertEqual(len(waits), 2, "the lock wait and the wait after the kill")
                 finish = re.findall(r"sudo timeout --kill-after=(\d+) (\d+) dpkg --configure -a", run)
                 self.assertEqual(len(finish), 1, "the killed attempt's dpkg run is finished within a bound")
-                # Two attempts with their kill grace, the lock wait (30 x 2 s) and the finish leave most of the job for the rest.
-                worst = (sum(bounds) + 2 * int(grace) + 60 + sum(int(n) for n in finish[0])) / 60
+                # Two attempts with their kill grace, the two waits (2 s a check) and the finish leave most of the job for the rest.
+                worst = (sum(bounds) + 2 * int(grace) + 2 * sum(waits) + sum(int(n) for n in finish[0])) / 60
                 self.assertLess(worst, timeout_minutes / 3)
-                # The retry's mirror is written between the two attempts and put back when the step ends.
-                trap = run.index("trap 'sudo cp \"$RUNNER_TEMP/apt-mirrors.txt\" /etc/apt/apt-mirrors.txt' EXIT")
-                mirror = run.index("https://archive.ubuntu.com/ubuntu/")
-                self.assertLess(attempts[0].start(), trap)
-                self.assertLess(trap, mirror)
-                self.assertLess(mirror, attempts[1].start())
+                self.assertRegex(run, r'restore\(\) \{\n\s*sudo cp "\$RUNNER_TEMP/apt-mirrors.txt" /etc/apt/apt-mirrors.txt \\\n\s*\|\| \{ echo "::error::[^"]+"; exit 1; \}\n\s*\}')
+                # In this order: the lock wait, dpkg's session and the names killed, the wait after the kill, the finish,
+                # and the retry's mirror written between the two attempts and put back when the step ends.
+                order = [
+                    attempts[0].start(),
+                    run.index(f"if ! gone {waits[0]}; then"),
+                    run.index('if sessions=$(pgrep -d, -x dpkg); then sudo pkill -KILL -s "$sessions" || true; fi'),
+                    run.index("sudo pkill -KILL -x 'apt|apt-get|dpkg' || true"),
+                    run.index(f'gone {waits[1]} || {{ echo "::error::'),
+                    run.index("dpkg --configure -a"),
+                    run.index("trap restore EXIT"),
+                    run.index("https://archive.ubuntu.com/ubuntu/"),
+                    attempts[1].start(),
+                ]
+                self.assertEqual(order, sorted(order))
                 # The retry failing fails the step, with the reason in the run's annotations.
                 self.assertRegex(run, r'(?m)^\s*attempt \d+(?: "\$@")? \|\| \{ echo "::error::[^"]+"; exit [1-9]\d*; \}$')
 
 
 class LinuxPackagesTests(unittest.TestCase):
     """app.yml's two Linux jobs install their packages through apt-install.sh, the one bounded
-    fetch: nothing in app.yml calls apt itself, and the script calls apt-get only in its bounded
-    attempt. The CI job hands apt an earlier run's .deb files, cached for its image and packages,
-    when it has them. The release job takes no cache: a release builds from its tag and the
-    archive alone. It installs the packages the CI job built with, less the smoke's display."""
+    fetch: nothing in app.yml calls apt itself, and every apt-get in the script's code is in its
+    bounded attempt. The CI job installs every Linux package WORKSPACE_PROTOCOL.md says the Rust
+    gates need, and the smoke's display, and hands apt an earlier run's .deb files, cached for its
+    image and packages, when it has them. The release job takes no cache: a release builds from
+    its tag and the archive alone. It installs the packages the CI job built with, less the
+    smoke's display. Comments are not code here."""
 
     SMOKE = {"xvfb", "xauth", "dbus"}
 
@@ -412,12 +458,12 @@ class LinuxPackagesTests(unittest.TestCase):
         self.jobs = yaml.safe_load(_text())["jobs"]
 
     def _install(self, job):
-        runs = [s for s in self.jobs[job]["steps"] if APT_INSTALL_RUN in s.get("run", "")]
+        runs = [s for s in self.jobs[job]["steps"] if APT_INSTALL_RUN in _shell_code(s.get("run", ""))]
         self.assertEqual(len(runs), 1, job)
-        return runs[0]
+        return _shell_code(runs[0]["run"])
 
     def _packages(self, job):
-        words = shlex.split(self._install(job)["run"])
+        words = shlex.split(self._install(job))
         packages = words[words.index("app/scripts/apt-install.sh") + 1:]
         if packages[:1] == ["--debs"]:
             packages = packages[2:]
@@ -427,18 +473,28 @@ class LinuxPackagesTests(unittest.TestCase):
 
     def test_nothing_in_app_yml_calls_apt_but_the_script(self):
         for body in _run_blocks(_text()):
-            self.assertIsNone(APT_CALL.search(body), body)
-        code = [l for l in _read(APT_INSTALL).splitlines() if not l.lstrip().startswith("#")]
-        calls = [l for l in code if re.search(r"(?<![\w-])apt(-get)? +[a-z]", l)]
-        self.assertEqual(len(calls), 1, calls)
-        self.assertRegex(calls[0], r"""^\s*sudo timeout --kill-after=\d+ "\$bound" sh -c 'apt-get update && apt-get install -y "\$@"' """)
+            self.assertIsNone(APT_CALL.search(_shell_code(body)), body)
+        code = _shell_code(_read(APT_INSTALL))
+        attempt = re.search(r"(?ms)^attempt\(\) \{\n(.*?)^\}\n", code)
+        self.assertRegex(attempt.group(1), r"""(?m)^\s*sudo timeout --kill-after=\d+ "\$bound" sh -c 'apt-get update && apt-get install -y "\$@"' apt-install "\$@"$""")
+        # Outside attempt(), what a wait or a kill matches by name and what a message says are not calls; any other
+        # apt or apt-get is, whatever follows it.
+        rest = code.replace(attempt.group(0), "").replace("'apt|apt-get|dpkg'", "")
+        rest = re.sub(r'"::(?:error|warning)::[^"]*"', "", rest)
+        self.assertEqual(re.findall(r"(?<![\w-])apt(?:-get)?(?![\w./-])", rest), [])
+
+    def test_ci_installs_every_linux_package_the_protocol_names_and_the_smokes_display(self):
+        gates = re.search(r"On Linux the workspace and smoke gates require (.*?)\.\n", _read(PROTOCOL))
+        named = set(re.findall(r"`([^`]+)`", gates.group(1)))
+        self.assertIn("libwebkit2gtk-4.1-dev", named)
+        ci = set(self._packages("linux"))
+        self.assertLessEqual(named, ci)
+        self.assertLessEqual(self.SMOKE, ci)
 
     def test_the_release_installs_what_ci_built_with_less_the_smokes_display_and_no_cache(self):
         ci, release = set(self._packages("linux")), set(self._packages("release-linux"))
-        self.assertLessEqual({"libwebkit2gtk-4.1-dev", "libgtk-3-dev", "patchelf"}, ci)
-        self.assertLessEqual(self.SMOKE, ci)
         self.assertEqual(release, ci - self.SMOKE)
-        self.assertNotIn("--debs", self._install("release-linux")["run"])
+        self.assertNotIn("--debs", self._install("release-linux"))
         for step in self.jobs["release-linux"]["steps"]:
             self.assertNotRegex(step.get("uses", ""), r"^actions/cache[@/]")
 
@@ -448,21 +504,223 @@ class LinuxPackagesTests(unittest.TestCase):
         self.assertRegex(cache["uses"], r"^actions/cache@[0-9a-f]{40}$")
         key = next(s for s in steps if s.get("id") == "debs")
         self.assertEqual(cache["with"]["key"], "${{ steps.debs.outputs.key }}")
-        self.assertIn("$ImageOS-$ImageVersion", key["run"])
-        self.assertIn('printf %s "$LINUX_PACKAGES" | sha256sum', key["run"])
-        install = self._install("linux")
-        self.assertIn("--debs ~/apt-debs ", install["run"])
+        key_code = _shell_code(key["run"])
+        self.assertIn("$ImageOS-$ImageVersion", key_code)
+        self.assertIn('printf %s "$LINUX_PACKAGES" | sha256sum', key_code)
+        install = next(s for s in steps if APT_INSTALL_RUN in _shell_code(s.get("run", "")))
+        self.assertIn("--debs ~/apt-debs ", _shell_code(install["run"]))
         self.assertLess(steps.index(key), steps.index(cache))
         self.assertLess(steps.index(cache), steps.index(install))
 
     def test_a_cache_hit_is_installed_by_apt_from_its_archive_directory(self):
         # `dpkg -i` of the whole set fails on systemd's pre-dependency and leaves dpkg broken; apt
         # orders the install, and fetches only what the cached files lack.
-        script = _read(APT_INSTALL)
-        code = "\n".join(l for l in script.splitlines() if not l.lstrip().startswith("#"))
+        code = _shell_code(_read(APT_INSTALL))
         self.assertNotIn("dpkg -i", code)
-        self.assertLess(script.index('sudo cp "$debs"/*.deb /var/cache/apt/archives/'), script.index("if ! attempt"))
-        self.assertIn("""find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$debs" {} +""", script)
+        self.assertLess(code.index('sudo cp "$debs"/*.deb /var/cache/apt/archives/'), code.index("if ! attempt"))
+        self.assertIn("""find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$debs" {} +""", code)
+
+
+@unittest.skipUnless(sys.platform.startswith("linux"), "the fetches run on Linux runners, with Linux's file tools")
+class FetchRunTests(unittest.TestCase):
+    """apt-install.sh and ui.yml's Browser step, run. Every early end short of a signal or an
+    unset variable prints exactly one ::error:: that names it and fails the step; the retry makes
+    its calls in order, through the other mirror; and the image's mirror list is back when the run
+    ends, unless putting it back is what failed. Each run is `env -i` with a PATH of stubs and
+    links to a few file tools, so no case reaches the real sudo, apt-get, dpkg, timeout, pgrep,
+    pkill or npx, and `sudo` runs its arguments as the test's user, which is never root. The two
+    system paths the shell code names are moved into a temp directory in a copy of it: the shipped
+    script and step then carry no switch for a test, and a step read from YAML has no file to
+    hold a default."""
+
+    LINKED = ("bash", "cp", "find", "ls", "mkdir", "seq", "tee")
+    STUBBED = ("timeout", "apt-get", "dpkg", "pgrep", "pkill", "npx", "sleep")
+    MOVED = {"/etc/apt/apt-mirrors.txt": "etc/apt-mirrors.txt", "/var/cache/apt/archives": "archives"}
+    IMAGE_MIRROR = "http://azure.archive.ubuntu.com/ubuntu/\tpriority:1"
+    RETRY_MIRROR = "https://archive.ubuntu.com/ubuntu/\tpriority:1"
+    PGREP = "pgrep -x apt|apt-get|dpkg"
+    FINISH = "sudo timeout --kill-after=15 120 dpkg --configure -a"
+    SAVE = "sudo cp T/etc/apt-mirrors.txt T/rt/apt-mirrors.txt"
+    WRITE = "sudo tee T/etc/apt-mirrors.txt"
+    RESTORE = "sudo cp T/rt/apt-mirrors.txt T/etc/apt-mirrors.txt"
+    TARGETS = {
+        # name: (bash's options, arguments, the .deb directory under HOME, the attempt as logged, its bound)
+        "apt-install.sh": ([], ["--debs", "T/home/apt-debs", "lib-a", "lib-b"], "apt-debs",
+                           """sudo timeout --kill-after=15 240 sh -c apt-get update && apt-get install -y "$@" apt-install lib-a lib-b""", 240),
+        # A `run:` step without a `shell:` runs as `bash -e {0}`.
+        "Browser": (["-e"], [], "playwright-debs",
+                    "timeout --kill-after=15 180 npx playwright install --with-deps chromium webkit", 180),
+    }
+
+    def setUp(self):
+        if os.geteuid() == 0:
+            self.fail("refusing to run as root: `sudo` here runs its arguments as the caller")
+
+    def _code(self, target):
+        text = _read(APT_INSTALL) if target == "apt-install.sh" else _browser_step()
+        # The copy reaches no system path but the two it moves (and /dev/null).
+        paths = set(re.findall(r"(?<![\w.$}~:/-])/[\w./-]*[\w/-]", _shell_code(text)))
+        self.assertLessEqual(paths, {*self.MOVED, "/var/cache/apt/archives/", "/dev/null"}, target)
+        for path in self.MOVED:
+            self.assertIn(path, text, target)
+        return text
+
+    def _run(self, target, timeout=(), pgrep=(1,), dpkg=(), fail=(), mirrors=True, debs=None, args=None):
+        """Runs `target` and returns (exit status, stdout, its calls, the mirror list each `timeout`
+        saw, the mirror list at the end), with the temp directory's path shown as T."""
+        opts, default_args, debs_dir, _, _ = self.TARGETS[target]
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        bin_, state = os.path.join(tmp, "bin"), os.path.join(tmp, "state")
+        for d in ("bin", "state", "etc", "archives", "home", "rt"):
+            os.mkdir(os.path.join(tmp, d))
+        T = lambda s: s.replace("T/", tmp + "/")  # noqa: E731
+        bash = shutil.which("bash")
+        for tool in self.LINKED:
+            os.symlink(shutil.which(tool), os.path.join(bin_, tool))
+        log, seen, mirror = (os.path.join(tmp, n) for n in ("log", "seen", "etc/apt-mirrors.txt"))
+        stub = f"""#!{bash}
+name=${{0##*/}}
+[ "$name" != sleep ] || exit 0
+[ -n "${{STUB_SUDO:-}}" ] || printf '%s\\n' "$name $*" >> {log}
+[ "$name" != timeout ] || [ ! -f {mirror} ] || printf '%s\\n' "$(< {mirror})" >> {seen}
+n=0; [ ! -f {state}/$name.count ] || read -r n < {state}/$name.count
+n=$((n + 1)); printf '%s\\n' "$n" > {state}/$name.count
+status=0
+if [ -f {state}/$name.plan ]; then
+  mapfile -t plan < {state}/$name.plan
+  status=${{plan[$(( n < ${{#plan[@]}} ? n - 1 : ${{#plan[@]}} - 1 ))]}}
+fi
+[ "$name" != pgrep ] || [ "$status" != 0 ] || echo 4242
+exit "$status"
+"""
+        sudo = f"""#!{bash}
+printf '%s\\n' "sudo $*" >> {log}
+if [ -f {state}/sudo.fail ]; then
+  mapfile -t fail < {state}/sudo.fail
+  for f in "${{fail[@]}}"; do [[ "$*" != "$f"* ]] || exit 1; done
+fi
+export STUB_SUDO=1
+exec "$@"
+"""
+        for name, body in [(n, stub) for n in self.STUBBED] + [("sudo", sudo)]:
+            with open(os.path.join(bin_, name), "w") as f:
+                f.write(body)
+            os.chmod(os.path.join(bin_, name), 0o755)
+        self.assertEqual(sorted(os.listdir(bin_)), sorted(self.LINKED + self.STUBBED + ("sudo",)))
+        for name, plan in (("timeout", timeout), ("pgrep", pgrep), ("dpkg", dpkg)):
+            if plan:
+                with open(os.path.join(state, name + ".plan"), "w") as f:
+                    f.write("".join(f"{s}\n" for s in plan))
+        if fail:
+            with open(os.path.join(state, "sudo.fail"), "w") as f:
+                f.write("".join(T(s) + "\n" for s in fail))
+        if mirrors:
+            with open(mirror, "w") as f:
+                f.write(self.IMAGE_MIRROR + "\n")
+        with open(os.path.join(tmp, "archives", "lib-a.deb"), "w") as f:
+            f.write("a")
+        if debs is not None:
+            debs(os.path.join(tmp, "home", debs_dir))
+        code = self._code(target)
+        for path, moved in self.MOVED.items():
+            code = code.replace(path, os.path.join(tmp, moved))
+        with open(os.path.join(tmp, "run.sh"), "w") as f:
+            f.write(code)
+        cmd = [shutil.which("env"), "-i", f"PATH={bin_}", f"HOME={tmp}/home", f"RUNNER_TEMP={tmp}/rt",
+               os.path.join(bin_, "bash"), *opts, os.path.join(tmp, "run.sh"),
+               *(T(a) for a in (default_args if args is None else args))]
+        done = subprocess.run(cmd, cwd=tmp, capture_output=True, text=True, timeout=60)
+        back = lambda s: s.replace(tmp + "/", "T/")  # noqa: E731
+        lines = lambda p: back(_read(p)).splitlines() if os.path.exists(p) else []  # noqa: E731
+        end = _read(mirror).rstrip("\n") if os.path.exists(mirror) else None
+        return done.returncode, back(done.stdout + done.stderr), lines(log), lines(seen), end
+
+    def _ends(self, target):
+        """(case, _run's arguments, exit status, what each ::error:: names in order, the calls in order)"""
+        _, _, debs_dir, attempt, bound = self.TARGETS[target]
+        first = [attempt, self.PGREP, self.FINISH, self.SAVE, self.WRITE, attempt]
+        retry_fails = {"apt-install.sh": f"The Linux packages did not install in two attempts of {bound} s each.",
+                       "Browser": f"Chromium and WebKit did not install in two attempts of {bound} s each."}[target]
+        cannot_restore = "could not put the image's mirror list back into T/etc/apt-mirrors.txt."
+        tee = "`sudo tee T/etc/apt-mirrors.txt"
+
+        def cached(d):
+            os.mkdir(d)
+            open(os.path.join(d, "lib-b.deb"), "w").close()
+
+        rows = [
+            ("first attempt", {}, 0, [], [attempt]),
+            ("retry", {"timeout": (124, 0, 0)}, 0, [], first + [self.RESTORE]),
+            ("apt left after the lock wait",
+             {"timeout": (124, 0, 0), "pgrep": (0,) * 31 + (1,)}, 0, [],
+             [attempt] + [self.PGREP] * 30
+             + ["pgrep -d, -x dpkg", "sudo pkill -KILL -s 4242", "sudo pkill -KILL -x apt|apt-get|dpkg", self.PGREP]
+             + first[2:] + [self.RESTORE]),
+            ("apt left after the kill", {"timeout": (124,), "pgrep": (0,)}, 1,
+             ["apt or dpkg was still running 10 s after SIGKILL, so the retry cannot install."],
+             [attempt] + [self.PGREP] * 30
+             + ["pgrep -d, -x dpkg", "sudo pkill -KILL -s 4242", "sudo pkill -KILL -x apt|apt-get|dpkg"] + [self.PGREP] * 5),
+            ("finish runs out", {"timeout": (124, 124)}, 1,
+             ["dpkg --configure -a did not finish the first attempt's half-done run within 120 s"], first[:3]),
+            ("finish killed", {"timeout": (124, 137)}, 1,
+             ["dpkg --configure -a did not finish the first attempt's half-done run within 120 s"], first[:3]),
+            ("finish fails", {"timeout": (124, 2)}, 1, ["dpkg --configure -a failed with exit 2, so the retry"], first[:3]),
+            ("no mirror list", {"timeout": (124, 0), "mirrors": False}, 1, ["so the retry has no mirror list"], first[:3]),
+            ("mirror list not saved", {"timeout": (124, 0), "fail": ["cp T/etc/apt-mirrors.txt"]}, 1,
+             ['`sudo cp T/etc/apt-mirrors.txt "$RUNNER_TEMP/apt-mirrors.txt"` failed with exit 1.'], first[:4]),
+            ("retry mirror not written", {"timeout": (124, 0), "fail": ["tee T/etc/apt-mirrors.txt"]}, 1,
+             [tee], first[:5] + [self.RESTORE]),
+            ("retry fails", {"timeout": (124, 0, 1)}, 1, [retry_fails], first + [self.RESTORE]),
+            ("mirror list not put back", {"timeout": (124, 0, 0), "fail": ["cp T/rt/apt-mirrors.txt"]}, 1,
+             [cannot_restore], first + [self.RESTORE]),
+            ("retry mirror neither written nor put back",
+             {"timeout": (124, 0), "fail": ["tee T/etc/apt-mirrors.txt", "cp T/rt/apt-mirrors.txt"]}, 1,
+             [tee, cannot_restore], first[:5] + [self.RESTORE]),
+            # A file where the .deb directory goes.
+            ("no .deb directory", {"debs": lambda d: open(d, "w").close()}, 1,
+             ['`mkdir -p "$debs"` failed with exit 1.'], [attempt]),
+            ("the kept .deb files not copied", {"debs": lambda d: os.mkdir(d, 0o555)}, 1,
+             ["`find T/archives -maxdepth 1 -name '*.deb' -exec cp -t \"$debs\" {} +` failed with exit 1."], [attempt]),
+        ]
+        if target == "apt-install.sh":
+            rows += [
+                ("--debs with no directory", {"args": ["--debs"]}, 2, ["apt-install.sh: --debs takes a directory."], []),
+                ("no packages", {"args": []}, 2, ["usage: apt-install.sh [--debs DIR] PACKAGE..."], []),
+                ("cached .deb files", {"debs": cached}, 0, [], [f"sudo cp T/home/{debs_dir}/lib-b.deb T/archives/", attempt]),
+                ("cached .deb files not handed to apt", {"debs": cached, "fail": ["cp T/home/"]}, 1,
+                 ['`sudo cp "$debs"/*.deb T/archives/` failed with exit 1.'], [f"sudo cp T/home/{debs_dir}/lib-b.deb T/archives/"]),
+            ]
+        else:
+            hit = f"sudo dpkg -i T/home/{debs_dir}/lib-b.deb"
+            browsers = "timeout --kill-after=15 180 npx playwright install chromium webkit"
+            rows += [
+                ("cache hit", {"debs": cached, "dpkg": (0,)}, 0, [], [hit, browsers]),
+                ("cache hit, browsers not fetched", {"debs": cached, "dpkg": (0,), "timeout": (124,)}, 124,
+                 [f"`{browsers}` failed with exit 124."], [hit, browsers]),
+                ("cache hit that does not install", {"debs": cached, "dpkg": (1,)}, 0, [], [hit, attempt]),
+            ]
+        return rows
+
+    def test_every_early_end_names_itself_once_and_the_mirror_list_is_put_back(self):
+        for target in self.TARGETS:
+            for case, kwargs, status, errors, calls in self._ends(target):
+                with self.subTest(target=target, case=case):
+                    rc, out, log, seen, end = self._run(target, **kwargs)
+                    self.assertEqual(rc, status, out)
+                    printed = [line for line in out.splitlines() if "::error::" in line]
+                    self.assertEqual(len(printed), len(errors), out)
+                    for line, error in zip(printed, errors):
+                        self.assertTrue(line.startswith("::error::"), line)
+                        self.assertIn(error, line)
+                    self.assertEqual(log, calls)
+                    if kwargs.get("mirrors", True) and not any("could not put" in e for e in errors):
+                        self.assertEqual(end, self.IMAGE_MIRROR)
+                    # Every call under `timeout` before the retry's mirror is written sees the image's list, and every one after it
+                    # archive.ubuntu.com.
+                    timed = [self.RETRY_MIRROR if self.WRITE in log[:i] else self.IMAGE_MIRROR
+                             for i, call in enumerate(log) if "timeout " in call]
+                    self.assertEqual(seen, timed if kwargs.get("mirrors", True) else [])
 
 
 class UiWorkflowTests(unittest.TestCase):
@@ -470,9 +728,8 @@ class UiWorkflowTests(unittest.TestCase):
     apt mirror; BoundedFetchTests holds the fetch a miss makes."""
 
     def setUp(self):
-        self.job = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]
-        self.steps = self.job["steps"]
-        self.run = next(s for s in self.steps if s.get("name") == "Browser")["run"]
+        self.steps = yaml.safe_load(_read(os.path.join(WORKFLOWS_DIR, "ui.yml")))["jobs"]["ui"]["steps"]
+        self.run = _shell_code(_browser_step())
 
     def test_the_system_libraries_are_cached_by_playwright_version_and_runner_image(self):
         names = [s.get("name") for s in self.steps]
