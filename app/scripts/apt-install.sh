@@ -50,18 +50,24 @@ attempt() {
   shift
   sudo timeout --kill-after=15 "$bound" sh -c 'apt-get update && apt-get install -y "$@"' apt-install "$@"
 }
-if ! attempt 240 "$@"; then
+# TEMPORARY: a 20 s first attempt, no lock wait, and the processes and dpkg states around the kill.
+if ! attempt 20 "$@"; then
+  echo "== TEMPORARY the first attempt returned"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|dpkg-deb|http|https|store|gpgv|frontend|ldconfig|update-alternat|systemctl|deb-systemd-hel|install-info|mandb)$/'
   echo "::warning::The first attempt failed or ran out of time; retrying once, through archive.ubuntu.com."
   # apt, apt-get and dpkg gone within $1 checks 2 s apart
   gone() { for _ in $(seq "$1"); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || return 0; sleep 2; done; return 1; }
-  if ! gone 30; then
+  if ! gone 0; then
     # `pkill -s` kills the sessions these pids lead; a dpkg that leads none kills nothing more.
     if sessions=$(pgrep -d, -x dpkg); then sudo pkill -KILL -s "$sessions" || true; fi
     sudo pkill -KILL -x 'apt|apt-get|dpkg' || true
+    echo "== TEMPORARY just after the kill"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|dpkg-deb|http|https|store|gpgv|frontend|ldconfig|update-alternat|systemctl|deb-systemd-hel|install-info|mandb)$/'
     gone 5 || { echo "::error::apt or dpkg was still running 10 s after SIGKILL, so the retry cannot install."; exit 1; }
   fi
+  echo "== TEMPORARY after the wait after the kill"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|dpkg-deb|http|https|store|gpgv|frontend|ldconfig|update-alternat|systemctl|deb-systemd-hel|install-info|mandb)$/'
+  { echo "== TEMPORARY dpkg --audit"; dpkg --audit || true; echo "== TEMPORARY dpkg -l, not ii"; dpkg -l | awk 'NR > 5 && $1 != "ii"'; }
   finish=0
   sudo timeout --kill-after=15 120 dpkg --configure -a || finish=$?
+  echo "== TEMPORARY after dpkg --configure -a, exit $finish"; { echo "== TEMPORARY dpkg --audit"; dpkg --audit || true; echo "== TEMPORARY dpkg -l, not ii"; dpkg -l | awk 'NR > 5 && $1 != "ii"'; }
   case "$finish" in
     0) ;;
     124|137) echo "::error::dpkg --configure -a did not finish the first attempt's half-done run within 120 s, so the retry cannot install."; exit 1 ;;
@@ -79,6 +85,7 @@ if ! attempt 240 "$@"; then
   trap restore EXIT
   printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\n' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
   attempt 240 "$@" || { echo "::error::The Linux packages did not install in two attempts of 240 s each."; exit 1; }
+  echo "== TEMPORARY after the retry"; { echo "== TEMPORARY dpkg --audit"; dpkg --audit || true; echo "== TEMPORARY dpkg -l, not ii"; dpkg -l | awk 'NR > 5 && $1 != "ii"'; }
 fi
 
 if [ -n "$debs" ]; then
