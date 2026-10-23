@@ -51,8 +51,8 @@
   function pointerdown(event: PointerEvent) {
     if (drag !== null) return;
     drag = event.pointerId;
-    // Held, so a pointer let go outside the window still ends the drag here (lostpointercapture).
-    try { (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId); } catch { /* no capture to take */ }
+    // No pointer capture is taken: the range's own drag holds the mouse, and a capture on top of it takes the release
+    // away from WebKit's thumb, which then follows the pointer with no button down (WKWebView, the macOS app's).
   }
 
   const valueOf = (event: Event) => Number((event.currentTarget as HTMLInputElement).value);
@@ -64,19 +64,26 @@
     else holdPosition(valueOf(event));
   }
 
-  // The pointer let go, through `change` or the drag's own `pointerup` or `lostpointercapture`, in whichever order
-  // an engine fires them: the held position is chosen once, by the first, and the others find nothing held. A
-  // press on the track is a drag of no length; assistive technology's increment holds through `input` first.
+  // The pointer let go, through `change` or the drag's own `pointerup`, `lostpointercapture` (a touch's implicit
+  // capture) or a move with no button down, in whichever order an engine fires them: the held position is chosen
+  // once, by the first, and the others find nothing held. A press on the track is a drag of no length; assistive
+  // technology's increment holds through `input` first.
   function release() {
     drag = null;
     if (w.held !== null) void choosePosition(w.held).catch(() => {});
   }
 
   // The drag's `pointerup` ends it even where no `change` or `lostpointercapture` follows. It is heard on the
-  // window too, for the whole life of the slider, for an engine that does not hold the capture and lets the
-  // pointer go outside it; with no drag down, or from another pointer, it does nothing.
+  // window too, for the whole life of the slider, for a pointer let go outside the slider; with no drag down, or
+  // from another pointer, it does nothing.
   function up(event: PointerEvent) {
     if (ownPointer(event)) release();
+  }
+
+  // A move with no button down is not part of the drag, so it ends it: the release was missed, and the thumb stays
+  // where the drag last put it instead of following the pointer. A touch or pen in contact reports a button down.
+  function move(event: PointerEvent) {
+    if (ownPointer(event) && event.buttons === 0) release();
   }
 
   function lostcapture(event: PointerEvent) {
@@ -101,7 +108,7 @@
   const describedBy = $derived([locked ? `${id}-locked` : "", failure ? `${id}-failure` : ""].filter(Boolean).join(" ") || undefined);
 </script>
 
-<svelte:window onpointerup={up} />
+<svelte:window onpointerup={up} onpointermove={move} />
 
 <div class="slider">
   <div class="slider-head">

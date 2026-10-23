@@ -122,22 +122,29 @@ unless `management.disable-control-panel` is set in its configuration.
 
 ## Platforms and engines no one has checked
 
-The mode slider has been checked in Chromium, by automated tests with a real
-mouse drag and not by hand, and rendered once in WebKitGTK. Not checked: WebKit
-and WKWebView (the macOS app's webview), Firefox, and touch input. Nor has
-anyone checked which order an engine delivers `pointerup`, `change` and
-`lostpointercapture` in (the slider writes once, on the first), or whether a
-release outside the window delivers `lostpointercapture`. In Firefox the fill
-may end short of or past the thumb's centre: its thumb is 16 px wide, and the
-fill assumes 20 px.
+The mode slider has been checked by automated tests with a real mouse drag, not
+by hand, in Chromium and in Playwright's WebKit on Linux (WebKitGTK, the same
+engine family as WKWebView, the macOS app's webview). The WebKit run drags the
+thumb with a press, move and release, then moves the mouse with no button down.
+It found that the pointer capture the slider took on press kept WebKit's own
+thumb drag from seeing the release; the slider takes none now, and the same test
+fails with it. Not checked: WKWebView itself, whose input handling is Apple's
+build and not Playwright's, Firefox, and touch input. The slider was also
+rendered once in WebKitGTK. Nor has anyone checked which order an engine
+delivers `pointerup` and `change` in (the slider writes once, on the first), or
+whether a release outside the window delivers `pointerup` to the window. In
+Firefox the fill may end short of or past the thumb's centre: its thumb is 16 px
+wide, and the fill assumes 20 px.
 
-If a pointer loses both its release and its cancel, the slider keeps that drag.
-Its thumb and reading stay on the position last dragged to, and nothing is
-written for it: not by a key step, by leaving the slider, or by a timer.
-Choosing a mode with another control writes that position first. A later press
-on the slider that moves the thumb, or any mouse press, ends the drag and writes
-the position then held. Leaving the page, or reloading, drops it, and the slider
-shows what the core reports.
+A move of the drag's pointer with no button down is not part of the drag and
+ends it, writing the position then held. If a pointer loses its release and its
+cancel and then does not move, the slider keeps that drag. Its thumb and reading
+stay on the position last dragged to, and nothing is written for it: not by a
+key step, by leaving the slider, or by a timer. Choosing a mode with another
+control writes that position first. A later press on the slider that moves the
+thumb, or any mouse press, ends the drag and writes the position then held.
+Leaving the page, or reloading, drops it, and the slider shows what the core
+reports.
 
 An Intel Mac is slow to start. In the hand test of 2026-10-21 the first run was
 ready in 77 s and a restart in 59 s. Where the time goes was not measured. In the

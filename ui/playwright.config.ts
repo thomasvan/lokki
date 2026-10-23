@@ -29,9 +29,11 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list", { printSteps: true }]],
   use: { actionTimeout: 10_000, trace: "off", screenshot: "off", video: "off" },
-  // `npm run e2e` runs chromium; `npm run screens` writes the screenshots (e2e/screens.ts).
+  // `npm run e2e` runs chromium and webkit; `npm run screens` writes the screenshots (e2e/screens.ts).
   projects: [
     { name: "chromium", testMatch: "*.spec.ts", use: { ...devices["Desktop Chrome"] } },
+    // WebKit is the engine of WKWebView, the macOS app's webview: the slider's drag only (e2e/slider.spec.ts).
+    { name: "webkit", testMatch: "slider.spec.ts", use: { ...devices["Desktop Safari"] } },
     { name: "screens", testMatch: "screens.ts", use: { ...devices["Desktop Chrome"], viewport: { width: 1100, height: 760 } } },
   ],
 });

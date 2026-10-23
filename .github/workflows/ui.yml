@@ -45,16 +45,16 @@ jobs:
       - name: Component tests
         working-directory: ui
         run: npm test
-      - name: Chromium from an earlier run
+      - name: Chromium and WebKit from an earlier run
         # Its CDN is reached only on a miss: from GitHub's runners it has served another host's certificate.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
+          key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
       - name: Browser
-        # Chromium, unless the cache had it, and the system libraries it needs, which the runner image does not carry.
+        # Chromium and WebKit, unless the cache had them, and the system libraries they need, which the runner image does not carry.
         working-directory: ui
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
       - name: Build and the browser run
         working-directory: ui
         env:

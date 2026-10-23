@@ -81,8 +81,9 @@ form while the accounts are unread), then "every model" or "3 models" from
 `low_quota.models`. `aria-valuetext` is the readout and the words. It writes when it
 stops: a drag once, when the pointer lets go, by whichever an engine fires first
 of `pointerup` (heard on the slider and, for a release outside it, on the window),
-`change`, or the loss of the pointer's capture outside the window
-(`lostpointercapture`). The drag is its own pointer's: the `pointerId` of its
+`change`, the loss of a touch's capture (`lostpointercapture`), or a move of the
+drag's pointer with no button down. The slider takes no pointer capture itself: one
+taken on press kept WebKit's own thumb drag from seeing the release. The drag is its own pointer's: the `pointerId` of its
 `pointerdown` is kept, and a `pointerup`, `pointercancel` or `lostpointercapture`
 from another pointer (a second touch) neither ends nor cancels it, while a
 `pointerup` with no drag down does nothing. While the pointer is down nothing writes, a key step moving the drag's
