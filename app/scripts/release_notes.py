@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""The release notes: the commit subjects since the previous tag (the first release says so
-instead) and, when app/cliproxy.lock changed, CLIProxyAPI's versions and that release's
+"""The release notes: the subjects of main's own commits since the previous tag, a line per
+merged pull request (`git log --first-parent` in app.yml; the first release says so instead) and, when app/cliproxy.lock changed, CLIProxyAPI's versions and that release's
 body (handed in; no network here)."""
 import argparse
 import json

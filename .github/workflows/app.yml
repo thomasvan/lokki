@@ -219,7 +219,7 @@ jobs:
           if [ -n "$PREV" ]; then git show "$PREV:app/cliproxy.lock" > "$RUNNER_TEMP/lock.before"; BEFORE="--lock-before $RUNNER_TEMP/lock.before"; fi
           NEW="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' ../cliproxy.lock)"
           gh release view "v$NEW" -R router-for-me/CLIProxyAPI --json body --jq .body > "$RUNNER_TEMP/cliproxy.md" || : > "$RUNNER_TEMP/cliproxy.md"
-          { [ -z "$PREV" ] || git log --format=%s "$PREV..$TAG"; } | python3 release_notes.py $BEFORE --lock-after ../cliproxy.lock --cliproxy-notes "$RUNNER_TEMP/cliproxy.md" > "$RUNNER_TEMP/notes.md"
+          { [ -z "$PREV" ] || git log --first-parent --format=%s "$PREV..$TAG"; } | python3 release_notes.py $BEFORE --lock-after ../cliproxy.lock --cliproxy-notes "$RUNNER_TEMP/cliproxy.md" > "$RUNNER_TEMP/notes.md"
           if [ "$ACTION" = reuse ]; then
             gh release edit "$TAG" --title "lokki ${TAG#v}" --notes-file "$RUNNER_TEMP/notes.md" -R "$GITHUB_REPOSITORY"
           else

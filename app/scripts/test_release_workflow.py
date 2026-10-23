@@ -109,6 +109,13 @@ class WorkflowTests(unittest.TestCase):
         # A dispatch on a tag ref with no tag input is a CI run, not a release.
         self.assertIn("github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')", prepare)
 
+    def test_the_notes_have_a_line_per_merged_pull_request(self):
+        # Each merge into main has main as its first parent: following first parents gives a line
+        # per merge, and per commit pushed to main itself, never the commits a pull request carried.
+        logs = re.findall(r"git log [^|;}]*", _job(_text(), "prepare"))
+        self.assertEqual(len(logs), 1, logs)
+        self.assertIn("--first-parent", logs[0].split())
+
     def test_inputs_and_signing_secrets_reach_only_where_they_are_safe(self):
         # A workflow input in a `run:` line is shell injection; the signing key belongs to the
         # build-and-sign step's `env` and nowhere a log, an upload or another step could read it.
