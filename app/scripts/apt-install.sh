@@ -43,9 +43,14 @@ attempt() {
   shift
   sudo timeout --kill-after=15 "$bound" sh -c 'apt-get update && apt-get install -y "$@"' apt-install "$@"
 }
-if ! attempt 240 "$@"; then
+# TEMPORARY: which timeout, and the processes just before the 20 s kill and after it.
+timeout --version | sed -n 1p
+( sleep 19.5; echo "== TEMPORARY 19.5 s into the first attempt"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|http|https|store|gpgv|dpkg-deb|frontend)$/' ) &
+if ! attempt 20 "$@"; then
+  echo "== TEMPORARY the first attempt returned"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|http|https|store|gpgv|dpkg-deb|frontend)$/'
   echo "::warning::The first attempt failed or ran out of time; retrying once, through archive.ubuntu.com."
   for _ in $(seq 30); do pgrep -x 'apt|apt-get|dpkg' >/dev/null || break; sleep 2; done
+  echo "== TEMPORARY after the lock wait"; ps -e -o pid,ppid,pgid,sid,stat,comm | awk 'NR == 1 || $6 ~ /^(sudo|timeout|sh|apt|apt-get|dpkg|http|https|store|gpgv|dpkg-deb|frontend)$/'
   sudo pkill -KILL -x 'apt|apt-get|dpkg' || true
   sudo timeout --kill-after=15 120 dpkg --configure -a \
     || { echo "::error::dpkg did not finish the first attempt's half-done run within 120 s, so the retry cannot install."; exit 1; }
