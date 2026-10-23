@@ -178,6 +178,26 @@ jobs:
       - name: Rust tests
         working-directory: app/src-tauri
         run: cargo test --locked --workspace
+      # TEMPORARY, removed in the next commit: what proc_pidpath names for a one-file build's listener.
+      - name: "Probe: the executable of a PyInstaller one-file's listener"
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          printf 'import socket, time\ns = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen()\nprint(s.getsockname()[1], flush=True)\ntime.sleep(60)\n' > probe.py
+          pyinstaller --onefile --name lokki-core-probe --distpath dist --workpath build --specpath . probe.py > /dev/null 2>&1
+          ./dist/lokki-core-probe > port.txt &
+          for _ in $(seq 100); do [ -s port.txt ] && break; sleep 0.2; done
+          PORT=$(cat port.txt)
+          PID=$(/usr/sbin/lsof -nP -t -iTCP:$PORT -sTCP:LISTEN | head -1)
+          PPID_=$(ps -o ppid= -p $PID | tr -d ' ')
+          python3 -c 'import ctypes, sys
+          lib = ctypes.CDLL("/usr/lib/libproc.dylib")
+          for label, pid in (("listener", int(sys.argv[1])), ("its parent", int(sys.argv[2]))):
+              buf = ctypes.create_string_buffer(4096)
+              n = lib.proc_pidpath(pid, buf, 4096)
+              print(label, pid, buf.value.decode())' "$PID" "$PPID_"
+          kill $PID $PPID_ 2>/dev/null || true
 
   prepare:
     name: The draft release
@@ -325,6 +345,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cd app && python scripts/sidecars.py --config-json --release --out "$RUNNER_TEMP/tauri.json" && npm run tauri build -- --bundles ${{ matrix.bundles }} --config "$RUNNER_TEMP/tauri.json" -- --locked
+      - name: The Windows shell opens no console window
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python app/scripts/check_pe_subsystem.py app/src-tauri/target/release/lokki.exe --want windows
       - name: Upload to the draft, the updater archive named by version and arch
         shell: bash
         env:
