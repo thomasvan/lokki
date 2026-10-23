@@ -320,5 +320,24 @@ class SupplyChainTests(unittest.TestCase):
         self.assertNotIn("secrets.", outside)
 
 
+class UiWorkflowTests(unittest.TestCase):
+    """The Browser step downloads from an apt mirror that has crawled for 14 and 30+ minutes;
+    its attempts are bounded, and their sum stays well inside the job's timeout."""
+
+    def test_the_browser_step_is_bounded_and_retried_within_the_job_timeout(self):
+        ui = os.path.join(WORKFLOWS_DIR, "ui.yml")
+        job = yaml.safe_load(_read(ui))["jobs"]["ui"]
+        step = next(s for s in job["steps"] if s.get("name") == "Browser")
+        m = re.findall(r"timeout --kill-after=(\d+) (\d+) npx playwright install", step["run"])
+        self.assertEqual(len(m), 1, "one bounded attempt, called twice")
+        grace, bound = (int(x) for x in m[0])
+        self.assertEqual(len(re.findall(r"(?m)^\s*(?:if ! )?attempt\b(?!\()", step["run"])), 2, "one try and one retry")
+        self.assertLessEqual(bound, 300)
+        # Two attempts, the kill grace, and the lock wait (30 x 2 s) leave most of the job for the rest.
+        worst = (2 * (bound + grace) + 60) / 60
+        self.assertLess(worst, job["timeout-minutes"] / 3)
+        self.assertIn("dpkg --configure -a", step["run"])
+
+
 if __name__ == "__main__":
     unittest.main()
