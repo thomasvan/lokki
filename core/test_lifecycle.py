@@ -126,8 +126,11 @@ class SlowUpstream:
 class RelayProcess:
     """A real relay in a real subprocess, with its own config and runs file."""
 
-    def __init__(self, test, upstream, drain_seconds=3):
+    def __init__(self, test, upstream, drain_seconds=3, pipes=False):
+        """`pipes`: the relay writes its output to pipes this process reads, as the shell
+        runs the core, and not to a log file; `output()` then has nothing to show."""
         self.test = test
+        self.drain_seconds = drain_seconds
         self.port = free_port()
         self.dir = tempfile.mkdtemp(prefix="lifecycle-test-")
         self.config_path = os.path.join(self.dir, "config.yaml")
@@ -141,7 +144,8 @@ class RelayProcess:
         self.runs = os.path.join(self.dir, "runs.jsonl")
         self.proc = subprocess.Popen(
             [sys.executable, SERVER, "--config", self.config_path],
-            stdout=self.log, stderr=subprocess.STDOUT, cwd=HERE,
+            stdout=subprocess.PIPE if pipes else self.log,
+            stderr=subprocess.PIPE if pipes else subprocess.STDOUT, cwd=HERE,
             # RELAY_RUNS_LOG keeps these synthetic runs out of the evidence file
             # that the repository commits.
             env=dict(os.environ, RELAY_CONFIG=self.config_path,
@@ -158,6 +162,9 @@ class RelayProcess:
         if self.proc.poll() is None:
             self.proc.kill()
             self.proc.wait(timeout=10)
+        for pipe in (self.proc.stdout, self.proc.stderr):
+            if pipe:
+                pipe.close()
         self.log.flush()
         self.log.close()
 
@@ -582,6 +589,34 @@ class RouteLifecycleTests(unittest.TestCase):
             self.assertEqual(_call(self.relay.port, path, None, "POST", {})[0], 401, path)
         self.assertIsNone(self.relay.proc.poll())
         self.assertEqual(_call(self.relay.port, "/healthz", None)[1]["status"], "ok")
+
+
+class OutputReaderGoneTests(unittest.TestCase):
+    """A shell that dies without stopping its core breaks the pipes it read the core's
+    output from. The core must still leave on the stop it is sent, or it holds its port
+    with no shell left to stop it."""
+
+    def setUp(self):
+        self.upstream = SlowUpstream(pause=0)
+        self.addCleanup(self.upstream.close)
+
+    def test_a_core_whose_output_reader_is_gone_still_stops(self):
+        rows = [("POST /api/shutdown",
+                 lambda relay: _call(relay.port, "/api/shutdown", TOKEN, "POST", {}))]
+        if os.name != "nt":
+            rows.append(("SIGTERM", RelayProcess.term))
+        for label, stop in rows:
+            with self.subTest(label):
+                relay = RelayProcess(self, self.upstream, pipes=True)
+                relay.wait_ready()
+                relay.proc.stdout.close()
+                relay.proc.stderr.close()
+                stop(relay)
+                try:
+                    code = relay.proc.wait(timeout=relay.drain_seconds + 5)
+                except subprocess.TimeoutExpired:
+                    self.fail(f"{label}: the core did not exit within its drain window")
+                self.assertEqual(code, 0, label)
 
 
 class ReloadThreadTests(unittest.TestCase):
