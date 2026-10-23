@@ -110,6 +110,8 @@ pub struct Listener {
 
 /// The process that holds `port` in the listening state on this machine, if the system
 /// says. It is found, held, and found again: a pid that no longer holds the port is not it.
+/// macOS has no hold and asks `lsof` once. A second ask would only catch the pid reused in
+/// between, which needs the holder to have ended, and its port can change hands then anyway.
 pub fn listener(port: u16) -> Option<Listener> {
     let pid = owner(port)?;
     #[cfg(windows)]
@@ -118,26 +120,35 @@ pub fn listener(port: u16) -> Option<Listener> {
         exe: win::image(&handle),
         same_user: win::same_user(&handle),
         handle,
-    })?;
+    });
     #[cfg(target_os = "linux")]
-    let found = pidfd_open(pid).map(|pidfd| {
-        use std::os::unix::fs::MetadataExt;
-        Listener {
-            pid,
-            exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
-            // `/proc/<pid>` belongs to the process's effective user.
-            same_user: std::fs::metadata(format!("/proc/{pid}"))
-                .is_ok_and(|m| m.uid() == unsafe { libc::geteuid() }),
-            pidfd,
-        }
-    })?;
+    let found = pidfd_open(pid).map(|pidfd| Listener {
+        pid,
+        exe: std::fs::read_link(format!("/proc/{pid}/exe")).ok(),
+        same_user: same_user(pid),
+        pidfd,
+    });
     #[cfg(target_os = "macos")]
-    let found = Listener {
+    let found = Some(Listener {
         pid,
         exe: proc_pidpath(pid),
-        same_user: proc_uid(pid) == Some(unsafe { libc::geteuid() }),
-    };
-    (owner(port) == Some(pid)).then_some(found)
+        same_user: same_user(pid),
+    });
+    found.filter(|_| cfg!(target_os = "macos") || owner(port) == Some(pid))
+}
+
+/// Whether `pid` runs as the user the shell runs as. `/proc/<pid>` belongs to the
+/// process's effective user.
+#[cfg(target_os = "linux")]
+fn same_user(pid: u32) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata(format!("/proc/{pid}")).is_ok_and(|m| m.uid() == unsafe { libc::geteuid() })
+}
+
+/// Whether `pid` runs as the user the shell runs as: its effective user.
+#[cfg(target_os = "macos")]
+fn same_user(pid: u32) -> bool {
+    proc_uid(pid) == Some(unsafe { libc::geteuid() })
 }
 
 impl Listener {
@@ -252,24 +263,48 @@ fn owner(port: u16) -> Option<u32> {
 fn owner(port: u16) -> Option<u32> {
     // Bounded: a start that asks holds the sidecars' lock, and a quit waits on it.
     const LSOF_WAIT: Duration = Duration::from_secs(3);
-    let mut child = command("/usr/sbin/lsof")
-        .args(["-nP", "-t", &format!("-iTCP:{port}"), "-sTCP:LISTEN"])
+    let mut lsof = command("/usr/sbin/lsof");
+    lsof.args(["-nP", "-t", &format!("-iTCP:{port}"), "-sTCP:LISTEN"]);
+    output_within(&mut lsof, LSOF_WAIT)?
+        .lines()
+        .next()?
+        .trim()
+        .parse()
+        .ok()
+}
+
+/// What `cmd` prints, if it ends within `wait`. One that does not is killed and given a
+/// moment more, never waited for: a kill does not end a process stuck in the kernel, as on
+/// a hung network mount.
+#[cfg(any(target_os = "macos", test))]
+fn output_within(cmd: &mut Command, wait: Duration) -> Option<String> {
+    let mut child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .ok()?;
-    let end = std::time::Instant::now() + LSOF_WAIT;
-    while child.try_wait().ok()?.is_none() {
-        if std::time::Instant::now() >= end {
-            let _ = child.kill();
-            let _ = child.wait();
-            return None;
-        }
-        std::thread::sleep(Duration::from_millis(20));
+    if !ends_within(&mut child, wait) {
+        let _ = child.kill();
+        ends_within(&mut child, Duration::from_millis(500));
+        return None;
     }
     let mut out = String::new();
     std::io::Read::read_to_string(&mut child.stdout.take()?, &mut out).ok()?;
-    out.lines().next()?.trim().parse().ok()
+    Some(out)
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn ends_within(child: &mut Child, wait: Duration) -> bool {
+    let end = std::time::Instant::now() + wait;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) if std::time::Instant::now() < end => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            _ => return false,
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -657,7 +692,8 @@ pub(crate) mod tests {
     /// or without it; a sidecar starts a child and prints both pids; a listener holds a
     /// loopback port and prints it; an HTTP listener also prints the first line of each
     /// request, and answers `LOKKI_TEST_STATUS` to one that carries `LOKKI_TEST_CREDENTIAL`
-    /// and 401 to any other, and exits once it has answered 202. A connection that sends
+    /// and 401 to any other, and exits once it has answered 202, unless it answers a drain
+    /// of `LOKKI_TEST_DRAIN` seconds, as a core still draining does. A connection that sends
     /// nothing, as a probe of the port does, is no request.
     #[test]
     #[ignore = "a role the tests run in a child process"]
@@ -687,9 +723,11 @@ pub(crate) mod tests {
                 println!("port {}", l.local_addr().unwrap().port());
                 let credential = std::env::var("LOKKI_TEST_CREDENTIAL").unwrap();
                 let ok: u16 = std::env::var("LOKKI_TEST_STATUS").unwrap().parse().unwrap();
+                let drain = std::env::var("LOKKI_TEST_DRAIN").ok();
+                let drain_seconds = drain.as_deref().map_or(0, |d| d.parse().unwrap());
                 for stream in l.incoming() {
                     // Printed before the answer, so a caller that has its answer can read it.
-                    let (_, status) = answer(stream.unwrap(), |head| {
+                    let (_, status) = answer(stream.unwrap(), drain_seconds, |head| {
                         if let Some(first) = head.lines().next() {
                             println!("request {first}");
                         }
@@ -699,7 +737,7 @@ pub(crate) mod tests {
                             401
                         }
                     });
-                    if status == 202 {
+                    if status == 202 && drain.is_none() {
                         return;
                     }
                 }
@@ -709,9 +747,10 @@ pub(crate) mod tests {
     }
 
     /// Reads one request head from `stream` and answers it with `status(head)` and a body
-    /// of `drain_seconds` 0. Returns the head and the status.
+    /// of `drain_seconds`. Returns the head and the status.
     pub(crate) fn answer(
         mut stream: std::net::TcpStream,
+        drain_seconds: u32,
         status: impl Fn(&str) -> u16,
     ) -> (String, u16) {
         let mut head = Vec::new();
@@ -721,7 +760,7 @@ pub(crate) mod tests {
         }
         let head = String::from_utf8_lossy(&head).into_owned();
         let status = status(&head);
-        let body = r#"{"drain_seconds": 0}"#;
+        let body = format!(r#"{{"drain_seconds": {drain_seconds}}}"#);
         let _ = write!(
             stream,
             "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\n\
@@ -763,6 +802,36 @@ pub(crate) mod tests {
             assert_eq!(signal, Some(libc::SIGTERM), "asked to stop, not killed");
         }
         assert!(listener(port).is_none(), "nothing holds the port");
+    }
+
+    #[test]
+    fn a_process_of_another_user_is_not_this_users() {
+        // pid 1 runs as root, and the System process, pid 4, as SYSTEM; the tests as neither.
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        assert!(!same_user(1), "pid 1");
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::{FromRawHandle, OwnedHandle};
+            use windows_sys::Win32::System::Threading::{
+                OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+            };
+            let raw = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, 4) };
+            assert!(!raw.is_null(), "the System process can be asked about");
+            let system = unsafe { OwnedHandle::from_raw_handle(raw) };
+            assert!(!win::same_user(&system), "the System process");
+        }
+    }
+
+    #[test]
+    fn a_command_that_does_not_end_is_given_up_within_its_wait() {
+        let start = std::time::Instant::now();
+        let out = output_within(&mut me("listener"), Duration::from_millis(300));
+        assert_eq!(out, None);
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "{:?}",
+            start.elapsed()
+        );
     }
 
     #[cfg(unix)]

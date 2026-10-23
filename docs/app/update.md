@@ -290,8 +290,8 @@ before the install and read again after the run: Windows 11 Education 10.0.26300
 26300, 64-bit; WebView2 156.0.4314.42 (the EdgeUpdate client key); an uninstall entry
 for the user reading "lokki 0.1.0"; and the release's `lokki_0.1.0_x64-setup.exe`,
 fetched again there, 30,618,427 bytes, whose SHA-256 equals the release asset's digest.
-Its core reported revision 17a0316, and `app.log` has no update line: no update was
-offered or installed.
+Its core reported revision 17a0316, and `app.log`, which records an install that is
+asked for and never an offer, has no update line: no install was asked for.
 
 What was measured from outside lokki: its processes and listeners, sampled about every
 5 seconds from 05:27 UTC, a line for each change; and at 05:55:30 the install, the data
