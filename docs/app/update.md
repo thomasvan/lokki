@@ -433,16 +433,14 @@ SHA-256 `8929673250396dd6545074c9b4a147ba0d1e4730a59b2a9c499390fad4aa9d9d`. The 
 0.1.0 reads answered `version 0.1.1`. The times are the machine's clock (above); file
 times are the files' own, so they come from the build.
 
-Before the update, 0.1.0 was installed silently with nothing running: the release's
-NSIS installer (SHA-256 `a6f51e6c…`) exited 0 at 15:08:41, leaving `lokki.exe` of
-16,260,608 bytes and `lokki-core-0_1_0.exe` of 10,539,519. The release's signer reports
-running that install over ssh; the record does not measure who ran it. Measured from
-`app.log` and process samples every 2 s:
+Before the update, 0.1.0 was installed with nothing running, and the install was
+silent and run over ssh: the release's NSIS installer (SHA-256 `a6f51e6c…`) exited 0 at
+15:08:41, leaving `lokki.exe` of 16,260,608 bytes and `lokki-core-0_1_0.exe` of
+10,539,519. Measured from `app.log` and process samples every 2 s:
 
 - 15:21:10 `ready`: the core, pid 700, with its listener 17208 on `127.0.0.1:8381`, and
-  CLIProxyAPI, pid 10260, on `127.0.0.1:8317`. The person at the machine had opened
-  0.1.0.
-- 15:21:33 `update install asked`, asked by the person inside lokki.
+  CLIProxyAPI, pid 10260, on `127.0.0.1:8317`.
+- 15:21:33 `update install asked`.
 - 15:21:36 `core stopped, pid 700: drained=true killed=false`, and 15:21:42 `cliproxy
   stopped, pid 10260: drained=false killed=true`. That is 0.1.0's own stop, which ended
   CLIProxyAPI this way on every Windows run of 0.1.0 (above); the stop 0.1.1 carries
@@ -463,8 +461,9 @@ running that install over ssh; the record does not measure who ran it. Measured 
   (71,834,624 bytes, 15:58:48), and no `lokki-core-0_1_0.exe`. `core.log` has
   `revision=e9767aee6fdf65f357942b38987dffe578a35da3`, the tag's commit.
 
-What the person at the machine reported after the update: no terminal window appeared,
-and lokki shows version 0.1.1.
+What the person at the machine reported: they opened 0.1.0 and asked for the install
+inside lokki, and after the update no terminal window appeared and lokki showed version
+0.1.1.
 
 What is inferred:
 
