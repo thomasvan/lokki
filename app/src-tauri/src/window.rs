@@ -163,28 +163,31 @@ mod tests {
         }
     }
 
-    #[test]
-    fn only_a_window_after_a_go_back_is_given_its_sentence_and_at_most_500_characters() {
+    /// What a window's went-back script sets, read back as the page reads the literal.
+    fn given(said: &str) -> String {
         let origin = "http://127.0.0.1:43210";
-        assert_eq!(went_back_script(origin, None), None);
-        // What the script sets, read back as the page would read the literal.
-        let given = |said: &str| -> String {
-            let script = went_back_script(origin, Some(said))
-                .expect("a script for a go-back");
-            let head = format!(
-                "if (location.origin === {} && window.lokki) window.lokki.wentBack = ",
-                serde_json::to_string(origin).unwrap()
-            );
-            let literal = script
-                .strip_prefix(&head)
-                .and_then(|rest| rest.strip_suffix(';'))
-                .expect("the script is the one assignment on the core's origin");
-            serde_json::from_str(literal).expect("a JSON string literal")
-        };
+        let script = went_back_script(origin, Some(said)).expect("a script for a go-back");
+        let head = format!(
+            "if (location.origin === {} && window.lokki) window.lokki.wentBack = ",
+            serde_json::to_string(origin).unwrap()
+        );
+        let literal = script
+            .strip_prefix(&head)
+            .and_then(|rest| rest.strip_suffix(';'))
+            .expect("the script is the one assignment on the core's origin");
+        serde_json::from_str(literal).expect("a JSON string literal")
+    }
+
+    #[test]
+    fn only_a_window_after_a_go_back_is_given_its_sentence() {
+        assert_eq!(went_back_script("http://127.0.0.1:43210", None), None);
         let said = "port 2002 is taken; \"CLIProxyAPI\" is back on port 2001";
         assert_eq!(given(said), said);
-        let long = "é".repeat(600);
-        let cut = given(&long);
+    }
+
+    #[test]
+    fn a_window_is_given_at_most_500_characters_of_the_sentence() {
+        let cut = given(&"é".repeat(600));
         assert_eq!(cut.chars().count(), 500);
         assert!(cut.ends_with('…') && cut.starts_with(&"é".repeat(499)));
         assert_eq!(
