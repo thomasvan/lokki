@@ -77,21 +77,37 @@ describe("App", () => {
     history.replaceState(null, "", "/");
   });
 
-  it("shows, in the window that moved, what the restart said when it went back", async () => {
+  it("shows what a restart that went back said only from the shell, and only in the window that moved", async () => {
     core();
     const said = "port 9479 is already in use; CLIProxyAPI is back on port 9480";
-    history.replaceState(null, "", `/?moved_from=9478&went_back=${encodeURIComponent(said)}`);
-    render(App);
-    const note = screen.getByText(/Lokki now listens on port/).closest(".banner") as HTMLElement;
-    expect(within(note).getByText(`The restart also said: ${said}`)).toBeInTheDocument();
-    expect(location.search).toBe("");
-    cleanup();
+    const sentence = () => screen.queryByText(/The restart also said/);
+    try {
+      // A link can write the URL, so a went_back there is never shown.
+      history.replaceState(null, "", `/?moved_from=9478&went_back=${encodeURIComponent("any text")}`);
+      render(App);
+      expect(screen.getByText(/Lokki now listens on port/)).toBeInTheDocument();
+      expect(sentence()).toBeNull();
+      cleanup();
 
-    // Only beside a move: alone, it says nothing.
-    history.replaceState(null, "", `/?went_back=${encodeURIComponent(said)}`);
-    render(App);
-    expect(screen.queryByText(/The restart also said/)).toBeNull();
-    history.replaceState(null, "", "/");
+      // The shell's own sentence, beside a move.
+      window.lokki = { wentBack: said };
+      history.replaceState(null, "", "/?moved_from=9478");
+      render(App);
+      const note = screen.getByText(/Lokki now listens on port/).closest(".banner") as HTMLElement;
+      expect(within(note).getByText(`The restart also said: ${said}`)).toBeInTheDocument();
+      cleanup();
+
+      // Without a valid move, as on a reload of that window, it says nothing.
+      for (const url of ["/", "/?moved_from=0"]) {
+        history.replaceState(null, "", url);
+        render(App);
+        expect(sentence(), url).toBeNull();
+        cleanup();
+      }
+    } finally {
+      delete window.lokki;
+      history.replaceState(null, "", "/");
+    }
   });
 
   // The run in the browser guards the whole chain; this one fails if the prompt, the stored token or the retry go missing.

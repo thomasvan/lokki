@@ -15,12 +15,12 @@
 
   // The shell opens the window at ?moved_from=<port> when the core has come back on a new port. Clients keep the
   // address they were given, so the note says where they must point now. A restart that went back for the other
-  // service while the core moved adds &went_back=<its sentence>: the window that asked is gone, so this one says it.
-  // The query leaves the address bar at once, so a reload does not say it again.
-  const query = new URLSearchParams(location.search);
-  const from = query.get("moved_from");
+  // service while the core moved also gives the window its sentence, as window.lokki.wentBack: the window that asked
+  // is gone, so this one says it. Never from the URL, which any link can write. The query leaves the address bar at
+  // once, so a reload does not say it again.
+  const from = new URLSearchParams(location.search).get("moved_from");
   let movedFrom = $state(from !== null && /^[1-9]\d{0,4}$/.test(from) && Number(from) <= 65535 ? from : null);
-  const wentBack = query.get("went_back");
+  const wentBack = typeof window.lokki?.wentBack === "string" ? window.lokki.wentBack : null;
   if (location.search) history.replaceState(history.state, "", location.pathname + location.hash);
   let typed = $state("");
   let checking = $state(false);

@@ -357,8 +357,11 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     a new port, says above the view "Lokki now listens on port N, not M. Clients
     such as Codex CLI still use the old address: set their base URL to
     `http://127.0.0.1:N/v1`", with Dismiss. A restart that went back for
-    CLIProxyAPI while the core's own port moved adds `&went_back=<sentence>`, and
-    the note adds "The restart also said: …". A `moved_from` that is not a port
+    CLIProxyAPI while the core's own port moved also gives the new window the
+    restart's sentence, at most 500 characters, through a second initialization
+    script the shell adds to that window alone (`window.lokki.wentBack`), and the
+    note adds "The restart also said: …". The sentence never comes from the URL,
+    which any link can write. A `moved_from` that is not a port
     from 1 to 65535 written without a leading zero shows nothing. The query leaves
     the address bar at once, so a reload does not say it again.
   - CLIProxyAPI's panel sits under the Web panel switch and follows the saved

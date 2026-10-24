@@ -635,9 +635,10 @@ test("the screenshots of Settings", async ({ page, core }) => {
   // real: the window the shell opens on the core's new port, which tells the person that clients must follow. The
   // file holds the port the core listens on, as it does after a move.
   await put({ listen: [`127.0.0.1:${new URL(core.url).port}`] });
-  // The restart went back for CLIProxyAPI as the core moved, so the window also carries what it said.
+  // The restart went back for CLIProxyAPI as the core moved, so the shell also gives the window what it said.
   const said = "port 9481 is already in use by another program, so Lokki did not start CLIProxyAPI; CLIProxyAPI is back on port 9482";
-  await page.goto(`/?moved_from=8371&went_back=${encodeURIComponent(said)}`);
+  await hook(page, "wentBack", JSON.stringify(said));
+  await page.goto("/?moved_from=8371");
   await expect(page.getByText(`The restart also said: ${said}`)).toBeVisible();
   await expect(page.getByText("Lokki now listens on port")).toBeVisible();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
