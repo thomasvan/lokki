@@ -253,6 +253,12 @@ that does not answer on its new port within 30 s counts as the port failing, so 
 slow start on a free port also goes back. Exchanging the two ports in one save is
 refused: each port is held by the other service until the restart.
 
+A saved CLIProxyAPI port waits for CLIProxyAPI's restart. A restart of the core alone
+before it reads that port as CLIProxyAPI's: the core then calls a port nothing listens
+on, Settings takes that port as the one CLIProxyAPI holds and does not probe it, and
+saving the old port back is refused as in use. CLIProxyAPI's restart, still offered,
+starts both on the saved ports and ends it.
+
 The note that clients must follow shows in the window that moved, once. Nothing
 tells a client, and nothing records the old port once the note is dismissed.
 

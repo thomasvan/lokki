@@ -252,6 +252,35 @@ class InitTests(unittest.TestCase):
             self.assertNotIn("Traceback", run.stderr)
             self.assertEqual(self._snapshot(), before, args)
 
+    def _set_port(self, *args):
+        return subprocess.run([sys.executable, "-m", "lokki_core", "set-port", "--data-dir", self.dir, *args],
+                              capture_output=True, text=True, timeout=30, cwd=HERE)
+
+    def test_set_port_writes_neither_file_when_cliproxys_cannot_be_read(self):
+        """The way back moves both files or neither: a half-write would leave the core's port
+        back and the shell saying it is not."""
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        with open(out["cliproxy_config"], "w", encoding="utf-8") as f:
+            f.write("server: [unclosed\n")
+        before = self._snapshot()
+        run = self._set_port("--cliproxy-port", "9129")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertIn("cannot read", run.stderr)
+        self.assertEqual(self._snapshot(), before)
+
+    def test_set_port_writes_through_a_symlinked_config_as_save_does(self):
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        real = os.path.join(os.path.dirname(self.dir), "elsewhere.yaml")
+        shutil.move(out["core_config"], real)
+        try:
+            os.symlink(real, out["core_config"])
+        except (OSError, NotImplementedError):
+            self.skipTest("creating a symlink needs a privilege this user lacks (Windows without developer mode)")
+        run = self._set_port("--core-port", "9130")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertTrue(os.path.islink(out["core_config"]))
+        self.assertEqual(_load(real)["listen"], ["127.0.0.1:9130"])
+
     def test_the_cli_runs_init_and_prints_the_ports(self):
         out = subprocess.run([sys.executable, "-m", "lokki_core", "init", "--data-dir", self.dir,
                               "--core-port", "0", "--cliproxy-port", "0"],
