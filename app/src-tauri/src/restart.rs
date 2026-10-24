@@ -67,7 +67,7 @@ pub fn restart(ops: &mut impl Ops, before: &Config, service: Service) -> Outcome
     };
     let moved: Vec<(Service, u16, &String)> = failed
         .iter()
-        .filter(|(s, _)| s.port(&conf) == s.port(before))
+        .filter(|(s, _)| s.port(&conf) != s.port(before))
         .map(|(s, e)| (*s, s.port(before), e))
         .collect();
     if moved.is_empty() {
