@@ -32,7 +32,8 @@ pub fn origin(core_port: u16) -> String {
 /// The page the main window opens: the core's `/`, and when the core has moved from another
 /// port, `?moved_from=<port>`, so the page can tell the person that clients must follow.
 fn main_url(core_port: u16, moved_from: Option<u16>) -> Url {
-    let query = moved_from.map_or_else(String::new, |p| format!("?moved_from={p}"));
+    let _ = moved_from;
+    let query = "";
     format!("{}/{query}", origin(core_port))
         .parse()
         .expect("a loopback URL parses")
