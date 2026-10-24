@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { schemaRows, settingsFixture } from "../test-helpers";
 import type { SchemaRow } from "./api";
-import { GROUP_TITLES, group, patchOf, valueOf, widget } from "./fields";
+import { GROUP_TITLES, PORT, group, patchOf, valueOf, widget } from "./fields";
 
 const row = (key: string) => {
   const found = schemaRows.find((r) => r.key === key);
@@ -10,13 +10,13 @@ const row = (key: string) => {
 };
 const keys = (rows: Array<{ key: string }>) => rows.map((r) => r.key);
 const shown = (g: ReturnType<typeof group>) =>
-  [...g.saving, ...g.connection, ...g.cliproxy, ...Object.values(g.tuning).flat(), ...g.file];
+  [...g.saving, ...g.connection, ...g.address, ...g.cliproxy, ...Object.values(g.tuning).flat(), ...g.file];
 
 describe("GROUP_TITLES", () => {
   it("lists the groups in Settings' order, the Advanced subgroups last", () => {
     expect(Object.entries(GROUP_TITLES).map(([id, g]) => [id, g.title])).toEqual([
       ["saving", "Mode"], ["connection", "Connection"], ["about", "Updates and About"], ["advanced", "Advanced"],
-      ["cliproxy", "CLIProxyAPI"], ["tuning.quota_reading", "Quota reading"], ["tuning.cutting", "Cutting"],
+      ["address", "The core's address"], ["cliproxy", "CLIProxyAPI"], ["tuning.quota_reading", "Quota reading"], ["tuning.cutting", "Cutting"],
       ["tuning.tool_calls", "Tool calls"], ["tuning.traffic", "Traffic"], ["tuning.other", "Other"], ["file", "Set in the file"],
     ]);
   });
@@ -31,13 +31,13 @@ describe("group", () => {
     expect(groups.file.every((r) => r.group === "file")).toBe(true);
     for (const r of schemaRows.filter((r) => r.group !== "hidden")) expect(Object.keys(GROUP_TITLES)).toContain(r.group);
     expect(keys(groups.saving)).toEqual(["routing", "low_quota.threshold_percent", "low_quota.rule", "low_quota.accounts", "low_quota.models"]);
-    expect(keys(groups.connection)).toEqual(["listen"]);
+    expect(keys(groups.connection)).toEqual(["port"]);
+    expect(keys(groups.address)).toEqual(["listen"]);
     expect(keys(groups.cliproxy)).toEqual(["cliproxy.port", "cliproxy.url", "cliproxy.panel", "cliproxy.version"]);
     expect(keys(groups.tuning.quota_reading)).toEqual(["low_quota.poll_seconds"]);
     expect(keys(groups.tuning.tool_calls)).toEqual(["text_calls", "text_calls_pad"]);
-    const all = keys(shown(groups));
-    expect(new Set(all).size).toBe(all.length);
-    expect(all.length).toBe(schemaRows.filter((r) => r.group !== "hidden").length);
+    // Every row the schema shows, once, and the Port of the UI's own.
+    expect(keys(shown(groups)).sort()).toEqual([...keys(schemaRows.filter((r) => r.group !== "hidden")), PORT].sort());
   });
 
   // Review Focus 7
@@ -79,6 +79,12 @@ describe("patchOf", () => {
     expect(patchOf([["listen", "127.0.0.1:8382"]])).toEqual({ listen: ["127.0.0.1:8382"] });
   });
 
+  it("sends the Port as the address the settings hold, on its host", () => {
+    for (const [address, sent] of [["127.0.0.1:8371", "127.0.0.1:9476"], ["localhost:8371", "localhost:9476"], ["[::1]:8371", "[::1]:9476"]]) {
+      expect(patchOf([[PORT, 9476]], settingsFixture({ listen: [address] }))).toEqual({ listen: [sent] });
+    }
+  });
+
   it("keeps an empty string, which clears cliproxy.url", () => {
     expect(patchOf([["cliproxy.url", ""], ["cliproxy.port", 8318]])).toEqual({ cliproxy: { url: "", port: 8318 } });
   });
@@ -98,7 +104,8 @@ describe("valueOf", () => {
     expect(valueOf(view, "cliproxy.url")).toBe("");
   });
 
-  it("reads listen as its first address", () => {
+  it("reads listen as its first address, and the Port as that address's port", () => {
     expect(valueOf(view, "listen")).toBe((row("listen").default as string[])[0]);
+    expect(valueOf(settingsFixture({ listen: ["localhost:9477"] }), PORT)).toBe(9477);
   });
 });

@@ -12,6 +12,13 @@
   import Update from "./views/Update.svelte";
 
   let tab = $state<Tab>("home");
+
+  // The shell opens the window at ?moved_from=<port> when the core has come back on a new port. Clients keep the
+  // address they were given, so the note says where they must point now. The query leaves the address bar at once,
+  // so a reload does not say it again.
+  const from = new URLSearchParams(location.search).get("moved_from");
+  let movedFrom = $state(from !== null && /^\d+$/.test(from) ? from : null);
+  if (from !== null) history.replaceState(history.state, "", location.pathname + location.hash);
   let typed = $state("");
   let checking = $state(false);
 
@@ -63,6 +70,14 @@
     <Nav {tab} ontab={enter} />
     <TopBar size={tab === "home" ? "full" : "compact"} />
     <main class="content">
+      {#if movedFrom}
+        <div class="banner banner-warning" role="status">
+          <Icon name="info" />
+          <p>Lokki now listens on port {location.port}, not {movedFrom}. Clients such as Codex CLI still use the old
+            address: set their base URL to <code>{location.origin}/v1</code>.</p>
+          <button type="button" class="btn-sm" onclick={() => { movedFrom = null; }}>Dismiss</button>
+        </div>
+      {/if}
       {#if app.error && !asksForToken}
         <div class="banner banner-error" role="alert">
           <Icon name="error" />

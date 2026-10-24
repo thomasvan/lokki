@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack } from "svelte";
   import { getModels, keyToShow, type SchemaRow } from "../lib/api";
-  import { GROUP_TITLES, TUNING, group, patchOf, valueOf, widget, type Tuning } from "../lib/fields";
+  import { GROUP_TITLES, PORT, TUNING, group, patchOf, valueOf, widget, type Tuning } from "../lib/fields";
   import { MODELS_LEVEL, MODELS_NONE, NO_SECRET, NO_SECRET_AUTO, UNWRITABLE, watchedCount } from "../lib/mode";
   import { panelUrl } from "../lib/panel";
   import { app, checkNow, errorText, loadSchema, loadSettings, noSecretFile, saveSettings, type Service, type Tab } from "../lib/state.svelte";
@@ -14,7 +14,7 @@
   let { ontab }: { ontab: (tab: Tab) => void } = $props();
 
   // The groups that save: Mode, Connection, and each subgroup of the Advanced fold on its own.
-  type Name = "saving" | "connection" | "cliproxy" | keyof Tuning;
+  type Name = "saving" | "connection" | "address" | "cliproxy" | keyof Tuning;
   const SUBGROUPS = [...TUNING, "other"] as const;
   type Failure = { message: string; key?: string };
 
@@ -41,6 +41,7 @@
   const drafted = $derived<Record<Name, SchemaRow[]>>({
     saving: modeRows,
     connection: groups.connection,
+    address: groups.address,
     cliproxy: groups.cliproxy,
     ...groups.tuning,
   });
@@ -49,11 +50,11 @@
   let drafts = $state<Record<string, unknown>>({});
   const blank = () => ({ busy: false, failure: null as Failure | null });
   const forms = $state<Record<Name, ReturnType<typeof blank>>>({
-    saving: blank(), connection: blank(), cliproxy: blank(), quota_reading: blank(), cutting: blank(), tool_calls: blank(), traffic: blank(), other: blank(),
+    saving: blank(), connection: blank(), address: blank(), cliproxy: blank(), quota_reading: blank(), cutting: blank(), tool_calls: blank(), traffic: blank(), other: blank(),
   });
 
   const current = (key: string) => (settings ? valueOf(settings, key) : undefined);
-  const shown = (key: string) => (several(key) ? addresses?.join(", ") : key in drafts ? drafts[key] : current(key));
+  const shown = (key: string) => (several(key) ? (key === "listen" ? addresses?.join(", ") : "") : key in drafts ? drafts[key] : current(key));
   // A cleared number field is no change: the core has no empty number to take.
   const changed = (rows: SchemaRow[]) => rows.filter((r) => r.writable &&
     r.key in drafts && drafts[r.key] !== current(r.key) && !(drafts[r.key] === "" && widget(r) === "number"));
@@ -62,8 +63,10 @@
     const list = settings?.listen;
     return Array.isArray(list) && list.length > 1 ? (list as string[]) : null;
   });
-  const several = (key: string) => key === "listen" && addresses !== null;
-  const fromEnv = (key: string) => (settings?.env_overrides ?? []).includes(key);
+  // The Port is `listen`'s: locked, refused and restarted as it is.
+  const settingOf = (key: string) => (key === PORT ? "listen" : key);
+  const several = (key: string) => settingOf(key) === "listen" && addresses !== null;
+  const fromEnv = (key: string) => (settings?.env_overrides ?? []).includes(settingOf(key));
   const locked = (key: string) => !writable || fromEnv(key) || several(key);
   const why = (key: string) => (fromEnv(key) ? "set by the environment" : several(key) ? "edit the file to change several addresses" : null);
   const describedBy = (key: string) => [`meaning-${key}`, why(key) ? `why-${key}` : "", !writable ? "file-why" : ""].filter(Boolean).join(" ");
@@ -82,7 +85,7 @@
     f.busy = true;
     f.failure = null;
     try {
-      const result = await saveSettings(patchOf(sent));
+      const result = await saveSettings(patchOf(sent, settings ?? undefined));
       for (const k of result.restart_required) app.restart[serviceOf(k)] = true;
       // A draft goes once the read back holds the value sent; a field typed into again meanwhile keeps its draft.
       const unconfirmed: string[] = [];
@@ -175,6 +178,8 @@
   const pending = $derived((["cliproxy", "core"] as const).filter((s) => app.restart[s]));
   let restarting = $state<Service | null>(null);
   let restartFailure = $state<{ service: Service; message: string } | null>(null);
+  // CLIProxyAPI's restart restarts the core after it, so it applies the core's keys too. A failed one is read
+  // back: a moved port that did not come up has been put back in the file.
   async function restart(service: Service) {
     if (restarting) return;
     restarting = service;
@@ -182,8 +187,10 @@
     try {
       await window.lokki?.restart?.(service);
       app.restart[service] = false;
+      if (service === "cliproxy") app.restart.core = false;
     } catch (e) {
       restartFailure = { service, message: `could not restart ${NAMES[service]}: ${errorText(e)}` };
+      void loadSettings();
     } finally {
       restarting = null;
     }
@@ -256,14 +263,14 @@
 
   const NAV = ["saving", "connection", "about", "advanced"] as const;
   // Unsaved changes inside the fold, said on its link and on its head, which stays when the fold is closed.
-  const unsaved = $derived((["cliproxy", ...SUBGROUPS] as Name[]).reduce((n, g) => n + changed(drafted[g]).length, 0));
+  const unsaved = $derived((["address", "cliproxy", ...SUBGROUPS] as Name[]).reduce((n, g) => n + changed(drafted[g]).length, 0));
   const unsavedWords = (n: number) => `${n} unsaved ${n === 1 ? "change" : "changes"}`;
 </script>
 
 {#snippet field(name: Name, row: SchemaRow)}
   {@const kind = widget(row)}
   {@const reason = why(row.key)}
-  {@const invalid = forms[name].failure?.key === row.key}
+  {@const invalid = forms[name].failure?.key === settingOf(row.key)}
   <div class="srow" class:dirty={changed([row]).length > 0}>
     <div class="srow-text">
       {#if kind === "checkbox"}<span class="t">{row.label}</span>{:else}<label class="t" for="f-{row.key}">{row.label}</label>{/if}
@@ -549,6 +556,7 @@
       <section class="card sgroup" id="card-advanced" aria-labelledby="g-advanced">
         <details>
           <summary>{@render head("advanced", true)}</summary>
+          {@render sub("address", "address", groups.address)}
           {@render sub("cliproxy", "cliproxy", groups.cliproxy)}
           {#each SUBGROUPS as g (g)}
             {#if groups.tuning[g].length > 0}{@render sub(g, `tuning.${g}`, groups.tuning[g])}{/if}

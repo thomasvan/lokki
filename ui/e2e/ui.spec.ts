@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { UNWATCHED_MODES, headline } from "../src/lib/mode.ts";
-import { test, expect } from "./core.ts";
+import { holdPort, test, expect } from "./core.ts";
 
 // One test, in steps: a fresh page per test would lose the token in sessionStorage.
 test("the UI against a real core and a fake CLIProxyAPI", async ({ page, core }) => {
@@ -263,6 +263,32 @@ test("the UI against a real core and a fake CLIProxyAPI", async ({ page, core })
     await expect(port).toHaveValue(String(core.fakePort + 1));
     await expect(save).not.toHaveAttribute("aria-busy");
     await expect(save).toHaveText("Save 1 change");               // the refused draft stays, and so does its count
+  });
+
+  await test.step("a refused port: one another program holds is refused beside Connection's Port, and nothing is written", async () => {
+    const held = await holdPort();
+    try {
+      const before = readFileSync(core.configPath, "utf8");
+      const connection = region("Connection");
+      const port = connection.getByLabel("Port", { exact: true });
+      await expect(port).toHaveValue(url.port);
+      await port.fill(String(held.port));
+      const save = connection.locator(".card-foot button");
+      await expect(save).toHaveText("Save 1 change");
+      await save.click();
+      const refused = connection.getByRole("alert");
+      await expect(refused).toHaveText(`port ${held.port} is in use by another program; choose another port — listen`);
+      await expect(refused.locator("code")).toHaveText("listen");
+      await expect(port).toHaveAttribute("aria-invalid", "true");
+      await expect(save).toHaveText("Save 1 change");
+      expect(readFileSync(core.configPath, "utf8")).toBe(before);
+      await expect(page.getByText("Restart the core to apply")).toHaveCount(0);
+      // Back to the port the core has: nothing is left to save.
+      await port.fill(url.port);
+      await expect(save).toHaveText("No changes");
+    } finally {
+      await held.close();
+    }
   });
 
   await test.step("the narrow window: the destinations fold into a row of tabs and nothing leaves the window", async () => {

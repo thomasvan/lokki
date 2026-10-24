@@ -2,6 +2,7 @@
 import { test as base, expect } from "@playwright/test";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, isAbsolute } from "node:path";
 
@@ -19,6 +20,26 @@ export function drainSeconds(): number {
   const value = rows.find((r) => r.key === "drain_seconds")?.default;
   if (typeof value !== "number") throw new Error("schema.fixture.json has no numeric default for drain_seconds");
   return value;
+}
+
+// A port another program holds on 127.0.0.1, as the OS picks it, until `close`; never one of the live pair's.
+export async function holdPort(): Promise<{ port: number; close: () => Promise<void> }> {
+  const server = createServer();
+  await new Promise<void>((done, fail) => server.once("error", fail).listen(0, "127.0.0.1", done));
+  const { port } = server.address() as AddressInfo;
+  const close = () => new Promise<void>((done) => server.close(() => done()));
+  if (LIVE_PORTS.includes(port)) {
+    await close();
+    throw new Error(`the OS picked port ${port}, which belongs to the live relay pair; refusing to run`);
+  }
+  return { port, close };
+}
+
+// A port nothing listens on, as the OS picks it.
+export async function freePort(): Promise<number> {
+  const held = await holdPort();
+  await held.close();
+  return held.port;
 }
 
 export interface Core {

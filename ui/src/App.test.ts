@@ -54,6 +54,29 @@ describe("App", () => {
     expect(await screen.findByText(DECIDED)).toBeInTheDocument();
   });
 
+  it("says where clients must point once the core has come back on a new port, and only on that load", async () => {
+    core();
+    history.replaceState(null, "", "/?moved_from=9478#keep");
+    render(App);
+    const note = screen.getByText(/Lokki now listens on port/).closest(".banner") as HTMLElement;
+    expect(note).toHaveAttribute("role", "status");
+    expect(note).toHaveTextContent(`Lokki now listens on port ${location.port}, not 9478. Clients such as Codex CLI still use the old address: set their base URL to ${location.origin}/v1.`);
+    expect(location.search).toBe("");                     // a reload does not say it again
+    expect(location.hash).toBe("#keep");
+    await fireEvent.click(within(note).getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText(/Lokki now listens on port/)).toBeNull();
+    cleanup();
+
+    // A page that did not move, or a query that is not a port, says nothing.
+    for (const url of ["/", "/?moved_from=x"]) {
+      history.replaceState(null, "", url);
+      render(App);
+      expect(screen.queryByText(/Lokki now listens on port/)).toBeNull();
+      cleanup();
+    }
+    history.replaceState(null, "", "/");
+  });
+
   // The run in the browser guards the whole chain; this one fails if the prompt, the stored token or the retry go missing.
   it("shows the token prompt on a 401 and retries with the token it was given", async () => {
     const fetch = core("op-1");

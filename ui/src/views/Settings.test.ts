@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
-import { accountFixture, accountsFixture, answers, schemaRows, settingsFixture, statusFixture } from "../test-helpers";
+import { accountFixture, accountsFixture, answers, routes, schemaRows, settingsFixture, statusFixture } from "../test-helpers";
 import { ApiError, getModels } from "../lib/api";
 import { MODES, NO_SECRET, NO_SECRET_AUTO, UNWRITABLE } from "../lib/mode";
 import { PANEL_PATH } from "../lib/panel";
@@ -18,6 +18,9 @@ const rereads = (): Array<[number, unknown]> => [[200, settingsFixture()], [200,
 
 const region = (name: string) => screen.getByRole("region", { name });
 const typeInto = (label: string, value: string) => fireEvent.input(screen.getByLabelText(label), { target: { value } });
+// Connection and CLIProxyAPI each have a Port.
+const field = (group: string, label: string) => within(region(group)).getByLabelText(label);
+const typeIn = (group: string, label: string, value: string) => fireEvent.input(field(group, label), { target: { value } });
 const saveButton = (name: string) => within(region(name)).getByRole("button", { name: /^(Save \d+ changes?|No changes|Saving…)$/ });
 const save = (name: string) => fireEvent.click(saveButton(name));
 const body = (fetch: ReturnType<typeof vi.fn>, call: number) => JSON.parse(fetch.mock.calls[call][1].body);
@@ -47,7 +50,7 @@ describe("Settings", () => {
   it("labels each field from the schema and its choices from choice_labels", () => {
     app.settings = settingsFixture({ cli_proxy_api_key: "***", auth: { tokens: [{ name: "laptop", token: "***", operator: true }] } });
     rendered();
-    const titles = ["Mode", "Connection", "Updates and About", "Advanced", "CLIProxyAPI", "Quota reading", "Cutting", "Tool calls", "Traffic", "Set in the file"];
+    const titles = ["Mode", "Connection", "Updates and About", "Advanced", "The core's address", "CLIProxyAPI", "Quota reading", "Cutting", "Tool calls", "Traffic", "Set in the file"];
     const places = titles.map((n) => region(n));
     places.slice(1).forEach((el, i) => {
       expect(places[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -106,7 +109,7 @@ describe("Settings", () => {
     expect(row.querySelector('[data-icon="lock"]')).not.toBeNull();
     expect(within(row).getByText(schemaRows.find((r) => r.key === "cliproxy.version")!.meaning)).toBeInTheDocument();
     expect(row.querySelector("input, select, button")).toBeNull();
-    typeInto("Port", "8320");
+    typeIn("CLIProxyAPI", "Port", "8320");
     expect(saveButton("CLIProxyAPI")).toHaveTextContent("Save 1 change");
   });
 
@@ -261,20 +264,52 @@ describe("Settings", () => {
     expect(body(fetch, 3)).toEqual({ new_knob: 7 });
   });
 
-  it("sends listen as the one address typed", async () => {
+  it("sends listen as the one address typed under Advanced", async () => {
     const fetch = answers(saved({ restart_required: ["listen"] }), ...rereads());
     rendered();
-    typeInto("Address", "127.0.0.1:8382");
+    expect(within(region("Connection")).queryByLabelText("Address")).toBeNull();
+    typeInto("Address", "127.0.0.1:9472");
+    await save("The core's address");
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    expect(body(fetch, 0)).toEqual({ listen: ["127.0.0.1:9472"] });
+  });
+
+  it("writes Connection's Port as the core's one address, its host kept", async () => {
+    app.settings = settingsFixture({ listen: ["localhost:9471"] });
+    const fetch = answers(saved({ restart_required: ["listen"] }), [200, settingsFixture({ listen: ["localhost:9473"] })], [200, statusFixture()]);
+    rendered();
+    const port = field("Connection", "Port");
+    expect(port).toHaveValue(9471);
+    expect(port).toHaveAttribute("min", "1");
+    expect(port).toHaveAttribute("max", "65535");
+    typeIn("Connection", "Port", "9473");
+    expect(saveButton("Connection")).toHaveTextContent("Save 1 change");
+    expect(nav().getByRole("link", { name: "Advanced" })).toHaveAccessibleName("Advanced");      // not the fold's change
     await save("Connection");
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
-    expect(body(fetch, 0)).toEqual({ listen: ["127.0.0.1:8382"] });
+    expect(body(fetch, 0)).toEqual({ listen: ["localhost:9473"] });
+    expect(await screen.findByText("Restart the core to apply")).toBeInTheDocument();
+    expect(saveButton("Connection")).toHaveTextContent("No changes");
+  });
+
+  it("shows a refused port beside Connection's Port with its key", async () => {
+    const message = "port 9474 is in use by another program; choose another port";
+    answers([409, { error: { message, type: "server_error" }, key: "listen" }]);
+    rendered();
+    typeIn("Connection", "Port", "9474");
+    await save("Connection");
+    const alert = await within(region("Connection")).findByRole("alert");
+    expect(alert.textContent).toBe(`${message} — listen`);
+    expect(field("Connection", "Port")).toHaveAttribute("aria-invalid", "true");
+    expect(field("Connection", "Port")).toHaveValue(9474);
+    expect(screen.getByLabelText("Address")).not.toHaveAttribute("aria-invalid");
   });
 
   // Review Focus 1
   it("shows the restart notice for a startup-only key and offers the restart only where the shell has one", async () => {
     answers(saved({ restart_required: ["cliproxy.port"] }), ...rereads());
     rendered();
-    typeInto("Port", "8318");
+    typeIn("CLIProxyAPI", "Port", "8318");
     await save("CLIProxyAPI");
     expect(await screen.findByText("Restart CLIProxyAPI to apply")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Restart/ })).toBeNull();
@@ -286,35 +321,52 @@ describe("Settings", () => {
     window.lokki = { restart };
     answers(saved({ restart_required: ["cliproxy.port"] }), ...rereads());
     rendered();
-    typeInto("Port", "8318");
+    typeIn("CLIProxyAPI", "Port", "8318");
     await save("CLIProxyAPI");
     await fireEvent.click(await screen.findByRole("button", { name: "Restart CLIProxyAPI" }));
     expect(restart).toHaveBeenCalledWith("cliproxy");
     cleanup();
 
-    restart.mockRejectedValueOnce(new Error("the port is in use"));
-    answers(saved({ restart_required: ["listen"] }), ...rereads());
+    // A moved port that did not come up is put back: the failure says so, and the settings are read again.
+    const back = "port 9475 is already in use; Lokki is back on port 8371";
+    restart.mockRejectedValueOnce(new Error(back));
+    const fetch = answers(saved({ restart_required: ["listen"] }), [200, settingsFixture({ listen: ["127.0.0.1:9475"] })],
+      [200, statusFixture()], [200, settingsFixture()]);
     rendered();
-    typeInto("Address", "127.0.0.1:8382");
+    typeIn("Connection", "Port", "9475");
     await save("Connection");
     expect(await screen.findByText("Restart the core to apply")).toBeInTheDocument();
+    expect(field("Connection", "Port")).toHaveValue(9475);
     await fireEvent.click(screen.getByRole("button", { name: "Restart the core" }));
     expect(restart).toHaveBeenCalledWith("core");
-    expect(await screen.findByText("could not restart the core: the port is in use")).toBeInTheDocument();
+    expect(await screen.findByText(`could not restart the core: ${back}`)).toBeInTheDocument();
+    await waitFor(() => expect(field("Connection", "Port")).toHaveValue(8371));
+    expect(calls(fetch).at(-1)).toEqual(["GET", "/api/settings"]);
     expect(screen.getByText("Restart the core to apply")).toBeInTheDocument();
+  });
+
+  it("clears the core's notice too when CLIProxyAPI's restart, which restarts the core, succeeds", async () => {
+    window.lokki = { restart: vi.fn().mockResolvedValue(undefined) };
+    app.restart.core = true;
+    app.restart.cliproxy = true;
+    rendered();
+    await fireEvent.click(screen.getByRole("button", { name: "Restart CLIProxyAPI" }));
+    await waitFor(() => expect(screen.queryByText("Restart CLIProxyAPI to apply")).toBeNull());
+    expect(screen.queryByText("Restart the core to apply")).toBeNull();
+    expect(window.lokki.restart).toHaveBeenCalledTimes(1);
   });
 
   // Review Focus 2
   it("shows a 409 with its message and key beside the group and keeps what the user typed", async () => {
     const fetch = answers([409, { error: { message: "an existing cliproxy.url decides the upstream", type: "server_error" }, key: "cliproxy.port" }]);
     rendered();
-    typeInto("Port", "8318");
+    typeIn("CLIProxyAPI", "Port", "8318");
     await save("CLIProxyAPI");
     const alert = await within(region("CLIProxyAPI")).findByRole("alert");
     expect(alert.textContent).toBe("an existing cliproxy.url decides the upstream — cliproxy.port");
     expect(alert.querySelector("code")).toHaveTextContent("cliproxy.port");
-    expect(screen.getByLabelText("Port")).toHaveValue(8318);
-    expect(screen.getByLabelText("Port")).toHaveAttribute("aria-invalid", "true");
+    expect(field("CLIProxyAPI", "Port")).toHaveValue(8318);
+    expect(field("CLIProxyAPI", "Port")).toHaveAttribute("aria-invalid", "true");
     expect(saveButton("CLIProxyAPI")).toHaveTextContent("Save 1 change");
     expect(fetch).toHaveBeenCalledTimes(1);
 
@@ -323,7 +375,7 @@ describe("Settings", () => {
     await save("CLIProxyAPI");
     await waitFor(() => expect(within(region("CLIProxyAPI")).getByRole("alert").textContent).toBe("cliproxy.port must be at most 65535"));
     expect(within(region("CLIProxyAPI")).getByRole("alert").querySelector("code")).toBeNull();
-    expect(screen.getByLabelText("Port")).toHaveAttribute("aria-invalid", "true");
+    expect(field("CLIProxyAPI", "Port")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("disables a field the environment sets, and the whole form when the file is not writable", () => {
@@ -365,7 +417,7 @@ describe("Settings", () => {
     const fetch = answers(saved({ restart_required: ["cliproxy.port"] }), [200, moved], [200, statusFixture()],
       saved({ applied: ["cliproxy.url"] }), [200, moved], [200, statusFixture()]);
     rendered();
-    typeInto("Port", "8318");
+    typeIn("CLIProxyAPI", "Port", "8318");
     await save("CLIProxyAPI");
     expect(await screen.findByText("Restart CLIProxyAPI to apply")).toBeInTheDocument();
     typeInto("Use a remote CLIProxyAPI", "http://127.0.0.1:9000");
@@ -397,13 +449,17 @@ describe("Settings", () => {
     expect(screen.getByLabelText("Read every")).toHaveValue(90);
   });
 
-  it("shows every address of a listen list read-only and disables the input", () => {
+  it("shows every address of a listen list read-only and disables the input and the Port", () => {
     app.settings = settingsFixture({ listen: ["127.0.0.1:8371", "127.0.0.1:8372"] });
     rendered();
     const input = screen.getByLabelText("Address");
     expect(input).toBeDisabled();
     expect(input).toHaveValue("127.0.0.1:8371, 127.0.0.1:8372");
     expect(input).toHaveAccessibleDescription(/edit the file to change several addresses/);
+    const port = field("Connection", "Port");
+    expect(port).toBeDisabled();
+    expect(port).toHaveValue(null);
+    expect(port).toHaveAccessibleDescription(/edit the file to change several addresses/);
   });
 
   const nav = () => within(screen.getByRole("navigation", { name: "Settings groups" }));
@@ -803,11 +859,11 @@ describe("Settings", () => {
     location.hash = "";
 
     expect(nav().getByRole("link", { name: "Advanced" })).toHaveAccessibleName("Advanced");
-    typeInto("Port", "8320");
+    typeIn("CLIProxyAPI", "Port", "8320");
     typeInto("Answer budget", "900");
     await fireEvent.change(screen.getByLabelText("Cut when"), { target: { value: "any" } });     // a Mode draft is not Advanced's
     expect(nav().getByRole("link", { name: "Advanced, 2 unsaved changes" })).toBeInTheDocument();
-    typeInto("Port", String(settingsFixture().cliproxy.port));
+    typeIn("CLIProxyAPI", "Port", String(settingsFixture().cliproxy.port));
     expect(nav().getByRole("link", { name: "Advanced, 1 unsaved change" })).toBeInTheDocument();
   });
 
@@ -816,7 +872,7 @@ describe("Settings", () => {
     answers(saved({ restart_required: ["cliproxy.port"] }), ...rereads());
     rendered();
     await fireEvent.click(nav().getByRole("link", { name: "Advanced" }));
-    typeInto("Port", "8318");
+    typeIn("CLIProxyAPI", "Port", "8318");
     await save("CLIProxyAPI");
     const bar = (await screen.findByText("Restart CLIProxyAPI to apply")).closest(".restart")!;
     expect(bar.closest("details")).toBeNull();                              // not inside the fold
@@ -847,6 +903,7 @@ describe("Settings", () => {
       let release: () => void = () => {};
       const fn = vi.fn(() => new Promise<void>((done, fail) => { release = () => (settle === "resolve" ? done() : fail(new Error("the shell said no"))); }));
       window.lokki = { [name]: fn };
+      routes({ "/api/settings": settingsFixture() });           // a failed restart reads the settings again
       return { count: () => fn.mock.calls.length, release: () => release() };
     }
     const panelOn = () => { app.settings = withCliproxy({ panel: true }); };
