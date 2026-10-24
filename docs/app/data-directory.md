@@ -16,8 +16,9 @@ entries an interrupted first run left. One that holds anything else, such as a
 naming the directory and an entry it did not make, exits with status 1 and
 changes nothing. The line says to point `LOKKI_DATA_DIR` at an empty or new
 folder, or to move those files out and press Try again, which runs `init` again.
-The app reads `LOKKI_DATA_DIR` once, when it starts (`paths::data_dir()` at
-`app/src-tauri/src/lib.rs:591`, reading it at `app/src-tauri/logic/src/paths.rs:12`),
+The app reads `LOKKI_DATA_DIR` once, when it starts (`run` in
+`app/src-tauri/src/lib.rs` calls `paths::data_dir()`, which reads it in `data_dir_for`,
+`app/src-tauri/logic/src/paths.rs`),
 so an app opened from Finder, the Start menu or a launcher must be quit and opened
 again with the variable set; Try again does not pick it up. Moving the files out and
 pressing Try again needs no environment.
@@ -68,9 +69,12 @@ comments, as a settings write does. The core's `config.yaml` is written at its r
 path, so a symlink there keeps its link. It prints nothing. It reads both files
 before it writes either, and exits 1 with one sentence, writing neither, for a file
 it cannot use or a `listen` of several addresses, and 2 without a port. A write that
-fails also exits 1 with one sentence: CLIProxyAPI's file is written first, so it may
-then hold the new port while `config.yaml` holds the old one, and the sentence says
-so; the next start's `sync-cliproxy` writes it back in step with `config.yaml`. It
+fails also exits 1 with one sentence. CLIProxyAPI's file is written first, through a
+sibling file that then replaces it, so a failure there changes neither file, and the
+sentence ends "nothing changed". A failure writing `config.yaml` after it leaves
+CLIProxyAPI's file on the new port while `config.yaml` holds the old one, and the
+sentence says so; the next start's `sync-cliproxy` writes it back in step with
+`config.yaml`. It
 does not ask what listens on the port: the start that follows does.
 
 `shell-config --data-dir DIR` prints one JSON line, `{core_port, cliproxy_port,

@@ -287,6 +287,24 @@ class InitTests(unittest.TestCase):
         self.assertEqual(_read(out["core_config"]), core_before)
         self.assertEqual(_load(out["cliproxy_config"])["server"]["port"], 9131)
 
+    @unittest.skipIf(os.name == "nt", "a read-only directory: Windows lets its files be replaced")
+    def test_set_port_that_cannot_write_cliproxys_file_changes_nothing(self):
+        """CLIProxyAPI's file is written first and replaced whole, so a failure there leaves
+        both files as they were."""
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        before = self._snapshot()
+        cliproxy_dir = os.path.dirname(out["cliproxy_config"])
+        os.chmod(cliproxy_dir, 0o500)
+        self.addCleanup(os.chmod, cliproxy_dir, 0o700)
+        if os.access(cliproxy_dir, os.W_OK):
+            self.skipTest("this user can write a read-only directory (root)")
+        run = self._set_port("--cliproxy-port", "9132")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
+        self.assertEqual(run.stderr.strip().splitlines(),
+                         [f"lokki_core: cannot write {out['cliproxy_config']}: Permission denied; nothing changed"])
+        self.assertEqual(self._snapshot(), before)
+
     def test_set_port_writes_through_a_symlinked_config_as_save_does(self):
         out = init.run(self.dir, core_port=0, cliproxy_port=0)
         real = os.path.join(os.path.dirname(self.dir), "elsewhere.yaml")
