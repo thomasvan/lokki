@@ -33,13 +33,47 @@ pub enum Outcome {
     },
 }
 
+/// What the shell does once a restart is over.
+#[derive(Debug, PartialEq)]
+pub struct Finish {
+    /// What runs, on the ports it names, and the sentence the window shows when the restart
+    /// went back. The window follows the core there, also after a go-back, which can leave
+    /// the core on a port that moved; a window that moves replaces the one that asked, which
+    /// never reads the answer, so the new one carries it.
+    pub window: Option<(Config, Option<String>)>,
+    /// The way back failed: the service and the port to put back by hand.
+    pub stuck: Option<(Service, u16)>,
+    /// What the restart hook answers.
+    pub answer: Result<()>,
+}
+
 impl Outcome {
-    /// What runs once the restart is over, on the ports it names: the window follows the
-    /// core there, also after a go-back, which can leave the core on a port that moved.
-    pub fn running(&self) -> Option<&Config> {
+    pub fn finish(self) -> Finish {
         match self {
-            Outcome::Ready(conf) | Outcome::WentBack(conf, _) => Some(conf),
-            Outcome::Failed(_) | Outcome::Stuck { .. } => None,
+            Outcome::Ready(conf) => Finish {
+                window: Some((conf, None)),
+                stuck: None,
+                answer: Ok(()),
+            },
+            Outcome::Failed(e) => Finish {
+                window: None,
+                stuck: None,
+                answer: Err(e),
+            },
+            Outcome::WentBack(conf, sentence) => Finish {
+                window: Some((conf, Some(sentence.clone()))),
+                stuck: None,
+                answer: Err(sentence),
+            },
+            Outcome::Stuck {
+                service,
+                port,
+                sentence,
+            } => Finish {
+                window: None,
+                stuck: Some((service, port)),
+                answer: Err(sentence),
+            },
         }
     }
 }
@@ -320,15 +354,59 @@ mod tests {
             set_port_fails: false,
             calls: Vec::new(),
         };
+        let said = "port 2002 is taken; CLIProxyAPI is back on port 2001".to_string();
         let got = restart(&mut ops, &conf(1001, 2001), Service::Cliproxy);
+        assert_eq!(got, Outcome::WentBack(conf(1002, 2001), said.clone()));
         assert_eq!(
-            got,
-            Outcome::WentBack(
-                conf(1002, 2001),
-                "port 2002 is taken; CLIProxyAPI is back on port 2001".into(),
-            )
+            got.finish(),
+            Finish {
+                window: Some((conf(1002, 2001), Some(said.clone()))),
+                stuck: None,
+                answer: Err(said),
+            }
         );
-        assert_eq!(got.running(), Some(&conf(1002, 2001)));
-        assert_eq!(Outcome::Failed("x".into()).running(), None);
+    }
+
+    #[test]
+    fn each_outcome_finishes_as_the_shell_acts_on_it() {
+        // (outcome, the window and what it says, the stuck page's service and port, the answer)
+        type Row = (Outcome, Option<(Config, Option<String>)>, Option<(Service, u16)>, Result<()>);
+        let rows: [Row; 4] = [
+            (
+                Outcome::Ready(conf(1002, 2001)),
+                Some((conf(1002, 2001), None)),
+                None,
+                Ok(()),
+            ),
+            (Outcome::Failed("no".into()), None, None, Err("no".into())),
+            (
+                Outcome::WentBack(conf(1001, 2001), "back".into()),
+                Some((conf(1001, 2001), Some("back".into()))),
+                None,
+                Err("back".into()),
+            ),
+            (
+                Outcome::Stuck {
+                    service: Service::Core,
+                    port: 1001,
+                    sentence: "stuck".into(),
+                },
+                None,
+                Some((Service::Core, 1001)),
+                Err("stuck".into()),
+            ),
+        ];
+        for (outcome, window, stuck, answer) in rows {
+            let label = format!("{outcome:?}");
+            assert_eq!(
+                outcome.finish(),
+                Finish {
+                    window,
+                    stuck,
+                    answer,
+                },
+                "{label}"
+            );
+        }
     }
 }

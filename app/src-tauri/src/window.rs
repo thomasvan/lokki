@@ -30,12 +30,20 @@ pub fn origin(core_port: u16) -> String {
 }
 
 /// The page the main window opens: the core's `/`, and when the core has moved from another
-/// port, `?moved_from=<port>`, so the page can tell the person that clients must follow.
-fn main_url(core_port: u16, moved_from: Option<u16>) -> Url {
-    let query = moved_from.map_or_else(String::new, |p| format!("?moved_from={p}"));
-    format!("{}/{query}", origin(core_port))
+/// port, `?moved_from=<port>`, so the page can tell the person that clients must follow,
+/// with `&went_back=<sentence>` when the restart went back for the other service.
+fn main_url(core_port: u16, moved_from: Option<u16>, went_back: Option<&str>) -> Url {
+    let mut url: Url = format!("{}/", origin(core_port))
         .parse()
-        .expect("a loopback URL parses")
+        .expect("a loopback URL parses");
+    if let Some(port) = moved_from {
+        let mut query = url.query_pairs_mut();
+        query.append_pair("moved_from", &port.to_string());
+        if let Some(said) = went_back {
+            query.append_pair("went_back", said);
+        }
+    }
+    url
 }
 
 /// Whether the main window may go to `to`: only within the core's origin.
@@ -50,12 +58,13 @@ pub fn open_main(
     app: &AppHandle,
     core_port: u16,
     moved_from: Option<u16>,
+    went_back: Option<&str>,
     token: &str,
     on_loaded: impl Fn(&WebviewWindow) + Send + Sync + 'static,
 ) -> tauri::Result<()> {
     let label = main_label(core_port);
     let origin = origin(core_port);
-    let url = main_url(core_port, moved_from);
+    let url = main_url(core_port, moved_from, went_back);
     let core_origin = url.clone();
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title("lokki")
@@ -121,18 +130,26 @@ mod tests {
     }
 
     #[test]
-    fn a_window_that_moved_names_the_port_it_moved_from() {
-        // (core port, moved from, the page)
+    fn a_window_that_moved_names_the_port_it_moved_from_and_what_the_restart_said() {
+        let said = "port 2002 is taken; CLIProxyAPI is back on port 2001";
+        // (moved from, the restart's sentence, the page)
         let rows = [
-            (43210, None, "http://127.0.0.1:43210/"),
+            (None, None, "http://127.0.0.1:43210/"),
+            (None, Some(said), "http://127.0.0.1:43210/"),
             (
-                43210,
                 Some(43211),
+                None,
                 "http://127.0.0.1:43210/?moved_from=43211",
             ),
+            (
+                Some(43211),
+                Some(said),
+                "http://127.0.0.1:43210/?moved_from=43211\
+                 &went_back=port+2002+is+taken%3B+CLIProxyAPI+is+back+on+port+2001",
+            ),
         ];
-        for (port, from, want) in rows {
-            assert_eq!(main_url(port, from).as_str(), want);
+        for (from, went_back, want) in rows {
+            assert_eq!(main_url(43210, from, went_back).as_str(), want);
         }
     }
 

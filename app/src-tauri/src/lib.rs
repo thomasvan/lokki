@@ -15,7 +15,6 @@ use errorpage::Failure;
 use lokki_logic::firstrun::{self, Config};
 use lokki_logic::tray::{view, writes, Mode};
 use lokki_logic::{paths, sidecar_files, Result};
-use restart::Outcome;
 use sidecars::{AppLog, Context, CoreHttp, RealClock, Service, Sidecars, GONE_WAIT};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -182,7 +181,7 @@ impl Shell {
         }
         self.report_started(&side, &conf);
         drop(side);
-        self.open_window(&conf).map_err(|e| Failure {
+        self.open_window(&conf, None).map_err(|e| Failure {
             title: "lokki could not open its window".into(),
             what: e,
             name: "start".into(),
@@ -224,8 +223,9 @@ impl Shell {
     }
 
     /// Grants the core's origin and opens the main window on it, unless one is open there.
-    /// A window that moves from another port tells its page which.
-    fn open_window(self: &Arc<Self>, conf: &Config) -> Result<()> {
+    /// A window that moves from another port tells its page which, and `went_back`, the
+    /// restart's answer, which the window that asked does not live to show.
+    fn open_window(self: &Arc<Self>, conf: &Config, went_back: Option<&str>) -> Result<()> {
         let mut window_port = self.window_port.lock().unwrap();
         if *window_port == Some(conf.core_port) {
             return Ok(());
@@ -240,6 +240,7 @@ impl Shell {
             &self.app,
             conf.core_port,
             moved_from,
+            went_back,
             &conf.operator_token,
             move |w| {
                 if shell.smoke && !shell.smoke_page_run.swap(true, Ordering::SeqCst) {
@@ -288,33 +289,27 @@ impl Shell {
             &conf,
             service,
         );
-        if let Some(conf) = outcome.running() {
+        let done = outcome.finish();
+        if let Some((conf, _)) = &done.window {
             self.report_started(&side, conf);
         }
         drop(side);
-        let opened = outcome
-            .running()
-            .map_or(Ok(()), |conf| self.open_window(conf));
-        match outcome {
-            Outcome::Ready(_) => opened,
-            Outcome::Failed(e) => Err(e),
-            Outcome::WentBack(_, sentence) => {
-                self.cx.log.line(format_args!("went back: {sentence}"));
-                Err(match opened {
-                    Ok(()) => sentence,
-                    Err(e) => format!("{sentence}; {e}"),
-                })
+        if let (Some((service, port)), Err(sentence)) = (done.stuck, &done.answer) {
+            let tail = self.log_tail(service);
+            self.show_error(stuck_page(&self.cx.dir, service, port, sentence, tail));
+        }
+        if let Some((conf, said)) = &done.window {
+            if let Some(said) = said {
+                self.cx.log.line(format_args!("went back: {said}"));
             }
-            Outcome::Stuck {
-                service,
-                port,
-                sentence,
-            } => {
-                let tail = self.log_tail(service);
-                self.show_error(stuck_page(&self.cx.dir, service, port, &sentence, tail));
-                Err(sentence)
+            if let Err(e) = self.open_window(conf, said.as_deref()) {
+                return Err(match done.answer {
+                    Ok(()) => e,
+                    Err(sentence) => format!("{sentence}; {e}"),
+                });
             }
         }
+        done.answer
     }
 
     /// The error page's button: a sidecar that gave up gets one start more, with its count
