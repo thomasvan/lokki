@@ -180,7 +180,7 @@ fn drain(mut pipe: impl Read + Send + 'static) -> thread::JoinHandle<Vec<u8>> {
     })
 }
 
-/// Runs `lokki-core <args>` (`init`, `shell-config`, `sync-cliproxy`) and returns its
+/// Runs `lokki-core <args>` (`init`, `shell-config`, `sync-cliproxy`, `set-port`) and returns its
 /// stdout, which may hold the operator token and is never logged. Its stderr goes to
 /// `app.log` and, on a non-zero exit, is the error.
 pub fn run_core(dir: &Path, args: &[&str], log: &AppLog) -> Result<String> {
@@ -239,6 +239,19 @@ pub fn shell_config(dir: &Path, log: &AppLog) -> Result<Config> {
     // The line holds the token: what is wrong with it is said, it is not shown.
     serde_json::from_str(line.trim())
         .map_err(|_| "shell-config printed a line the shell cannot read".to_string())
+}
+
+/// `set-port`: the service's port in the settings, back to `port`, CLIProxyAPI's file in step.
+pub fn set_port(dir: &Path, service: Service, port: u16, log: &AppLog) -> Result<()> {
+    let dir_arg = dir
+        .to_str()
+        .ok_or("the data directory's path is not valid UTF-8")?;
+    let flag = match service {
+        Service::Core => "--core-port",
+        Service::Cliproxy => "--cliproxy-port",
+    };
+    let port = port.to_string();
+    run_core(dir, &["set-port", "--data-dir", dir_arg, flag, &port], log).map(|_| ())
 }
 
 fn describe(status: Option<ExitStatus>) -> String {

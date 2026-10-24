@@ -29,23 +29,33 @@ pub fn origin(core_port: u16) -> String {
     format!("http://127.0.0.1:{core_port}")
 }
 
+/// The page the main window opens: the core's `/`, and when the core has moved from another
+/// port, `?moved_from=<port>`, so the page can tell the person that clients must follow.
+fn main_url(core_port: u16, moved_from: Option<u16>) -> Url {
+    let query = moved_from.map_or_else(String::new, |p| format!("?moved_from={p}"));
+    format!("{}/{query}", origin(core_port))
+        .parse()
+        .expect("a loopback URL parses")
+}
+
 /// Whether the main window may go to `to`: only within the core's origin.
 fn may_navigate(core_origin: &Url, to: &Url) -> bool {
     to.origin() == core_origin.origin()
 }
 
-/// Opens the main window on the core's `/`. A main window on another origin closes once
-/// the new one is built, and stays when the build fails. `on_loaded` runs once the page has
+/// Opens the main window on `main_url`. A main window on another origin closes once the
+/// new one is built, and stays when the build fails. `on_loaded` runs once the page has
 /// loaded.
 pub fn open_main(
     app: &AppHandle,
     core_port: u16,
+    moved_from: Option<u16>,
     token: &str,
     on_loaded: impl Fn(&WebviewWindow) + Send + Sync + 'static,
 ) -> tauri::Result<()> {
     let label = main_label(core_port);
     let origin = origin(core_port);
-    let url: Url = format!("{origin}/").parse().expect("a loopback URL parses");
+    let url = main_url(core_port, moved_from);
     let core_origin = url.clone();
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title("lokki")
@@ -108,6 +118,18 @@ mod tests {
             INJECT.len() - "__ORIGIN____TOKEN__".len() + origin.len() + 2 + token_json.len(),
             "something besides the two placeholders changed"
         );
+    }
+
+    #[test]
+    fn a_window_that_moved_names_the_port_it_moved_from() {
+        // (core port, moved from, the page)
+        let rows = [
+            (43210, None, "http://127.0.0.1:43210/"),
+            (43210, Some(43211), "http://127.0.0.1:43210/?moved_from=43211"),
+        ];
+        for (port, from, want) in rows {
+            assert_eq!(main_url(port, from).as_str(), want);
+        }
     }
 
     #[test]
