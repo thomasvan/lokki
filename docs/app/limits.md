@@ -171,6 +171,15 @@ SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of 
 `/healthz` with `draining` and never exits. The next start kills such a core once its
 wait is over ([first run](first-run.md)).
 
+That kill comes when the start's wait is over: the core's `drain_seconds` plus 5 s, or
+20 s when it gives no usable `drain_seconds`, at most 30 s, even if the core still
+drains. The cap is there because the start waits holding the sidecars' lock, which a
+quit needs, before any window opens. Measured on macOS, [updates](update.md), The
+leftover hand test on an M4 Mac mini: a 0.1.0 core was killed after 20 s. Inferred, not
+measured: on Windows, where a leftover CLIProxyAPI answered the next start's check, a
+stream still running through such a core is cut by that kill; no run sent a request
+through a leftover core.
+
 A leftover CLIProxyAPI is stopped by its pid, and so is a leftover core that has to be
 killed, with the processes that started it. Windows and Linux hold each pid while
 lokki checks and stops the process, by a handle and a pidfd. Windows keeps the pid of a
