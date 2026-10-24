@@ -568,9 +568,7 @@ fn on_termination_signals() {
 /// the file changed, and a Try again that starts both sidecars from the file.
 fn stuck_page(dir: &Path, service: Service, port: u16, sentence: &str, tail: String) -> Failure {
     let change = match service {
-        Service::Core => {
-            format!("under listen, change the port back to {port} and leave every host as it is")
-        }
+        Service::Core => format!("set listen to 127.0.0.1:{port}"),
         Service::Cliproxy => format!("under cliproxy, change port back to {port}"),
     };
     Failure {
