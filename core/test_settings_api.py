@@ -306,6 +306,14 @@ class SettingsApiTests(_ServingHarness):
                  "listen", 400, f"cannot both use port {free_cliproxy}"),
                 ("CLIProxyAPI on the core's port", None, lambda _: {"cliproxy": {"port": free_core}},
                  "cliproxy.port", 400, f"cannot both use port {free_core}"),
+                ("listen on localhost, a port that accepts", True, lambda p: {"listen": [f"localhost:{p}"]},
+                 "listen", 409, "is in use by another program"),
+                ("listen on localhost, a port bound and not accepting", False, lambda p: {"listen": [f"localhost:{p}"]},
+                 "listen", 409, "Lokki cannot listen on localhost:"),
+                ("listen on ::1, which the IPv4 listener never binds", None, lambda _: {"listen": [f"::1:{free_core}"]},
+                 "listen", 400, "the core listens on IPv4 only"),
+                ("listen on [::1], which the IPv4 listener never binds", None, lambda _: {"listen": [f"[::1]:{free_core}"]},
+                 "listen", 400, "the core listens on IPv4 only"),
                 ("listen, a port past 65535", None, lambda _: {"listen": ["127.0.0.1:70000"]},
                  "listen", 400, "from 1 to 65535"),
                 ("listen, port 0", None, lambda _: {"listen": ["127.0.0.1:0"]},
@@ -318,6 +326,9 @@ class SettingsApiTests(_ServingHarness):
                 self.assertEqual((status, payload.get("key")), (code, key), payload)
                 self.assertIn(said, payload["error"]["message"])
                 self.assertEqual(read(self.path), before)
+        moved = free_ports(1)[0]
+        status, payload = put(self.port, {"listen": [f"localhost:{moved}"]})
+        self.assertEqual(status, 200, payload)
 
     def test_port_1455_is_refused_by_its_value_without_a_bind(self):
         """1455 is where a Codex login returns, held while one waits: refused as a value,

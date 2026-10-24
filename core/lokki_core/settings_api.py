@@ -21,7 +21,8 @@ from .core import _text
 from .quota.oauth import CALLBACK_PORT
 
 LOCK = threading.RLock()
-_LOOPBACK = ("127.0.0.1", "localhost", "::1")
+# The core's listener is IPv4 (an AF_INET server), so an IPv6 loopback address never starts.
+_LOOPBACK = ("127.0.0.1", "localhost")
 
 
 class Refused(Exception):
@@ -54,9 +55,9 @@ def _check_listen(body):
         raise Refused(400, "listen must be a list of addresses", "listen")
     for addr in body.get("listen") or []:
         host = str(addr).rpartition(":")[0] if ":" in str(addr) else str(addr)
-        if host.strip("[]") not in _LOOPBACK:
-            raise Refused(400, "listen through the API takes loopback addresses only "
-                               "(127.0.0.1, localhost, ::1)", "listen")
+        if host not in _LOOPBACK:
+            raise Refused(400, "listen through the API takes an IPv4 loopback address, 127.0.0.1 "
+                               "or localhost: the core listens on IPv4 only", "listen")
 
 
 def _check_env(body, env):

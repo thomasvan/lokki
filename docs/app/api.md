@@ -56,8 +56,8 @@ written with, so Activity can show reasons older than this list.
 fields and, for the UI, `label`, `group` (one of `schema.GROUPS`) and
 `choice_labels` (choice → label). The `PUT` allow-list is `routing`,
 `low_quota.threshold_percent`, `low_quota.rule`, `low_quota.accounts`,
-`low_quota.models`, `low_quota.poll_seconds`, `cliproxy.url`, `cliproxy.port`, `cliproxy.panel`, loopback-only
-`listen`, and the relay settings `seg_budget`, `total_cap`, `max_segments`,
+`low_quota.models`, `low_quota.poll_seconds`, `cliproxy.url`, `cliproxy.port`, `cliproxy.panel`, `listen` on
+`127.0.0.1` or `localhost` (the core's listener is IPv4, so an IPv6 address is a 400), and the relay settings `seg_budget`, `total_cap`, `max_segments`,
 `tail_chars`, `merge_text`, `session_pin`, `text_calls`, `text_calls_pad`,
 `imagegen_cut`, `payload_cap`, `pacing_seconds`, `max_concurrent_upstream`,
 `retries` and `drain_seconds`.
