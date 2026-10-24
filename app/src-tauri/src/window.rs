@@ -30,20 +30,37 @@ pub fn origin(core_port: u16) -> String {
 }
 
 /// The page the main window opens: the core's `/`, and when the core has moved from another
-/// port, `?moved_from=<port>`, so the page can tell the person that clients must follow,
-/// with `&went_back=<sentence>` when the restart went back for the other service.
-fn main_url(core_port: u16, moved_from: Option<u16>, went_back: Option<&str>) -> Url {
+/// port, `?moved_from=<port>`, so the page can tell the person that clients must follow.
+fn main_url(core_port: u16, moved_from: Option<u16>) -> Url {
     let mut url: Url = format!("{}/", origin(core_port))
         .parse()
         .expect("a loopback URL parses");
     if let Some(port) = moved_from {
-        let mut query = url.query_pairs_mut();
-        query.append_pair("moved_from", &port.to_string());
-        if let Some(said) = went_back {
-            query.append_pair("went_back", said);
-        }
+        url.query_pairs_mut()
+            .append_pair("moved_from", &port.to_string());
     }
     url
+}
+
+/// The most characters of a restart's sentence a window is given.
+const WENT_BACK_MAX: usize = 500;
+
+/// The second initialization script of a window opened after a restart that went back:
+/// its sentence, cut to `WENT_BACK_MAX` characters, as `window.lokki.wentBack` on the
+/// core's origin. Any other window gets none. Not the URL, which any link can write.
+fn went_back_script(origin: &str, went_back: Option<&str>) -> Option<String> {
+    let said = went_back?;
+    let said: String = if said.chars().count() > WENT_BACK_MAX {
+        said.chars().take(WENT_BACK_MAX - 1).chain(['…']).collect()
+    } else {
+        said.to_string()
+    };
+    let json = |s: &str| serde_json::to_string(s).expect("a string serializes");
+    Some(format!(
+        "if (location.origin === {} && window.lokki) window.lokki.wentBack = {};",
+        json(origin),
+        json(&said)
+    ))
 }
 
 /// Whether the main window may go to `to`: only within the core's origin.
@@ -51,9 +68,9 @@ fn may_navigate(core_origin: &Url, to: &Url) -> bool {
     to.origin() == core_origin.origin()
 }
 
-/// Opens the main window on `main_url`. A main window on another origin closes once the
-/// new one is built, and stays when the build fails. `on_loaded` runs once the page has
-/// loaded.
+/// Opens the main window on `main_url`, with `went_back_script` after a go-back. A main
+/// window on another origin closes once the new one is built, and stays when the build
+/// fails. `on_loaded` runs once the page has loaded.
 pub fn open_main(
     app: &AppHandle,
     core_port: u16,
@@ -64,16 +81,21 @@ pub fn open_main(
 ) -> tauri::Result<()> {
     let label = main_label(core_port);
     let origin = origin(core_port);
-    let url = main_url(core_port, moved_from, went_back);
+    let url = main_url(core_port, moved_from);
     let core_origin = url.clone();
-    WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
+    let mut window = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title("Lokki")
         .inner_size(1100.0, 760.0)
         // The narrowest and shortest the UI is laid out for: the three mode segments and the
         // longest value on Home fit 480 px, and 600 px leaves the folded chrome about 300 px
         // of content.
         .min_inner_size(480.0, 600.0)
-        .initialization_script(inject_script(&origin, token))
+        .initialization_script(inject_script(&origin, token));
+    // After `inject.js`, which defines `window.lokki`.
+    if let Some(script) = went_back_script(&origin, went_back) {
+        window = window.initialization_script(script);
+    }
+    window
         .on_navigation(move |to| may_navigate(&core_origin, to))
         .on_page_load(move |window, load| {
             if load.event() == PageLoadEvent::Finished {
@@ -130,27 +152,46 @@ mod tests {
     }
 
     #[test]
-    fn a_window_that_moved_names_the_port_it_moved_from_and_what_the_restart_said() {
-        let said = "port 2002 is taken; CLIProxyAPI is back on port 2001";
-        // (moved from, the restart's sentence, the page)
+    fn a_window_that_moved_names_the_port_it_moved_from() {
+        // (moved from, the page)
         let rows = [
-            (None, None, "http://127.0.0.1:43210/"),
-            (None, Some(said), "http://127.0.0.1:43210/"),
-            (
-                Some(43211),
-                None,
-                "http://127.0.0.1:43210/?moved_from=43211",
-            ),
-            (
-                Some(43211),
-                Some(said),
-                "http://127.0.0.1:43210/?moved_from=43211\
-                 &went_back=port+2002+is+taken%3B+CLIProxyAPI+is+back+on+port+2001",
-            ),
+            (None, "http://127.0.0.1:43210/"),
+            (Some(43211), "http://127.0.0.1:43210/?moved_from=43211"),
         ];
-        for (from, went_back, want) in rows {
-            assert_eq!(main_url(43210, from, went_back).as_str(), want);
+        for (from, want) in rows {
+            assert_eq!(main_url(43210, from).as_str(), want);
         }
+    }
+
+    #[test]
+    fn only_a_window_after_a_go_back_is_given_its_sentence_and_at_most_500_characters() {
+        let origin = "http://127.0.0.1:43210";
+        assert_eq!(went_back_script(origin, None), None);
+        // What the script sets, read back as the page would read the literal.
+        let given = |said: &str| -> String {
+            let script = went_back_script(origin, Some(said))
+                .expect("a script for a go-back");
+            let head = format!(
+                "if (location.origin === {} && window.lokki) window.lokki.wentBack = ",
+                serde_json::to_string(origin).unwrap()
+            );
+            let literal = script
+                .strip_prefix(&head)
+                .and_then(|rest| rest.strip_suffix(';'))
+                .expect("the script is the one assignment on the core's origin");
+            serde_json::from_str(literal).expect("a JSON string literal")
+        };
+        let said = "port 2002 is taken; \"CLIProxyAPI\" is back on port 2001";
+        assert_eq!(given(said), said);
+        let long = "é".repeat(600);
+        let cut = given(&long);
+        assert_eq!(cut.chars().count(), 500);
+        assert!(cut.ends_with('…') && cut.starts_with(&"é".repeat(499)));
+        assert_eq!(
+            given(&"é".repeat(500)),
+            "é".repeat(500),
+            "500 is kept whole"
+        );
     }
 
     #[test]
