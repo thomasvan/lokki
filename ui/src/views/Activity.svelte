@@ -30,13 +30,13 @@
   const coverage = $derived.by(() => {
     const c = answer?.coverage;
     if (!answer || !c || c.oldest === null) return null;
-    if (!c.complete) return `counted since ${stamp(c.oldest, nowS)}: lokki reads the last 8 MiB of its run log; older runs in this window are not counted`;
+    if (!c.complete) return `counted since ${stamp(c.oldest, nowS)}: Lokki reads the last 8 MiB of its run log; older runs in this window are not counted`;
     return c.oldest > answer.from ? `since ${stamp(c.oldest, nowS)}: the run log holds runs since then` : null;
   });
 
   const started = $derived.by(() => {
     const at = Date.parse(app.status?.started_at ?? "") / 1000;
-    return Number.isFinite(at) ? `since lokki started at ${stamp(at, nowS)}` : "since lokki started";
+    return Number.isFinite(at) ? `since Lokki started at ${stamp(at, nowS)}` : "since Lokki started";
   });
 
   const byCount = (table: Record<string, number>) =>
@@ -56,7 +56,7 @@
 
 <div class="phead">
   <h2>Activity</h2>
-  <span class="lbl">requests through lokki</span>
+  <span class="lbl">requests through Lokki</span>
   <div class="seg-sm" role="group" aria-label="Window" aria-busy={app.activityBusy ? "true" : "false"}>
     {#each WINDOWS as [id, label] (id)}
       <button type="button" aria-pressed={app.activityWindow === id ? "true" : "false"} onclick={() => choose(id)}>

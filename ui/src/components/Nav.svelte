@@ -3,8 +3,12 @@
   import { VERSION } from "../lib/version";
   import Icon, { type IconName } from "./Icon.svelte";
   import Mark from "./Mark.svelte";
+  import Wordmark from "./Wordmark.svelte";
 
   let { tab, ontab }: { tab: Tab; ontab: (tab: Tab) => void } = $props();
+
+  // The em the wordmark is set at: above the destinations' 13 px, where the drawing's plain dot is used.
+  const BRAND_SIZE = 18;
 
   const DESTINATIONS: Array<[Tab, string, IconName]> = [
     ["home", "Home", "home"], ["accounts", "Accounts", "accounts"], ["activity", "Activity", "activity"], ["settings", "Settings", "settings"],
@@ -13,7 +17,7 @@
 
 <!-- The sidebar at 720 px and wider; below, the row of tabs under the top bar, the foot hidden and the brand out of sight but still the page's h1. -->
 <nav class="sidebar" aria-label="Destinations">
-  <h1 class="brand"><Mark />lokki</h1>
+  <h1 class="brand"><Mark /><Wordmark size={BRAND_SIZE} /></h1>
   <div class="destinations">
     {#each DESTINATIONS as [id, name, icon] (id)}
       <button type="button" class="dest" aria-current={tab === id ? "page" : undefined} onclick={() => ontab(id)}>
@@ -28,6 +32,6 @@
         CLIProxyAPI {app.status.cliproxy.reachable ? "running" : "not reachable"}
       </span>
     {/if}
-    <span class="cap">lokki {VERSION}</span>
+    <span class="cap">Lokki {VERSION}</span>
   </div>
 </nav>

@@ -20,10 +20,10 @@ describe("the update banner", () => {
     // (label, status, text shown, text absent)
     const rows: Array<[string, Partial<S> | null, string[], string[]]> = [
       ["a plain browser", null, [], ["Check now", "available"]],
-      ["idle", { state: "idle", version: null, notes_url: null }, ["lokki 0.1.0", "Check now"], ["available"]],
-      ["up to date", { state: "up_to_date", version: null, notes_url: null }, ["lokki 0.1.0 is up to date", "Check now"], ["Install"]],
-      ["available and installable", {}, ["lokki 0.2.0 is available", "Release notes", "Install and restart", "Check now"], ["Download"]],
-      ["available, download only", { can_install: false, reason: "this lokki is not an AppImage" }, ["lokki 0.2.0 is available", "Download", "this lokki is not an AppImage"], ["Install and restart"]],
+      ["idle", { state: "idle", version: null, notes_url: null }, ["Lokki 0.1.0", "Check now"], ["available"]],
+      ["up to date", { state: "up_to_date", version: null, notes_url: null }, ["Lokki 0.1.0 is up to date", "Check now"], ["Install"]],
+      ["available and installable", {}, ["Lokki 0.2.0 is available", "Release notes", "Install and restart", "Check now"], ["Download"]],
+      ["available, download only", { can_install: false, reason: "this Lokki is not an AppImage" }, ["Lokki 0.2.0 is available", "Download", "this Lokki is not an AppImage"], ["Install and restart"]],
       ["checking", { state: "checking", version: null, notes_url: null }, ["Checking"], ["Check now"]],
       ["downloading", { state: "downloading" }, ["Downloading"], ["Install and restart"]],
       ["installing", { state: "installing" }, ["Installing"], ["Install and restart"]],
@@ -42,14 +42,14 @@ describe("the update banner", () => {
 
   it("says its state through updateLine, word for word", () => {
     const rows: Array<[Partial<S>, string]> = [
-      [{}, "lokki 0.2.0 is available."],
-      [{ state: "error", error: "x" }, "lokki 0.2.0 is available."],         // a failed install keeps the update on offer
-      [{ state: "error", version: null, notes_url: null, error: "x" }, "lokki 0.1.0"],
-      [{ state: "idle", version: null, notes_url: null }, "lokki 0.1.0"],
-      [{ state: "up_to_date", version: null, notes_url: null }, "lokki 0.1.0 is up to date."],
+      [{}, "Lokki 0.2.0 is available."],
+      [{ state: "error", error: "x" }, "Lokki 0.2.0 is available."],         // a failed install keeps the update on offer
+      [{ state: "error", version: null, notes_url: null, error: "x" }, "Lokki 0.1.0"],
+      [{ state: "idle", version: null, notes_url: null }, "Lokki 0.1.0"],
+      [{ state: "up_to_date", version: null, notes_url: null }, "Lokki 0.1.0 is up to date."],
       [{ state: "checking" }, "Checking for an update…"],
       [{ state: "downloading" }, "Downloading the update…"],
-      [{ state: "installing" }, "Installing the update; lokki restarts when it is done."],
+      [{ state: "installing" }, "Installing the update; Lokki restarts when it is done."],
     ];
     for (const [over, line] of rows) {
       expect(updateLine(status(over))).toBe(line);
@@ -62,11 +62,11 @@ describe("the update banner", () => {
 
   it("hands the banner its line, reason and error through updateWords", () => {
     const rows: Array<[Partial<S>, { line: string; reason: string | null; error: string | null }]> = [
-      [{}, { line: "lokki 0.2.0 is available.", reason: null, error: null }],
-      [{ can_install: false, reason: "this lokki is not an AppImage" }, { line: "lokki 0.2.0 is available.", reason: "this lokki is not an AppImage", error: null }],
-      [{ state: "up_to_date", version: null, reason: "no build for this platform in the latest release" }, { line: "lokki 0.1.0 is up to date.", reason: "no build for this platform in the latest release", error: null }],
-      [{ state: "idle", reason: "kept by the shell" }, { line: "lokki 0.1.0", reason: null, error: null }],
-      [{ state: "error", version: null, error: "the update check failed: 404" }, { line: "lokki 0.1.0", reason: null, error: "the update check failed: 404" }],
+      [{}, { line: "Lokki 0.2.0 is available.", reason: null, error: null }],
+      [{ can_install: false, reason: "this Lokki is not an AppImage" }, { line: "Lokki 0.2.0 is available.", reason: "this Lokki is not an AppImage", error: null }],
+      [{ state: "up_to_date", version: null, reason: "no build for this platform in the latest release" }, { line: "Lokki 0.1.0 is up to date.", reason: "no build for this platform in the latest release", error: null }],
+      [{ state: "idle", reason: "kept by the shell" }, { line: "Lokki 0.1.0", reason: null, error: null }],
+      [{ state: "error", version: null, error: "the update check failed: 404" }, { line: "Lokki 0.1.0", reason: null, error: "the update check failed: 404" }],
     ];
     for (const [over, words] of rows) {
       expect(updateWords(status(over))).toEqual(words);
@@ -106,7 +106,7 @@ describe("the update banner", () => {
 
   it.each(["Release notes", "Download"])("shows a rejected openExternal from %s in an alert", async (button) => {
     window.lokki = { openExternal: vi.fn(async () => { throw new Error("no browser to open"); }) };
-    app.update = status(button === "Download" ? { can_install: false, reason: "this lokki is not an AppImage" } : {});
+    app.update = status(button === "Download" ? { can_install: false, reason: "this Lokki is not an AppImage" } : {});
     render(Update);
     await fireEvent.click(screen.getByText(button));
     expect((await screen.findByRole("alert")).textContent).toContain("no browser to open");

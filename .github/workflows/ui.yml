@@ -2,9 +2,9 @@ name: ui
 
 on:
   push:
-    paths: ["ui/**", ".github/workflows/ui.yml", "core/lokki_core/**", "core/VERSION", "core/test_quota_reader.py"]
+    paths: ["ui/**", "app/src-tauri/dist/error.html", "docs/design/ux/wordmark-*.svg", ".github/workflows/ui.yml", "core/lokki_core/**", "core/VERSION", "core/test_quota_reader.py"]
   pull_request:
-    paths: ["ui/**", ".github/workflows/ui.yml", "core/lokki_core/**", "core/VERSION", "core/test_quota_reader.py"]
+    paths: ["ui/**", "app/src-tauri/dist/error.html", "docs/design/ux/wordmark-*.svg", ".github/workflows/ui.yml", "core/lokki_core/**", "core/VERSION", "core/test_quota_reader.py"]
 
 permissions:
   contents: read

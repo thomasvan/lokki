@@ -91,10 +91,10 @@ pub fn sidecar_file_names() -> [String; 2] {
 
 pub fn exe_dir() -> Result<PathBuf> {
     let exe = std::env::current_exe()
-        .map_err(|e| format!("lokki cannot find its own executable: {e}"))?;
+        .map_err(|e| format!("Lokki cannot find its own executable: {e}"))?;
     exe.parent()
         .map(Path::to_path_buf)
-        .ok_or_else(|| "lokki's executable has no directory".to_string())
+        .ok_or_else(|| "Lokki's executable has no directory".to_string())
 }
 
 fn program(service: Service) -> Result<PathBuf> {
@@ -496,7 +496,7 @@ impl Sidecars {
         // run left before the first start).
         if port_in_use(port) {
             return Err(format!(
-                "port {port} is already in use by {}, so lokki did not start {}",
+                "port {port} is already in use by {}, so Lokki did not start {}",
                 leftover::holder(port),
                 service.title()
             ));
@@ -655,7 +655,7 @@ impl Sidecars {
                     "{what}; four exits within a minute, not restarting"
                 ));
                 Some(format!(
-                    "{} exited four times within a minute, so lokki stopped restarting it.",
+                    "{} exited four times within a minute, so Lokki stopped restarting it.",
                     service.subject()
                 ))
             }

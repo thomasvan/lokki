@@ -28,7 +28,7 @@ pub fn show(app: &AppHandle, failure: &Failure) -> tauri::Result<()> {
         return Ok(());
     }
     WebviewWindowBuilder::new(app, ERROR, WebviewUrl::App("error.html".into()))
-        .title("lokki")
+        .title("Lokki")
         .inner_size(760.0, 560.0)
         .initialization_script(format!("window.__LOKKI_ERROR__ = {data};"))
         .build()?;

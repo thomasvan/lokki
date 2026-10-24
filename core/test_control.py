@@ -755,10 +755,10 @@ class AccountsRouteTests(_ControlHarness):
             ("accepted", lambda state: None, (200, "You can close this tab."), (200, None)),
             ("not waiting", self.expire, (409, "This login expired; start again."), (409, GONE)),
             ("another login", lambda state: self.login(),
-             (409, "This page belongs to another login; start again from lokki."), (409, GONE)),
+             (409, "This page belongs to another login; start again from Lokki."), (409, GONE)),
             ("already answered", lambda state: oauth.hand_on(state, "an-earlier-code", ""),
-             (409, "lokki already has this login's answer; you can close this tab."),
-             (409, "lokki already has this login's answer; wait for it to finish")),
+             (409, "Lokki already has this login's answer; you can close this tab."),
+             (409, "Lokki already has this login's answer; wait for it to finish")),
             ("expired", answer(404), (409, "This login expired; start again."), (409, "this login expired; start again")),
             ("refused", answer(409), (409, "CLIProxyAPI did not take this login; start again."),
              (409, "CLIProxyAPI did not take this login; start again")),
@@ -792,7 +792,7 @@ class AccountsRouteTests(_ControlHarness):
         self.login()
         self.assertEqual(self.paste(first, self.address(first)), (409, GONE))
         self.assertEqual(self.open_page(self.address(first)),
-                         (409, "This page belongs to another login; start again from lokki."))
+                         (409, "This page belongs to another login; start again from Lokki."))
         self.assertEqual(self.fake.callbacks, [])
 
     def test_an_unanswered_hand_on_can_be_sent_again_and_an_answered_one_cannot(self):
@@ -802,9 +802,9 @@ class AccountsRouteTests(_ControlHarness):
         self.assertEqual(self.paste(state, self.address(state)), (502, "CLIProxyAPI did not take this login"))
         self.assertEqual(self.paste(state, self.address(state)), (200, None))
         self.assertEqual(self.paste(state, self.address(state)),
-                         (409, "lokki already has this login's answer; wait for it to finish"))
+                         (409, "Lokki already has this login's answer; wait for it to finish"))
         self.assertEqual(self.open_page(self.address(state)),
-                         (409, "lokki already has this login's answer; you can close this tab."))
+                         (409, "Lokki already has this login's answer; you can close this tab."))
         self.assertEqual([b["state"] for _, b in self.fake.callbacks], [state, state])
         # A post that fails in any way is unanswered: its exception is nowhere, and the login re-armed.
         from lokki_core.quota import oauth
@@ -848,7 +848,7 @@ class AccountsRouteTests(_ControlHarness):
         sent.join(10)
         self.assertEqual(answered, [(502, "CLIProxyAPI did not take this login")])
         self.assertEqual(self.paste(second, self.address(second)),
-                         (409, "lokki already has this login's answer; wait for it to finish"))
+                         (409, "Lokki already has this login's answer; wait for it to finish"))
         self.assertEqual([b["state"] for _, b in self.fake.callbacks].count(second), 1)
 
     def test_the_paste_route_refuses_each_address_that_is_not_the_callback(self):

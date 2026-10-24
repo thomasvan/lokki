@@ -178,8 +178,8 @@
       <div>
         <h3>Finish the login in a browser</h3>
         <p class="lbl">
-          {#if opened}<span>lokki opened the login page in this computer’s browser.</span>{/if}
-          <span>lokki waits up to 5 minutes.</span>
+          {#if opened}<span>Lokki opened the login page in this computer’s browser.</span>{/if}
+          <span>Lokki waits up to 5 minutes.</span>
         </p>
       </div>
     </div>
@@ -261,7 +261,7 @@
   {#if none}
     <div class="card empty">
       <span class="em-ic"><Icon name="accounts" /></span>
-      <div><h3>No Codex account yet</h3><p>Add the account your coding client uses; lokki reads its quota in every mode.</p></div>
+      <div><h3>No Codex account yet</h3><p>Add the account your coding client uses; Lokki reads its quota in every mode.</p></div>
       <button type="button" class="btn-primary" onclick={addAccount}><Icon name="plus" size={16} />Add a Codex account</button>
     </div>
   {:else if rows.length > 0}

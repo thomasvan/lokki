@@ -48,7 +48,7 @@ pub fn open_main(
     let url: Url = format!("{origin}/").parse().expect("a loopback URL parses");
     let core_origin = url.clone();
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
-        .title("lokki")
+        .title("Lokki")
         .inner_size(1100.0, 760.0)
         // The narrowest and shortest the UI is laid out for: the three mode segments and the
         // longest value on Home fit 480 px, and 600 px leaves the folded chrome about 300 px

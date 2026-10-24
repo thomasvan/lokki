@@ -118,7 +118,7 @@ describe("Home", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("says lokki does not read the quota without a management secret file, with no banner", () => {
+  it("says Lokki does not read the quota without a management secret file, with no banner", () => {
     const poll = { last_ok_at: null, last_error: "no management secret file is set", reads: 0, running: true };
     for (const routing of ["auto", "relay", "direct"] as const) {
       app.status = statusFixture({ routing, poll, decision: { relay_on: routing === "relay", reason: routing === "auto" ? "the quota cannot be read" : `routing: ${routing}` } });
