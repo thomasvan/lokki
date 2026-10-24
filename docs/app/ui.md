@@ -344,7 +344,9 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     reloads; one restart runs at a time. CLIProxyAPI's restart restarts the core,
     so its success clears both notices. A failed restart reads the settings
     again: a moved port that did not come up has been put back in the file, and
-    the shell's sentence says so beside the notice.
+    the shell's sentence says so beside the notice. When the core's own port
+    moved in that restart, the window that asked is replaced by one on the new
+    port, and that one says the sentence instead (below).
   - Connection's one row is Port, a field of the UI's own (`PORT` in
     `ui/src/lib/fields.ts`) over `listen`: it shows the port of the core's one
     address and saves `listen` as that address with the port changed and the host
@@ -353,8 +355,11 @@ resumes on visibility, and skips a tick while that poll is still in flight.
   - A window the shell opens at `?moved_from=<port>`, because the core came back on
     a new port, says above the view "Lokki now listens on port N, not M. Clients
     such as Codex CLI still use the old address: set their base URL to
-    `http://127.0.0.1:N/v1`", with Dismiss. The query leaves the address bar at
-    once, so a reload does not say it again.
+    `http://127.0.0.1:N/v1`", with Dismiss. A restart that went back for
+    CLIProxyAPI while the core's own port moved adds `&went_back=<sentence>`, and
+    the note adds "The restart also said: …". A `moved_from` that is not a port
+    from 1 to 65535 written without a leading zero shows nothing. The query leaves
+    the address bar at once, so a reload does not say it again.
   - CLIProxyAPI's panel sits under the Web panel switch and follows the saved
     `cliproxy.panel`. Off, it says to turn it on and save. On, the shell gets
     "Open the panel" and "Copy the management secret" ("Copied" for 3 seconds),

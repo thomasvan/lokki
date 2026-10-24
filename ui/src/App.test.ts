@@ -68,12 +68,29 @@ describe("App", () => {
     cleanup();
 
     // A page that did not move, or a query that is not a port from 1 to 65535, says nothing.
-    for (const url of ["/", "/?moved_from=x", "/?moved_from=0", "/?moved_from=65536", "/?moved_from=99999999"]) {
+    for (const url of ["/", "/?moved_from=x", "/?moved_from=0", "/?moved_from=65536", "/?moved_from=99999999", "/?moved_from=0080"]) {
       history.replaceState(null, "", url);
       render(App);
       expect(screen.queryByText(/Lokki now listens on port/), url).toBeNull();
       cleanup();
     }
+    history.replaceState(null, "", "/");
+  });
+
+  it("shows, in the window that moved, what the restart said when it went back", async () => {
+    core();
+    const said = "port 9479 is already in use; CLIProxyAPI is back on port 9480";
+    history.replaceState(null, "", `/?moved_from=9478&went_back=${encodeURIComponent(said)}`);
+    render(App);
+    const note = screen.getByText(/Lokki now listens on port/).closest(".banner") as HTMLElement;
+    expect(within(note).getByText(`The restart also said: ${said}`)).toBeInTheDocument();
+    expect(location.search).toBe("");
+    cleanup();
+
+    // Only beside a move: alone, it says nothing.
+    history.replaceState(null, "", `/?went_back=${encodeURIComponent(said)}`);
+    render(App);
+    expect(screen.queryByText(/The restart also said/)).toBeNull();
     history.replaceState(null, "", "/");
   });
 

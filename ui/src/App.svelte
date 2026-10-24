@@ -14,11 +14,14 @@
   let tab = $state<Tab>("home");
 
   // The shell opens the window at ?moved_from=<port> when the core has come back on a new port. Clients keep the
-  // address they were given, so the note says where they must point now. The query leaves the address bar at once,
-  // so a reload does not say it again.
-  const from = new URLSearchParams(location.search).get("moved_from");
-  let movedFrom = $state(from !== null && /^\d{1,5}$/.test(from) && Number(from) >= 1 && Number(from) <= 65535 ? from : null);
-  if (from !== null) history.replaceState(history.state, "", location.pathname + location.hash);
+  // address they were given, so the note says where they must point now. A restart that went back for the other
+  // service while the core moved adds &went_back=<its sentence>: the window that asked is gone, so this one says it.
+  // The query leaves the address bar at once, so a reload does not say it again.
+  const query = new URLSearchParams(location.search);
+  const from = query.get("moved_from");
+  let movedFrom = $state(from !== null && /^[1-9]\d{0,4}$/.test(from) && Number(from) <= 65535 ? from : null);
+  const wentBack = query.get("went_back");
+  if (location.search) history.replaceState(history.state, "", location.pathname + location.hash);
   let typed = $state("");
   let checking = $state(false);
 
@@ -73,8 +76,11 @@
       {#if movedFrom}
         <div class="banner banner-warning" role="status">
           <Icon name="info" />
-          <p>Lokki now listens on port {location.port}, not {movedFrom}. Clients such as Codex CLI still use the old
-            address: set their base URL to <code>{location.origin}/v1</code>.</p>
+          <div class="banner-text">
+            <p>Lokki now listens on port {location.port}, not {movedFrom}. Clients such as Codex CLI still use the old
+              address: set their base URL to <code>{location.origin}/v1</code>.</p>
+            {#if wentBack}<p>The restart also said: {wentBack}</p>{/if}
+          </div>
           <button type="button" class="btn-sm" onclick={() => { movedFrom = null; }}>Dismiss</button>
         </div>
       {/if}
