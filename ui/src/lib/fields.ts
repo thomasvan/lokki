@@ -10,6 +10,7 @@ export const GROUP_TITLES = {
   connection: { title: "Connection", note: "how clients reach Lokki" },
   about: { title: "Updates and About" },
   advanced: { title: "Advanced", note: "for a server operator, or with a measurement behind it" },
+  address: { title: "The core's address" },
   cliproxy: { title: "CLIProxyAPI" },
   "tuning.quota_reading": { title: "Quota reading" },
   "tuning.cutting": { title: "Cutting" },
@@ -21,21 +22,34 @@ export const GROUP_TITLES = {
 
 export const TUNING = ["quota_reading", "cutting", "tool_calls", "traffic"] as const;
 export type Tuning = Record<(typeof TUNING)[number] | "other", SchemaRow[]>;
-export type Groups = { saving: SchemaRow[]; connection: SchemaRow[]; cliproxy: SchemaRow[]; tuning: Tuning; file: SchemaRow[] };
+export type Groups = {
+  saving: SchemaRow[]; connection: SchemaRow[]; address: SchemaRow[]; cliproxy: SchemaRow[]; tuning: Tuning; file: SchemaRow[];
+};
+
+// Connection's Port is the UI's own field over `listen`: the core's one address with its port changed and its host
+// kept. It writes `listen`; no key named `port` reaches the core.
+export const PORT = "port";
+const portOf = (address: unknown) => (typeof address === "string" ? Number(address.slice(address.lastIndexOf(":") + 1)) : undefined);
+const withPort = (address: string, port: unknown) => `${address.slice(0, address.lastIndexOf(":"))}:${String(port)}`;
+const portRow = (listen: SchemaRow): SchemaRow => ({
+  ...listen, key: PORT, type: "int", default: portOf((listen.default as string[])[0]), label: "Port", minimum: 1, maximum: 65535,
+  meaning: "where this window and your clients reach Lokki; after the core restarts on a new port, each client must be told it",
+});
 
 // A row of a group the UI does not know is never dropped: a writable one goes under Advanced › Other,
 // a read-only one under Advanced › Set in the file. `hidden` rows (auth.*) are never shown.
 export function group(rows: SchemaRow[]): Groups {
   const groups: Groups = {
-    saving: [], connection: [], cliproxy: [], file: [],
+    saving: [], connection: [], address: [], cliproxy: [], file: [],
     tuning: { quota_reading: [], cutting: [], tool_calls: [], traffic: [], other: [] },
   };
   const tuning = (g: string) => TUNING.find((t) => g === `tuning.${t}`);
   for (const row of rows) {
     const g = row.group;
     const sub = tuning(g);
+    if (row.key === "listen") groups.connection.push(portRow(row));
     if (g === "hidden") continue;
-    if (g === "saving" || g === "connection" || g === "cliproxy" || g === "file") groups[g].push(row);
+    if (g === "saving" || g === "connection" || g === "address" || g === "cliproxy" || g === "file") groups[g].push(row);
     else if (sub) groups.tuning[sub].push(row);
     else if (row.writable) groups.tuning.other.push(row);
     else groups.file.push(row);
@@ -50,10 +64,14 @@ export function widget(row: SchemaRow): "checkbox" | "number" | "select" | "text
   return "text";
 }
 
-// `listen` is a list in the schema and one address in the form.
-export function patchOf(changes: Array<[string, unknown]>): Record<string, unknown> {
+// `listen` is a list in the schema and one address in the form; the Port goes into the address `view` holds.
+export function patchOf(changes: Array<[string, unknown]>, view?: SettingsView): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   for (const [key, value] of changes) {
+    if (key === PORT) {
+      patch.listen = [withPort(String(view ? valueOf(view, "listen") : ""), value)];
+      continue;
+    }
     const path = key.split(".");
     const leaf = path.pop() as string;
     let node = patch;
@@ -64,6 +82,7 @@ export function patchOf(changes: Array<[string, unknown]>): Record<string, unkno
 }
 
 export function valueOf(view: SettingsView, key: string): unknown {
+  if (key === PORT) return portOf(valueOf(view, "listen"));
   let node: unknown = view;
   for (const part of key.split(".")) node = (node as Record<string, unknown> | undefined)?.[part];
   return key === "listen" && Array.isArray(node) ? node[0] : node;

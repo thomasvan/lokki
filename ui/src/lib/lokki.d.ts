@@ -17,5 +17,7 @@ interface Window {
     updateStatus?: () => Promise<UpdateStatus>;
     checkForUpdate?: () => Promise<UpdateStatus>;
     installUpdate?: () => Promise<void>;
+    // Set by the shell only in a window it opened after a restart that went back.
+    wentBack?: string;
   };
 }

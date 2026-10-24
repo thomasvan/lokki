@@ -15,7 +15,7 @@
   "writable": true,
   "secret": false,
   "label": "Address",
-  "group": "connection",
+  "group": "address",
   "choice_labels": {}
  },
  {

@@ -15,7 +15,7 @@ _LAYOUT = ("config.yaml", "cliproxy", "secrets", "logs", "runs.jsonl")     # wha
 
 
 class InitError(Exception):
-    """A refusal `init`, `sync-cliproxy` or `shell-config` states in one sentence."""
+    """A refusal `init`, `sync-cliproxy`, `set-port` or `shell-config` states in one sentence."""
 
 
 def check_port(port, allow_zero=False):
@@ -305,13 +305,59 @@ def sync_cliproxy(data_dir):
     when either file is refused."""
     data_dir = os.path.abspath(data_dir)
     cliproxy = _settings(data_dir)["cliproxy"]
-    path = os.path.join(data_dir, "cliproxy", "config.yaml")
-    text, doc = _load(path, "server")
-    if not isinstance(doc.get("management", {}), dict):
-        raise InitError(f"{path} has no management mapping to edit")
+    path, doc = _cliproxy_doc(data_dir)
     doc.setdefault("server", {}).update({"host": "127.0.0.1", "port": cliproxy["port"]})
     doc.setdefault("management", {})["disable-control-panel"] = not cliproxy["panel"]
     _write(path, _dump(doc), 0o600)
+
+
+def _cliproxy_doc(data_dir):
+    """CLIProxyAPI's file and its document, refused as `sync_cliproxy` refuses it."""
+    path = os.path.join(data_dir, "cliproxy", "config.yaml")
+    _, doc = _load(path, "server")
+    if not isinstance(doc.get("management", {}), dict):
+        raise InitError(f"{path} has no management mapping to edit")
+    return path, doc
+
+
+def set_port(data_dir, core_port=None, cliproxy_port=None):
+    """The shell's way back to a port that worked, when a moved one did not come up:
+    `listen` becomes one address on the host it had, and `cliproxy.port` is written
+    with CLIProxyAPI's `server.port` in step. Every other key is kept as loaded, and
+    comments are dropped, as a settings write drops them. Both files are read before
+    either is written, so a refusal writes neither; `config.yaml` is written at its real
+    path, as a settings write does, so a link stays a link. What listens on the port is
+    not asked: the start that follows says."""
+    from . import config
+    data_dir = os.path.abspath(data_dir)
+    path = os.path.realpath(os.path.join(data_dir, "config.yaml"))
+    _, doc = _load(path, "cliproxy")
+    if core_port is not None:
+        try:
+            listen = config.parse_listen(doc.get("listen"))
+        except config.ConfigError as e:
+            raise InitError(f"{path}: {e}")
+        if len(listen) != 1:
+            raise InitError(f"{path} names several listen addresses; set the port there by hand")
+        doc["listen"] = [f"{listen[0].rpartition(':')[0]}:{check_port(core_port)}"]
+    if cliproxy_port is not None:
+        doc.setdefault("cliproxy", {})["port"] = check_port(cliproxy_port)
+        # CLIProxyAPI's file first: the start's sync-cliproxy brings it back in step
+        # with `config.yaml` if the second write fails.
+        cliproxy_path, cliproxy_doc = _cliproxy_doc(data_dir)
+        cliproxy_doc.setdefault("server", {}).update({"host": "127.0.0.1", "port": cliproxy_port})
+        try:
+            _write(cliproxy_path, _dump(cliproxy_doc), 0o600)
+        except OSError as e:
+            raise InitError(f"cannot write {cliproxy_path}: {e.strerror or e}; nothing changed")
+    try:
+        _write(path, _dump(doc), 0o600)
+    except OSError as e:
+        said = f"cannot write {path}: {e.strerror or e}"
+        if cliproxy_port is not None:
+            said += (f"; {cliproxy_path} already holds port {cliproxy_port}, and the next start "
+                     "puts it back in step with config.yaml")
+        raise InitError(said)
 
 
 def shell_config(data_dir):

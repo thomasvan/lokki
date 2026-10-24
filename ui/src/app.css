@@ -355,6 +355,7 @@ button.dest:focus-visible { box-shadow: var(--focus-ring); }
   border-radius: var(--r-lg); border: 1px solid;
 }
 .banner p { flex: 1 1 200px; min-width: 0; }
+.banner-text { flex: 1 1 200px; min-width: 0; display: grid; gap: var(--sp-1); }
 .banner-error { background: var(--error-soft); border-color: var(--error-line); color: var(--text); }
 .banner-error > .ic { color: var(--error-ink); }
 .banner-warning { background: var(--passing-soft); border-color: var(--passing-line); color: var(--text); }

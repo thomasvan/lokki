@@ -708,7 +708,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         body = self._read_json_body(capture=False)   # after the role check: a client token never reaches the parser
         try:
-            result = settings_api.put(body, config._settings.get("config_path"), os.environ)
+            result = settings_api.put(body, config._settings.get("config_path"), os.environ,
+                                      bound=BOUND_LISTEN or config.LISTEN)
         except settings_api.Refused as e:
             payload = error_object(e.message, status=e.status)
             payload["key"] = e.key

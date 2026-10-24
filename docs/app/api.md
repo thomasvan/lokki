@@ -56,8 +56,8 @@ written with, so Activity can show reasons older than this list.
 fields and, for the UI, `label`, `group` (one of `schema.GROUPS`) and
 `choice_labels` (choice → label). The `PUT` allow-list is `routing`,
 `low_quota.threshold_percent`, `low_quota.rule`, `low_quota.accounts`,
-`low_quota.models`, `low_quota.poll_seconds`, `cliproxy.url`, `cliproxy.port`, `cliproxy.panel`, loopback-only
-`listen`, and the relay settings `seg_budget`, `total_cap`, `max_segments`,
+`low_quota.models`, `low_quota.poll_seconds`, `cliproxy.url`, `cliproxy.port`, `cliproxy.panel`, `listen` on
+`127.0.0.1` or `localhost` (the core's listener is IPv4, so an IPv6 address is a 400), and the relay settings `seg_budget`, `total_cap`, `max_segments`,
 `tail_chars`, `merge_text`, `session_pin`, `text_calls`, `text_calls_pad`,
 `imagegen_cut`, `payload_cap`, `pacing_seconds`, `max_concurrent_upstream`,
 `retries` and `drain_seconds`.
@@ -71,7 +71,13 @@ out and writes the `routing` it chose. The
 `upstream` file key, or an existing `cliproxy.url` for a port update determines
 the upstream. Settings controlled by environment variables, a missing or
 unwritable settings file, a file that cannot load (with the loader's error), or
-a file with no usable client token are also refused with 409. Reload holds a
+a file with no usable client token are also refused with 409. A `listen` or
+`cliproxy.port` in the body is checked as the next start would use it: a port
+outside 1 to 65535, 1455 (the Codex login's callback), or the core and CLIProxyAPI
+on one port is 400; a port something accepts connections on at `127.0.0.1`, or one
+the core cannot bind on that address as its listener does (`SO_REUSEADDR` on POSIX,
+not on Windows), is 409 with the system's reason. A port the same service listens
+on now is not probed. Each refusal names its key and writes nothing. Reload holds a
 port-derived upstream at its running value and logs that hold.
 
 The Host/Origin guard checks every `/api/*` route and `/version`: Host must be a

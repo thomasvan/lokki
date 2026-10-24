@@ -734,7 +734,7 @@ def apply_settings(settings, reload=False):
 
     `reload` is true only from `reload_settings`: the import-time apply and
     `ensure_settings` are starts. It decides one thing, the upstream below."""
-    global UPSTREAM, API_KEY, LISTEN, RELAY_TOKEN, TOKENS, ROUTING, LOW_QUOTA, CLIPROXY, \
+    global UPSTREAM, API_KEY, LISTEN, RELAY_TOKEN, TOKENS, ROUTING, LOW_QUOTA, CLIPROXY, STARTED_CLIPROXY_PORT, \
         RETRIES, PACING, MAX_CONCURRENT, ALLOW_PUBLIC_BIND, ALLOW_CLIENT_TUNING, \
         CAPTURE_DIR, DEBUG_LOG, TAIL_CHARS, DRAIN, REJECT_PREVIOUS_RESPONSE_ID, \
         DEFAULT_SEG_BUDGET, DEFAULT_TOTAL_CAP, DEFAULT_MAX_SEGMENTS, DEFAULT_MERGE_TEXT, \
@@ -760,6 +760,10 @@ def apply_settings(settings, reload=False):
     ROUTING = settings.get("routing", schema.get("routing").default)
     LOW_QUOTA = dict(settings.get("low_quota") or _DEFAULT_SETTINGS["low_quota"])
     CLIPROXY = dict(settings.get("cliproxy") or _DEFAULT_SETTINGS["cliproxy"])
+    # The port the shell started CLIProxyAPI on: it reads the same file just before it
+    # starts the core, and a CLIProxyAPI restart restarts the core.
+    if not reload:
+        STARTED_CLIPROXY_PORT = CLIPROXY["port"]
     API_KEY = settings["api_key"]
     LISTEN = settings["listen"]
     RELAY_TOKEN = settings["token"]
@@ -920,6 +924,7 @@ ALLOW_CLIENT_TUNING = _settings["allow_client_tuning"]
 ROUTING = _settings["routing"]
 LOW_QUOTA = dict(_settings["low_quota"])
 CLIPROXY = dict(_settings["cliproxy"])
+STARTED_CLIPROXY_PORT = CLIPROXY["port"]
 
 # Resolve once at import so handlers and tests have values before main() runs. A
 # refusal here is *remembered* rather than raised: importing a module cannot be caught

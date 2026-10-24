@@ -12,6 +12,16 @@
   import Update from "./views/Update.svelte";
 
   let tab = $state<Tab>("home");
+
+  // The shell opens the window at ?moved_from=<port> when the core has come back on a new port. Clients keep the
+  // address they were given, so the note says where they must point now. A restart that went back for the other
+  // service while the core moved also gives the window its sentence, as window.lokki.wentBack: the window that asked
+  // is gone, so this one says it. Never from the URL, which any link can write. The query leaves the address bar at
+  // once, so a reload does not say it again.
+  const from = new URLSearchParams(location.search).get("moved_from");
+  let movedFrom = $state(from !== null && /^[1-9]\d{0,4}$/.test(from) && Number(from) <= 65535 ? from : null);
+  const wentBack = typeof window.lokki?.wentBack === "string" ? window.lokki.wentBack : null;
+  if (location.search) history.replaceState(history.state, "", location.pathname + location.hash);
   let typed = $state("");
   let checking = $state(false);
 
@@ -63,6 +73,17 @@
     <Nav {tab} ontab={enter} />
     <TopBar size={tab === "home" ? "full" : "compact"} />
     <main class="content">
+      {#if movedFrom}
+        <div class="banner banner-warning" role="status">
+          <Icon name="info" />
+          <div class="banner-text">
+            <p>Lokki now listens on port {location.port}, not {movedFrom}. Clients such as Codex CLI still use the old
+              address: set their base URL to <code>{location.origin}/v1</code>.</p>
+            {#if wentBack}<p>The restart also said: {wentBack}</p>{/if}
+          </div>
+          <button type="button" class="btn-sm" onclick={() => { movedFrom = null; }}>Dismiss</button>
+        </div>
+      {/if}
       {#if app.error && !asksForToken}
         <div class="banner banner-error" role="alert">
           <Icon name="error" />

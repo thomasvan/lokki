@@ -6,7 +6,7 @@ import { chmodSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Locator, Page, Route } from "@playwright/test";
 import { NO_SECRET, NO_SECRET_AUTO, UNWATCHED_MODES, UNWRITABLE, headline } from "../src/lib/mode.ts";
-import { test, expect } from "./core.ts";
+import { freePort, holdPort, test, expect } from "./core.ts";
 
 const CHECKOUT = resolve(import.meta.dirname, "..", "..");
 
@@ -499,7 +499,6 @@ test("the screenshots of Settings", async ({ page, core }) => {
     await expect(saveIn(name)).toHaveText("No changes");
     await expect(saveIn(name)).not.toHaveAttribute("aria-busy");
   }
-  const corePort = Number(new URL(core.url).port);
 
   await page.goto("/");
   await page.getByLabel("Operator token", { exact: true }).fill(core.token);
@@ -592,16 +591,28 @@ test("the screenshots of Settings", async ({ page, core }) => {
   await shoot("slider-refused");
   await page.unrouteAll({ behavior: "ignoreErrors" });
 
-  // real saves of Port, then Address; the shell's restart hook is defined so the notices carry their buttons.
+  // real: a port another program holds, refused beside Connection's Port.
+  const held = await holdPort();
+  try {
+    await open();
+    await region("Connection").getByLabel("Port", { exact: true }).fill(String(held.port));
+    await saveIn("Connection").click();
+    await expect(region("Connection").getByRole("alert")).toHaveText(`port ${held.port} is in use by another program; choose another port — listen`);
+    await shoot("port-refused");
+  } finally {
+    await held.close();
+  }
+
+  // real saves of CLIProxyAPI's Port, then the core's; the shell's restart hook is defined so the notices carry their buttons.
   await hook(page, "restart", "async () => {}");
   await open();
   await unfold();
-  await saved("CLIProxyAPI", "Port", String(core.fakePort + 1));
+  await saved("CLIProxyAPI", "Port", String(await freePort()));
   // The bar sits above the groups, outside the fold. (Settings.test.ts holds this placement; this shot only shows it.)
   await expect(page.locator(".groups > .restart")).toHaveCount(1);
   await expect(page.locator("details .restart")).toHaveCount(0);
   await shoot("restart-cliproxy");
-  await saved("Connection", "Address", `127.0.0.1:${corePort + 1}`);
+  await saved("Connection", "Port", String(await freePort()));
   await expect(page.getByText("Restart the core to apply")).toBeVisible();
   await shoot("restart-both");
 
@@ -613,13 +624,25 @@ test("the screenshots of Settings", async ({ page, core }) => {
     await page.getByRole("button", { name: "Restart CLIProxyAPI" }).click();
   };
   await hook(page, "restart", "() => new Promise(() => {})");
-  await restartFrom(core.fakePort + 2);
+  await restartFrom(await freePort());
   await expect(page.getByRole("button", { name: "Restarting…" })).toHaveAttribute("aria-busy", "true");
   await shoot("restarting");
   await hook(page, "restart", `async () => { throw new Error("CLIProxyAPI did not answer on its new port") }`);
-  await restartFrom(core.fakePort + 3);
+  await restartFrom(await freePort());
   await expect(page.getByText("could not restart CLIProxyAPI: CLIProxyAPI did not answer on its new port")).toBeVisible();
   await shoot("restart-failed");
+
+  // real: the window the shell opens on the core's new port, which tells the person that clients must follow. The
+  // file holds the port the core listens on, as it does after a move.
+  await put({ listen: [`127.0.0.1:${new URL(core.url).port}`] });
+  // The restart went back for CLIProxyAPI as the core moved, so the shell also gives the window what it said.
+  const said = "port 9481 is already in use by another program, so Lokki did not start CLIProxyAPI; CLIProxyAPI is back on port 9482";
+  await hook(page, "wentBack", JSON.stringify(said));
+  await page.goto("/?moved_from=8371");
+  await expect(page.getByText(`The restart also said: ${said}`)).toBeVisible();
+  await expect(page.getByText("Lokki now listens on port")).toBeVisible();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await shoot("moved");
 
   // patched: a Cutting field the environment sets, in the real answer.
   await patch(page, "/api/settings", (body) => ({ ...(body as object), env_overrides: ["seg_budget"] }));

@@ -6,8 +6,11 @@ write never races a reload. A refusal writes nothing. The file is written at its
 real path, so a symlink keeps its link, as UTF-8 and without comments; the schema
 carries every key's meaning. A value that would be written but would not decide
 the running one (an environment variable or another key wins) is refused, because
-the write would read as applied."""
+the write would read as applied. A port that changes is refused when its service
+could not listen on it at the next start, so a restart never stops a service it
+cannot start again."""
 import os
+import socket
 import tempfile
 import threading
 
@@ -15,9 +18,11 @@ import yaml
 
 from . import config, control, migrate, schema
 from .core import _text
+from .quota.oauth import CALLBACK_PORT
 
 LOCK = threading.RLock()
-_LOOPBACK = ("127.0.0.1", "localhost", "::1")
+# The core's listener is IPv4 (an AF_INET server), so an IPv6 loopback address never starts.
+_LOOPBACK = ("127.0.0.1", "localhost")
 
 
 class Refused(Exception):
@@ -50,9 +55,9 @@ def _check_listen(body):
         raise Refused(400, "listen must be a list of addresses", "listen")
     for addr in body.get("listen") or []:
         host = str(addr).rpartition(":")[0] if ":" in str(addr) else str(addr)
-        if host.strip("[]") not in _LOOPBACK:
-            raise Refused(400, "listen through the API takes loopback addresses only "
-                               "(127.0.0.1, localhost, ::1)", "listen")
+        if host not in _LOOPBACK:
+            raise Refused(400, "listen through the API takes an IPv4 loopback address, 127.0.0.1 "
+                               "or localhost: the core listens on IPv4 only", "listen")
 
 
 def _check_env(body, env):
@@ -83,6 +88,53 @@ def _check_upstream(body, loaded, env):
                                "same body to use cliproxy.port", name)
 
 
+def _port_of(addr):
+    return int(addr.rpartition(":")[2])
+
+
+def _unusable(host, port):
+    """Why the next start could not listen on `host:port`, or None. Asked as the start
+    asks it: the shell refuses a port that already accepts on 127.0.0.1, and the core
+    and CLIProxyAPI both bind with SO_REUSEADDR on POSIX and without it on Windows."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            return f"port {port} is in use by another program"
+    except OSError:
+        pass
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if os.name != "nt":
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind((host, port))
+            s.listen(1)
+        except OSError as e:
+            return f"Lokki cannot listen on {host}:{port}: {e.strerror or e}"
+    return None
+
+
+def _check_ports(body, resolved, bound):
+    """The core's port and CLIProxyAPI's, as the next start would use them. A port the
+    same service listens on now is not probed: it holds it."""
+    moved = []          # (key, host, port, the ports its service holds now)
+    if "listen" in body:
+        held = {_port_of(a) for a in bound}
+        moved += [("listen", a.rpartition(":")[0], _port_of(a), held) for a in resolved["listen"]]
+    if "port" in (body.get("cliproxy") or {}):
+        moved.append(("cliproxy.port", "127.0.0.1", resolved["cliproxy"]["port"], {config.STARTED_CLIPROXY_PORT}))
+    for key, _, port, _ in moved:
+        if not 1 <= port <= 65535:
+            raise Refused(400, f"a port is a whole number from 1 to 65535, not {port}", key)
+        if port == CALLBACK_PORT:
+            raise Refused(400, f"port {port} is where a Codex login returns to; choose another port", key)
+    shared = resolved["cliproxy"]["port"]
+    if moved and shared in {_port_of(a) for a in resolved["listen"]}:
+        raise Refused(400, f"the core and CLIProxyAPI cannot both use port {shared}; choose another port", moved[0][0])
+    for key, host, port, held in moved:
+        why = None if port in held else _unusable(host, port)
+        if why:
+            raise Refused(409, f"{why}; choose another port", key)
+
+
 def _merge(base, body):
     out = dict(base)
     for k, v in body.items():
@@ -97,7 +149,8 @@ def _writable(real):
     return os.access(real, os.W_OK) and os.access(os.path.dirname(real), os.W_OK)
 
 
-def put(body, path, env):
+def put(body, path, env, bound=()):
+    """`bound`: the addresses this process listens on."""
     if not isinstance(body, dict) or not body:
         raise Refused(400, "the body must be a JSON object with at least one key")
     _check_writable_keys(body)
@@ -128,6 +181,7 @@ def put(body, path, env):
             # The reload below would refuse it and leave the file written but not applied.
             raise Refused(409, "the settings file names no client token; the reload would "
                                "refuse it, so nothing is written")
+        _check_ports(body, resolved, bound)
         fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".config.", suffix=".yaml")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:

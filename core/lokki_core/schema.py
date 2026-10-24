@@ -27,12 +27,12 @@ class Field:
     choice_labels: tuple = ()  # (choice, label) pairs in `choices` order
 
 
-GROUPS = ("saving", "connection", "cliproxy", "tuning.cutting", "tuning.tool_calls",
+GROUPS = ("saving", "connection", "address", "cliproxy", "tuning.cutting", "tuning.tool_calls",
           "tuning.traffic", "tuning.quota_reading", "file", "hidden")
 
 
 FIELDS = (
-    Field("listen", "list", list(core._DEFAULT_LISTEN), "addresses the core listens on; every one is required (a bind failure refuses start); a wildcard needs allow_public_bind; the app writes one loopback address", env="RELAY_LISTEN", startup_only=True, label="Address", group="connection"),
+    Field("listen", "list", list(core._DEFAULT_LISTEN), "addresses the core listens on; every one is required (a bind failure refuses start); a wildcard needs allow_public_bind; the app writes one loopback address", env="RELAY_LISTEN", startup_only=True, label="Address", group="address"),
     Field("auth.tokens", "list", [], "client and operator tokens: [{name, token, operator}]", env="RELAY_TOKENS", writable=False, secret=True, label="Tokens", group="hidden"),
     Field("auth.token", "str", "", "the legacy single operator token", env="RELAY_TOKEN", writable=False, secret=True, label="Operator token", group="hidden"),
     Field("cli_proxy_api_key", "str", "", "the key CLIProxyAPI accepts from the core", setting="api_key", env="CLI_PROXY_API_KEY", writable=False, secret=True, label="CLIProxyAPI key", group="file"),

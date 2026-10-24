@@ -209,6 +209,115 @@ class InitTests(unittest.TestCase):
         init.sync_cliproxy(self.dir)
         self.assertEqual(_read(out["cliproxy_config"]), before)
 
+    def test_set_port_puts_one_port_back_and_keeps_the_rest(self):
+        """The shell's way back from a port that did not come up writes that port alone:
+        `listen` on the host it had, or `cliproxy.port` with CLIProxyAPI's `server.port`."""
+        # (flag, value, the core file it writes from the one it read, CLIProxyAPI's port moves)
+        rows = [("--core-port", 9124, lambda doc: doc | {"listen": ["localhost:9124"]}, False),
+                ("--cliproxy-port", 9125, lambda doc: doc | {"cliproxy": doc["cliproxy"] | {"port": 9125}}, True)]
+        for flag, value, written, moves in rows:
+            with self.subTest(flag):
+                shutil.rmtree(self.dir, ignore_errors=True)
+                out = init.run(self.dir, core_port=0, cliproxy_port=0)
+                doc = _load(out["core_config"])
+                doc["listen"] = [f"localhost:{out['core_port']}"]
+                with open(out["core_config"], "w", encoding="utf-8") as f:
+                    f.write(yaml.safe_dump(doc, sort_keys=False))
+                cliproxy_before = _load(out["cliproxy_config"])
+                run = subprocess.run([sys.executable, "-m", "lokki_core", "set-port", "--data-dir", self.dir,
+                                      flag, str(value)], capture_output=True, text=True, timeout=30, cwd=HERE)
+                self.assertEqual((run.returncode, run.stdout), (0, ""), run.stderr)
+                self.assertEqual(_load(out["core_config"]), written(doc))
+                cliproxy_after = _load(out["cliproxy_config"])
+                server = dict(cliproxy_before["server"], port=value) if moves else cliproxy_before["server"]
+                self.assertEqual(cliproxy_after, dict(cliproxy_before, server=server))
+
+    def test_set_port_refuses_what_it_cannot_write_and_changes_nothing(self):
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        doc = _load(out["core_config"])
+        doc["listen"] = ["127.0.0.1:9126", "127.0.0.1:9127"]
+        with open(out["core_config"], "w", encoding="utf-8") as f:
+            f.write(yaml.safe_dump(doc, sort_keys=False))
+        before = self._snapshot()
+        # (arguments, exit status, what stderr says)
+        rows = [(["--core-port", "9128"], 1, "several listen addresses"),
+                ([], 2, "needs --core-port or --cliproxy-port"),
+                (["--core-port", "0"], 2, "port must be"),
+                (["--cliproxy-port", "70000"], 2, "port must be")]
+        for args, code, said in rows:
+            run = subprocess.run([sys.executable, "-m", "lokki_core", "set-port", "--data-dir", self.dir, *args],
+                                 capture_output=True, text=True, timeout=30, cwd=HERE)
+            self.assertEqual(run.returncode, code, (args, run.stderr))
+            self.assertIn(said, run.stderr)
+            self.assertNotIn("Traceback", run.stderr)
+            self.assertEqual(self._snapshot(), before, args)
+
+    def _set_port(self, *args):
+        return subprocess.run([sys.executable, "-m", "lokki_core", "set-port", "--data-dir", self.dir, *args],
+                              capture_output=True, text=True, timeout=30, cwd=HERE)
+
+    def test_set_port_writes_neither_file_when_cliproxys_cannot_be_read(self):
+        """The way back moves both files or neither: a half-write would leave the core's port
+        back and the shell saying it is not."""
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        with open(out["cliproxy_config"], "w", encoding="utf-8") as f:
+            f.write("server: [unclosed\n")
+        before = self._snapshot()
+        run = self._set_port("--cliproxy-port", "9129")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertIn("cannot read", run.stderr)
+        self.assertEqual(self._snapshot(), before)
+
+    @unittest.skipIf(os.name == "nt", "a read-only directory: Windows lets its files be replaced")
+    def test_set_port_that_cannot_write_says_so_in_one_sentence_and_what_is_on_disk(self):
+        """A write that fails after CLIProxyAPI's file was written leaves that file on the new
+        port; the next start's sync-cliproxy brings it back in step with config.yaml."""
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        core_before = _read(out["core_config"])
+        os.chmod(self.dir, 0o500)
+        self.addCleanup(os.chmod, self.dir, 0o700)
+        if os.access(self.dir, os.W_OK):
+            self.skipTest("this user can write a read-only directory (root)")
+        run = self._set_port("--cliproxy-port", "9131")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
+        self.assertEqual(len(run.stderr.strip().splitlines()), 1, run.stderr)
+        self.assertIn(f"cannot write {out['core_config']}", run.stderr)
+        self.assertIn("the next start puts it back in step", run.stderr)
+        self.assertEqual(_read(out["core_config"]), core_before)
+        self.assertEqual(_load(out["cliproxy_config"])["server"]["port"], 9131)
+
+    @unittest.skipIf(os.name == "nt", "a read-only directory: Windows lets its files be replaced")
+    def test_set_port_that_cannot_write_cliproxys_file_changes_nothing(self):
+        """CLIProxyAPI's file is written first and replaced whole, so a failure there leaves
+        both files as they were."""
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        before = self._snapshot()
+        cliproxy_dir = os.path.dirname(out["cliproxy_config"])
+        os.chmod(cliproxy_dir, 0o500)
+        self.addCleanup(os.chmod, cliproxy_dir, 0o700)
+        if os.access(cliproxy_dir, os.W_OK):
+            self.skipTest("this user can write a read-only directory (root)")
+        run = self._set_port("--cliproxy-port", "9132")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
+        self.assertEqual(run.stderr.strip().splitlines(),
+                         [f"lokki_core: cannot write {out['cliproxy_config']}: Permission denied; nothing changed"])
+        self.assertEqual(self._snapshot(), before)
+
+    def test_set_port_writes_through_a_symlinked_config_as_save_does(self):
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        real = os.path.join(os.path.dirname(self.dir), "elsewhere.yaml")
+        shutil.move(out["core_config"], real)
+        try:
+            os.symlink(real, out["core_config"])
+        except (OSError, NotImplementedError):
+            self.skipTest("creating a symlink needs a privilege this user lacks (Windows without developer mode)")
+        run = self._set_port("--core-port", "9130")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertTrue(os.path.islink(out["core_config"]))
+        self.assertEqual(_load(real)["listen"], ["127.0.0.1:9130"])
+
     def test_the_cli_runs_init_and_prints_the_ports(self):
         out = subprocess.run([sys.executable, "-m", "lokki_core", "init", "--data-dir", self.dir,
                               "--core-port", "0", "--cliproxy-port", "0"],

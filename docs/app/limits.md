@@ -240,6 +240,70 @@ never sends one, and reading a chunked body would mean parsing one from a client
 has not proved a token. Ordinary clients send the head and the body together, with a
 `Content-Length`.
 
+## Changing a port
+
+Ports were changed on two built apps on 2026-10-24, an M4 Mac mini, macOS 27.0.1, and
+a Windows 11 PC, each from the build of a5a05a9 (app run 40090522435, which built the
+pull request's merge commit). The refusal at Save is also tested in the core suite on
+Linux, macOS and Windows, with ports the system picks; the way back is also tested in
+the shell's Rust tests, against a fake that records each stop, start and write.
+
+Measured, through `PUT /api/settings` with the operator token, with the same answer on
+both systems: a `listen` on port 1455, on CLIProxyAPI's port, on 70000, on 0 or on
+`[::1]`, and a `cliproxy.port` on the core's port, were refused with a 400; either port
+on a port a plain listener held was refused with a 409; each refusal named its key. The
+port each service already held was accepted, and the files were unchanged afterwards.
+
+Then the person, in Settings on each system, moved the core's port; moved it again, to
+a port a script took once `config.yaml` held it and before the restart; moved
+CLIProxyAPI's port; and moved it again, to a port taken the same way. The person
+reported that both systems behaved as expected and that the app was still open
+afterwards; the report did not go through the steps one by one.
+
+Measured, from the two configuration files, the listeners and `app.log` on each system:
+
+- The first move: the core stopped, drained, and was ready on the new port, with
+  nothing left on the old one.
+- The second: the start on the taken port was refused, `config.yaml` held the previous
+  port again, and the core was ready on it. `app.log` had the go-back sentence, ending
+  "the core is back on port 9472".
+- The third: both stopped, drained, and started with CLIProxyAPI on its new port.
+- The fourth: as the second, for CLIProxyAPI; both files held its previous port again,
+  and `app.log` ended "CLIProxyAPI is back on port 9474".
+- At the end, the core listened on its moved port and CLIProxyAPI on its, `/healthz`
+  answered 200, and every stop had logged `drained=true killed=false`.
+
+The two systems name the holder of a taken port differently: macOS names the program,
+with its path and pid; Windows says "another program". A CLIProxyAPI go-back starts the
+core once without CLIProxyAPI, since the core starts even when CLIProxyAPI did not; the
+go-back then stops it and starts both, which added about 7 s on macOS and 4 s on Windows
+before ready.
+
+Not tried on a built app:
+
+- the page shown when the go-back itself fails;
+- a CLIProxyAPI restart while the core's port had also moved;
+- `set-port` failing on a file it cannot write;
+- a port taken by a process that is not a plain listener;
+- an Intel Mac, Linux, and the MSI installer;
+- a client such as Codex CLI following the note;
+- exchanging the two ports in one save.
+
+The check at Save is a probe at that moment. A port another program takes between
+Save and the restart is found only by the start, and Lokki then goes back. A start
+that does not answer on its new port within 30 s counts as the port failing, so a
+slow start on a free port also goes back. Exchanging the two ports in one save is
+refused: each port is held by the other service until the restart.
+
+A saved CLIProxyAPI port waits for CLIProxyAPI's restart. A restart of the core alone
+before it reads that port as CLIProxyAPI's: the core then calls a port nothing listens
+on, Settings takes that port as the one CLIProxyAPI holds and does not probe it, and
+saving the old port back is refused as in use. CLIProxyAPI's restart, still offered,
+starts both on the saved ports and ends it.
+
+The note that clients must follow shows in the window that moved, once. Nothing
+tells a client, and nothing records the old port once the note is dismissed.
+
 ## What the app still calls lokki
 
 The product is named Lokki wherever the app's own text names it: the window and error page titles, the dialogs,

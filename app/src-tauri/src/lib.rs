@@ -5,6 +5,7 @@ mod commands;
 mod errorpage;
 mod leftover;
 mod process;
+mod restart;
 mod sidecars;
 mod tray;
 pub mod update;
@@ -15,7 +16,7 @@ use lokki_logic::firstrun::{self, Config};
 use lokki_logic::tray::{view, writes, Mode};
 use lokki_logic::{paths, sidecar_files, Result};
 use sidecars::{AppLog, Context, CoreHttp, RealClock, Service, Sidecars, GONE_WAIT};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
@@ -180,7 +181,7 @@ impl Shell {
         }
         self.report_started(&side, &conf);
         drop(side);
-        self.open_window(&conf).map_err(|e| Failure {
+        self.open_window(&conf, None).map_err(|e| Failure {
             title: "Lokki could not open its window".into(),
             what: e,
             name: "start".into(),
@@ -222,21 +223,31 @@ impl Shell {
     }
 
     /// Grants the core's origin and opens the main window on it, unless one is open there.
-    fn open_window(self: &Arc<Self>, conf: &Config) -> Result<()> {
+    /// A window that moves from another port tells its page which, and `went_back`, the
+    /// restart's answer, which the window that asked does not live to show.
+    fn open_window(self: &Arc<Self>, conf: &Config, went_back: Option<&str>) -> Result<()> {
         let mut window_port = self.window_port.lock().unwrap();
         if *window_port == Some(conf.core_port) {
             return Ok(());
         }
+        let moved_from = *window_port;
         if self.granted.lock().unwrap().insert(conf.core_port) {
             capability::grant_main(&self.app, conf.core_port, self.smoke)
                 .map_err(|e| format!("the window's grant was refused: {e}"))?;
         }
         let shell = Arc::clone(self);
-        window::open_main(&self.app, conf.core_port, &conf.operator_token, move |w| {
-            if shell.smoke && !shell.smoke_page_run.swap(true, Ordering::SeqCst) {
-                let _ = w.eval(SMOKE_PAGE);
-            }
-        })
+        window::open_main(
+            &self.app,
+            conf.core_port,
+            moved_from,
+            went_back,
+            &conf.operator_token,
+            move |w| {
+                if shell.smoke && !shell.smoke_page_run.swap(true, Ordering::SeqCst) {
+                    let _ = w.eval(SMOKE_PAGE);
+                }
+            },
+        )
         .map_err(|e| format!("the window did not open: {e}"))?;
         *window_port = Some(conf.core_port);
         Ok(())
@@ -256,7 +267,8 @@ impl Shell {
 
     /// The core is drained and stopped and started again. `Cliproxy` also stops CLIProxyAPI
     /// after the core and starts it before, since the core reads CLIProxyAPI's address only
-    /// at start. Returns once what was started is ready.
+    /// at start. Returns once what was started is ready. A moved port that does not come up
+    /// is put back and started again (`restart::restart`); the rejection says both.
     fn restart(self: &Arc<Self>, service: Service) -> Result<()> {
         let mut side = self.side();
         if self.quitting.load(Ordering::SeqCst) {
@@ -269,23 +281,35 @@ impl Shell {
         self.cx
             .log
             .line(format_args!("restart of {} asked", service.name()));
-        side.stop(&self.cx, &conf, &conf.operator_token, Service::Core);
-        if service == Service::Cliproxy {
-            side.stop(&self.cx, &conf, &conf.operator_token, Service::Cliproxy);
-        }
-        let conf = self.reread_conf(conf);
-        let cliproxy = match service {
-            Service::Cliproxy => side.start(&self.cx, &conf, Service::Cliproxy, true),
-            Service::Core => Ok(()),
-        };
-        // The core starts even when CLIProxyAPI did not: it serves the UI that says so.
-        let started = cliproxy.and(side.start(&self.cx, &conf, Service::Core, true));
-        if started.is_ok() {
-            self.report_started(&side, &conf);
+        let outcome = restart::restart(
+            &mut Live {
+                shell: self,
+                side: &mut side,
+            },
+            &conf,
+            service,
+        );
+        let done = outcome.finish();
+        if let Some((conf, _)) = &done.window {
+            self.report_started(&side, conf);
         }
         drop(side);
-        started?;
-        self.open_window(&conf)
+        if let (Some((service, port)), Err(sentence)) = (done.stuck, &done.answer) {
+            let tail = self.log_tail(service);
+            self.show_error(stuck_page(&self.cx.dir, service, port, sentence, tail));
+        }
+        if let Some((conf, said)) = &done.window {
+            if let Some(said) = said {
+                self.cx.log.line(format_args!("went back: {said}"));
+            }
+            if let Err(e) = self.open_window(conf, said.as_deref()) {
+                return Err(match done.answer {
+                    Ok(()) => e,
+                    Err(sentence) => format!("{sentence}; {e}"),
+                });
+            }
+        }
+        done.answer
     }
 
     /// The error page's button: a sidecar that gave up gets one start more, with its count
@@ -497,6 +521,28 @@ impl Shell {
     }
 }
 
+/// A restart's work on the running shell.
+struct Live<'a> {
+    shell: &'a Shell,
+    side: &'a mut Sidecars,
+}
+
+impl restart::Ops for Live<'_> {
+    fn stop(&mut self, conf: &Config, service: Service) {
+        self.side
+            .stop(&self.shell.cx, conf, &conf.operator_token, service);
+    }
+    fn reread(&mut self, before: &Config) -> Config {
+        self.shell.reread_conf(before.clone())
+    }
+    fn start(&mut self, conf: &Config, service: Service) -> Result<()> {
+        self.side.start(&self.shell.cx, conf, service, true)
+    }
+    fn set_port(&mut self, service: Service, port: u16) -> Result<()> {
+        sidecars::set_port(&self.shell.cx.dir, service, port, &self.shell.cx.log)
+    }
+}
+
 /// Set by SIGTERM, SIGINT or SIGHUP. The sidecars run in process groups of their own, so a
 /// signal to the shell reaches neither: the monitor turns it into the stop sequence.
 static TERMINATE: AtomicBool = AtomicBool::new(false);
@@ -510,6 +556,27 @@ fn on_termination_signals() {
         unsafe {
             libc::signal(signal, flag as *const () as libc::sighandler_t);
         }
+    }
+}
+
+/// The page for a way back that failed: the port to put back by hand, with nothing else in
+/// the file changed, and a Try again that starts both sidecars from the file.
+fn stuck_page(dir: &Path, service: Service, port: u16, sentence: &str, tail: String) -> Failure {
+    let change = match service {
+        Service::Core => {
+            format!("under listen, change the port back to {port} and leave every host as it is")
+        }
+        Service::Cliproxy => format!("under cliproxy, change port back to {port}"),
+    };
+    Failure {
+        title: "Lokki could not go back to its previous port".into(),
+        what: format!(
+            "{sentence}. In {}, {change}, then press Try again. The last lines of logs/{}.log:",
+            dir.join("config.yaml").display(),
+            service.name()
+        ),
+        name: "start".into(),
+        tail,
     }
 }
 
@@ -663,6 +730,50 @@ pub fn run() {
         RunEvent::Exit => app.state::<Arc<Shell>>().stop_all(),
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_stuck_page_names_only_the_port_to_put_back() {
+        let dir = Path::new("/data");
+        let file = dir.join("config.yaml");
+        // (service, what it says to change, the log it shows)
+        let rows = [
+            (
+                Service::Core,
+                "under listen, change the port back to 1001 and leave every host as it is",
+                "core",
+            ),
+            (
+                Service::Cliproxy,
+                "under cliproxy, change port back to 2001",
+                "cliproxy",
+            ),
+        ];
+        for (service, change, log) in rows {
+            let port = service.port(&Config {
+                core_port: 1001,
+                cliproxy_port: 2001,
+                operator_token: String::new(),
+                management_secret_file: PathBuf::new(),
+                panel: false,
+            });
+            let page = stuck_page(dir, service, port, "it failed", "tail".into());
+            assert_eq!(
+                page.what,
+                format!(
+                    "it failed. In {}, {change}, then press Try again. \
+                     The last lines of logs/{log}.log:",
+                    file.display()
+                ),
+                "{service:?}"
+            );
+            assert_eq!(page.name, "start", "Try again starts both from the file");
+        }
+    }
 }
 
 /// Test doubles shared by the modules' tests.
