@@ -481,6 +481,68 @@ Not tried: an update from one release to the next on macOS (the Intel hand test 
 updated its own test builds) or on Linux, an update through the MSI, and an update while
 a client was streaming through the core.
 
+### The in-app update from 0.1.0 to 0.1.1 on macOS
+
+On 2026-10-24 an M4 Mac mini, macOS 27.0.1, was updated from 0.1.0 to 0.1.1 from inside
+lokki, through the same release `v0.1.1` and its arm64 builds. It is the first macOS
+update from one release to the next. The times are UTC, from the Mac's clock. The real
+install and its data had been moved aside and were put back after, so 0.1.0 ran on a new
+default data directory.
+
+Before the update, 0.1.0 was installed by the signer's script over ssh, not by the person
+at the Mac. The browser-download path with Open Anyway was therefore not part of this
+run; the Intel hand test above covered it with its own builds. Measured: the release's
+`lokki_0.1.0_aarch64.dmg` had SHA-256
+`40eac00e8d289c4c9640ff80833812f8a3d5f7ce5bc164df3b3a5d9eb8c6debb`, the asset's digest;
+`lokki.app` was copied from the attached image with `ditto` into `/Applications`, passed
+`codesign --verify --deep --strict`, and carried no `com.apple.quarantine` anywhere in
+the bundle. `latest.json` has `darwin-aarch64` pointing at
+`lokki_0.1.1_aarch64.app.tar.gz` (SHA-256
+`8719b24424280523ed1d421215c1ce90153841ce2e692f8c258755ad44edb77d`, the asset's digest),
+and its signature equals the release's `.sig` file. That package was extracted beside the
+install for the comparison below. Measured from `app.log` and process listings:
+
+- 03:32:26 0.1.0 was opened with `open /Applications/lokki.app` through LaunchServices,
+  with no environment passed.
+- 03:32:44 `ready: core on port 8381 pid 47649, cliproxy on port 8317 pid 47648`, the
+  core's bootloader with its child 47650 on `127.0.0.1:8381` and CLIProxyAPI on
+  `127.0.0.1:8317`, all from `/Applications/lokki.app`.
+- 03:37:05 `update install asked`.
+- 03:37:11 `core stopped, pid 47649: drained=true killed=false`, `cliproxy stopped, pid
+  47648: drained=true killed=false`, and `update installed; restarting`.
+- 03:37:12 a new shell, pid 54444, parent pid 1, from
+  `/Applications/lokki.app/Contents/MacOS/lokki`.
+- 03:37:15 to 03:37:19 three short-lived `lokki-core-0_1_1` children of it, each with a
+  child of its own, and `app.log` has `lokki-core init: already initialised … nothing
+  changed` at 03:37:15.
+- 03:37:24 `ready: core on port 8381 pid 54772, cliproxy on port 8317 pid 54771`, 19 s
+  after the ask, on the new shell.
+- At 03:37:30 the processes were the shell 54444, CLIProxyAPI 54771 on `127.0.0.1:8317`
+  and the core 54772 with its child 54773 on `127.0.0.1:8381`. No 0.1.0 process was
+  left, and `GET /healthz` on 8381 answered 200. `core.log` has
+  `revision=e9767aee6fdf65f357942b38987dffe578a35da3`, the tag's commit. `app.log` has no
+  error line.
+- The bundle read version 0.1.1, and `diff -rq` against the extracted
+  `lokki_0.1.1_aarch64.app.tar.gz` showed no difference. It passed `codesign --verify
+  --deep --strict` with `Identifier=dev.lokki.desktop` and `Signature=adhoc`; `lokki`,
+  `lokki-core-0_1_1` and `cliproxy-8_0_23` each verified with an ad hoc signature. It
+  held no quarantine entry.
+- At 03:41:11 the script sent SIGTERM to the shell: `app.log` has `quitting`, and both
+  sidecars stopped with `drained=true killed=false`; no lokki process ran at 03:41:12.
+
+What the person at the Mac reported: no dialog of any kind appeared during the update (no
+password, no Gatekeeper prompt), and after the relaunch lokki showed version 0.1.1.
+
+What is inferred:
+
+- The three short-lived `lokki-core-0_1_1` children were the shell's core subcommands, as
+  on Windows.
+- The new shell's parent pid of 1 shows only that its parent has ended or was launchd.
+
+Not tried: a 0.1.0 installed through a browser download, with quarantine and Open
+Anyway, then updated; an update while a client streams through the core; the x86_64
+package.
+
 ## The leftover hand test on an M4 Mac mini
 
 On 2026-10-23 two builds were run by hand on an M4 Mac mini, macOS 27.0.1, on a new
