@@ -75,11 +75,11 @@ impl Policy {
         match os {
             Os::Windows => yes,
             Os::Linux if env("APPIMAGE").is_some() => yes,
-            Os::Linux => no("this lokki is not an AppImage; the updater replaces AppImages only, so download the new package"),
-            Os::Macos if mac.app.is_none() => no("this lokki is not running from lokki.app, so it cannot replace itself; download the new .dmg"),
-            Os::Macos if mac.translocated => no("macOS is running lokki from a temporary copy, which cannot be updated: quit lokki, move lokki.app into Applications with Finder, open it from there, then install"),
-            Os::Macos if mac.read_only => no("lokki is running from a read-only disk, such as its disk image: move lokki.app into Applications, open it from there, then install"),
-            Os::Macos if !mac.writable => no("your macOS user cannot change lokki.app or the folder it is in, and lokki does not ask for an administrator's password; download the new .dmg, or move lokki.app to a folder you can write to"),
+            Os::Linux => no("this Lokki is not an AppImage; the updater replaces AppImages only, so download the new package"),
+            Os::Macos if mac.app.is_none() => no("this Lokki is not running from lokki.app, so it cannot replace itself; download the new .dmg"),
+            Os::Macos if mac.translocated => no("macOS is running Lokki from a temporary copy, which cannot be updated: quit Lokki, move lokki.app into Applications with Finder, open it from there, then install"),
+            Os::Macos if mac.read_only => no("Lokki is running from a read-only disk, such as its disk image: move lokki.app into Applications, open it from there, then install"),
+            Os::Macos if !mac.writable => no("your macOS user cannot change lokki.app or the folder it is in, and Lokki does not ask for an administrator's password; download the new .dmg, or move lokki.app to a folder you can write to"),
             Os::Macos => yes,
         }
     }
@@ -516,7 +516,7 @@ mod tests {
     fn downloads_only() -> Policy {
         Policy {
             can_install: false,
-            reason: Some("this lokki is not an AppImage".into()),
+            reason: Some("this Lokki is not an AppImage".into()),
         }
     }
     fn machine(source: FakeSource, policy: Policy) -> Machine<FakeSource, FakeClock> {
@@ -607,10 +607,10 @@ mod tests {
     #[test]
     fn the_policy_decides_can_install() {
         // The reasons a user reads, word for word (spec 7.4).
-        const NO_APP: &str = "this lokki is not running from lokki.app, so it cannot replace itself; download the new .dmg";
-        const TRANSLOCATED: &str = "macOS is running lokki from a temporary copy, which cannot be updated: quit lokki, move lokki.app into Applications with Finder, open it from there, then install";
-        const READ_ONLY: &str = "lokki is running from a read-only disk, such as its disk image: move lokki.app into Applications, open it from there, then install";
-        const NOT_WRITABLE: &str = "your macOS user cannot change lokki.app or the folder it is in, and lokki does not ask for an administrator's password; download the new .dmg, or move lokki.app to a folder you can write to";
+        const NO_APP: &str = "this Lokki is not running from lokki.app, so it cannot replace itself; download the new .dmg";
+        const TRANSLOCATED: &str = "macOS is running Lokki from a temporary copy, which cannot be updated: quit Lokki, move lokki.app into Applications with Finder, open it from there, then install";
+        const READ_ONLY: &str = "Lokki is running from a read-only disk, such as its disk image: move lokki.app into Applications, open it from there, then install";
+        const NOT_WRITABLE: &str = "your macOS user cannot change lokki.app or the folder it is in, and Lokki does not ask for an administrator's password; download the new .dmg, or move lokki.app to a folder you can write to";
         let app = Some(std::path::PathBuf::from("/Applications/lokki.app"));
         let writable = MacBundle {
             app: app.clone(),
@@ -634,7 +634,7 @@ mod tests {
                 false,
                 writable.clone(),
                 false,
-                Some("this lokki is not an AppImage; the updater replaces AppImages only, so download the new package"),
+                Some("this Lokki is not an AppImage; the updater replaces AppImages only, so download the new package"),
             ),
             ("Windows", Os::Windows, false, no_app.clone(), true, None),
             ("macOS, no app", Os::Macos, false, no_app.clone(), false, Some(NO_APP)),

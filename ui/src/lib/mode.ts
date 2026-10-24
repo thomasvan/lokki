@@ -8,7 +8,7 @@ export type Routing = "relay" | "auto" | "direct";
 export const MODES: ReadonlyArray<{ mode: Routing; label: string; sentence: string }> = [
   { mode: "direct", label: "Direct", sentence: "Every request goes to CLIProxyAPI untouched, at full price." },
   { mode: "auto", label: "Auto", sentence: "Cut when the watched accounts run low; otherwise pass through at full price." },
-  { mode: "relay", label: "Relay", sentence: "Every request is cut: lokki ends the answer early so it costs less." },
+  { mode: "relay", label: "Relay", sentence: "Every request is cut: Lokki ends the answer early so it costs less." },
 ];
 
 // A choice writes the mode alone, so Auto returns to the threshold the file holds.
@@ -72,7 +72,7 @@ export const headline = (relayOn: boolean) => (relayOn ? "Cutting every request"
 
 export const MODELS_NONE = "Nothing is picked yet, so every model is still cut when low";
 export const MODELS_LEVEL = "A model at any thinking level, such as gpt-5.5(high), counts as gpt-5.5.";
-export const NO_SECRET = "lokki does not read the quota here: no management secret file is set";
+export const NO_SECRET = "Lokki does not read the quota here: no management secret file is set";
 export const NO_SECRET_AUTO = "; Auto passes every request through at full price";
 export const READ_FAILED_AUTO = "; Auto counts an account it cannot read as not low, and passes requests through at full price for it";
 export const UNWATCHED_MODES = "Auto watches accounts; choose Auto to pick them";

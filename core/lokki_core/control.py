@@ -160,7 +160,7 @@ def oauth_start():
 # What the paste route answers for each `hand_on` result; ACCEPTED is its 200.
 _GONE = "this login is no longer waiting; start again"
 _HANDED_ON = {"not waiting": (409, _GONE), "another login": (409, _GONE),
-              "already answered": (409, "lokki already has this login's answer; wait for it to finish"),
+              "already answered": (409, "Lokki already has this login's answer; wait for it to finish"),
               "expired": (409, "this login expired; start again"),
               "refused": (409, "CLIProxyAPI did not take this login; start again"),
               "unreachable": (502, "CLIProxyAPI did not take this login")}

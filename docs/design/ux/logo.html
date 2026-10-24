@@ -118,15 +118,10 @@ svg { display: block; }
 .ai-512 { width: 512px; max-width: 100%; height: auto; aspect-ratio: 1; }
 .ai-shadow { filter: drop-shadow(0 6px 10px oklch(0.2 0.03 238 / 0.22)); }
 
-.wm { display: flex; align-items: center; color: var(--text); font-family: var(--font-ui); font-weight: 600; line-height: 1; }
-.wm svg { color: var(--accent); flex: none; }
-.wm-xl { font-size: 64px; letter-spacing: -0.035em; gap: 16px; }
-.wm-xl svg { width: 84px; height: 84px; margin: -10px -2px -10px -8px; }
-.wm-md { font-size: 28px; letter-spacing: -0.025em; gap: 8px; }
-.wm-md svg { width: 38px; height: 38px; margin: -4px -1px -4px -4px; }
-.wm-sm { font-size: 15px; letter-spacing: -0.01em; gap: 5px; }
-.wm-sm svg { width: 22px; height: 22px; margin: -3px 0 -3px -3px; }
-.wm .kk { letter-spacing: -0.06em; }
+/* the wordmark is drawn, so it needs no font: --s is the em the text wordmark would be set at, and the drawing is 0.8 em tall */
+.wm { display: flex; align-items: center; color: var(--text); gap: calc(var(--s) * 8 / 15); }
+.wm .mk { width: calc(var(--s) * 26 / 15); height: calc(var(--s) * 26 / 15); color: var(--accent); flex: none; }
+.wm .wd { display: block; height: calc(var(--s) * 0.8); width: auto; overflow: visible; }
 .wm-stack { display: grid; gap: var(--sp-6); padding: var(--sp-4) var(--sp-2); }
 
 .strip { display: flex; align-items: center; justify-content: flex-end; gap: 14px; height: 24px; padding: 0 12px; border-radius: var(--r-sm); font: 13px/1 var(--font-ui); }
@@ -164,6 +159,19 @@ svg { display: block; }
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <!-- the mark: two crescent wings that meet in a short point of body -->
+    <!-- The wordmark "Lokki", direction B of wordmark.html, on a 100-unit em: the dot of the i is the gull at 64 px and up, its 16 px drawing from 28 px, a plain dot below. Its home is ui/src/components/Wordmark.svelte. -->
+    <symbol id="wm-b64" viewBox="0 -6 212 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path style="fill:var(--accent)" transform="translate(188.5 16) scale(.78) translate(-32 -42)" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/>
+    </symbol>
+    <symbol id="wm-b28" viewBox="0 -6 212 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path style="fill:var(--accent)" transform="translate(188.5 16.5) scale(2.7) translate(-8 -13)" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/>
+    </symbol>
+    <symbol id="wm-b15" viewBox="0 -6 196 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path style="fill:var(--accent)" d="M181 7.5a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0Z"/>
+    </symbol>
     <symbol id="dir-a" viewBox="0 0 64 64"><path fill="currentColor" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
     <!-- tray template forms, built on the 16 px grid -->
     <symbol id="tray-solid" viewBox="0 0 16 16"><path fill="currentColor" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/></symbol>
@@ -219,7 +227,7 @@ svg { display: block; }
 <main class="page">
   <header class="page-head">
     <h1>lokki — the mark</h1>
-    <p>“lokki” is Finnish for seagull. A gull in flight, reduced to two wing curves and the small point where they meet. Every drawing on this page is made for lokki.</p>
+    <p>“lokki” is Finnish for seagull. A gull in flight, reduced to two wing curves and the small point where they meet. Every drawing on this page is made for Lokki.</p>
   </header>
 
   <section class="sec">
@@ -258,7 +266,7 @@ svg { display: block; }
 
   <section class="sec">
     <div class="sec-head"><div><span class="idx">04</span><h2>Wordmark</h2></div>
-      <p>Always lower case, in the system face at semibold. Tracking tightens as the size grows; the double k is set closer still. The mark sits on the x-height, a little wider than the “l”.</p></div>
+      <p>“Lokki”, a proper noun, drawn as paths so it needs no font and reads the same on every platform. The letters are centrelines stroked in the ink; the dot of the i is in the accent: the gull at 64 px and up, the gull’s 16 px drawing from 28 px, and a plain dot below, where a gull of 2 px does not read. The mark stands beside it as the sidebar sets it.</p></div>
     <div class="pair" id="wordPair"></div>
   </section>
 
@@ -313,10 +321,11 @@ svg { display: block; }
   });
 
   /* 04 wordmark */
-  function wm(cls) { return '<div class="wm ' + cls + '" aria-label="lokki"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#dir-a"/></svg><span>lo<span class="kk">k</span>ki</span></div>'; }
+  var WM = { 64: ['wm-b64', 212], 28: ['wm-b28', 212], 18: ['wm-b15', 196] };
+  function wm(s) { var d = WM[s]; return '<div class="wm" style="--s:' + s + 'px"><svg class="mk" viewBox="0 0 64 64" aria-hidden="true"><use href="#dir-a"/></svg><svg class="wd" viewBox="0 0 ' + d[1] + ' 80" role="img" aria-label="Lokki"><use href="#' + d[0] + '"/></svg></div>'; }
   both(document.getElementById('wordPair'), 'Wordmark', 'wordmark', function () {
-    return '<div class="wm-stack">' + wm('wm-xl') + '<div style="display:flex;gap:var(--sp-7);align-items:center">' + wm('wm-md') + wm('wm-sm') + '</div>' +
-      '<p class="cap">64 px · −0.035em &nbsp;·&nbsp; 28 px · −0.025em &nbsp;·&nbsp; 15 px · −0.01em (sidebar)</p></div>';
+    return '<div class="wm-stack">' + wm(64) + '<div style="display:flex;gap:var(--sp-7);align-items:center">' + wm(28) + wm(18) + '</div>' +
+      '<p class="cap">64 px, the gull · 28 px, its 16 px drawing · 18 px, a plain dot (sidebar)</p></div>';
   });
 
   /* 05 tray */
@@ -334,7 +343,7 @@ svg { display: block; }
     if (t === 'light') h += '<div class="live" style="margin-top:var(--sp-5)" data-live-tray><div class="strip light" style="justify-content:flex-end"><svg class="tray" width="16" height="16" viewBox="0 0 16 16"><use data-tray-use href="#tray-solid"/></svg><span class="mono">14:32</span></div>' +
       '<div class="menu" role="menu"><div class="head" data-tray-head>Cutting every request<br>routing: relay</div><hr>' +
       [['Direct', 'Direct'], ['Auto', 'Auto (below 30 %)'], ['Relay', 'Relay']].map(function (m) { return '<div class="item" role="menuitemradio" data-mode="' + m[0] + '"><span data-chk></span>' + m[1] + '</div>'; }).join('') +
-      '<hr><div class="item"><span></span>Open lokki</div><div class="item"><span></span>Quit lokki</div></div>' +
+      '<hr><div class="item"><span></span>Open Lokki</div><div class="item"><span></span>Quit Lokki</div></div>' +
       '<p class="cap" style="margin-top:8px">Live tray · switch with the toolbar’s Tray state</p></div>';
     return h;
   });
@@ -342,7 +351,7 @@ svg { display: block; }
   /* 06 favicon */
   both(document.getElementById('favPair'), 'Favicon', 'favicon', function () {
     return '<div class="icons-row" style="margin-bottom:var(--sp-4)"><figure>' + use('favicon', 32) + '<figcaption class="cap">32</figcaption></figure><figure>' + use('favicon-16', 16) + '<figcaption class="cap">16</figcaption></figure></div>' +
-      '<div class="tabbar"><div class="tab on">' + use('favicon-16', 16) + 'lokki</div><div class="tab">' + use('favicon-16', 16) + 'lokki · Settings</div></div>' +
+      '<div class="tabbar"><div class="tab on">' + use('favicon-16', 16) + 'Lokki</div><div class="tab">' + use('favicon-16', 16) + 'Lokki · Settings</div></div>' +
       '<div class="addr">http://127.0.0.1:8381/v1</div>';
   });
 

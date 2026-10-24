@@ -218,7 +218,7 @@ test("the screenshots of Home", async ({ page, core }) => {
   await hook(page, "updateStatus", `async () => ({ state: "available", current_version: "0.1.0", version: "0.2.0", notes_url: null, can_install: false, reason: "this build is updated by hand", error: null })`);
   await hook(page, "openExternal", "async () => {}");
   await shoot("home-update", headline(false), "not every watched account is low");
-  await expect(page.getByText("lokki 0.2.0 is available.")).toBeVisible();
+  await expect(page.getByText("Lokki 0.2.0 is available.")).toBeVisible();
 });
 
 test("the screenshots of Accounts", async ({ page, core }) => {
@@ -286,7 +286,7 @@ test("the screenshots of Accounts", async ({ page, core }) => {
   const field = () => page.getByRole("textbox", { name: /Paste that address here/ });
   // The waiting card with an address pasted and Send pressed; `ready` waits for what the press shows.
   const pasted = (text: string, ready: () => Promise<void>) => async () => {
-    await login_("lokki waits up to 5 minutes.")();
+    await login_("Lokki waits up to 5 minutes.")();
     await field().fill(text);
     await page.getByRole("button", { name: "Send" }).click();
     await ready();
@@ -363,11 +363,11 @@ test("the screenshots of Accounts", async ({ page, core }) => {
   // patched: the login states.
   await patchLogin();
   login = "pending";
-  await shoot("accounts-login-waiting", login_("lokki waits up to 5 minutes."));
+  await shoot("accounts-login-waiting", login_("Lokki waits up to 5 minutes."));
   await shoot("accounts-login-refused-another", refusal(409, "this address is from another login; paste the address of the login started last"));
   await shoot("accounts-login-refused-address", refusal(400, "this is not the address the login ended on: it starts http://localhost:1455/auth/callback?", "http://localhost:1455/?code=made-up-code"));
   await shoot("accounts-login-refused-gone", refusal(409, "this login is no longer waiting; start again"));
-  await shoot("accounts-login-refused-twice", refusal(409, "lokki already has this login's answer; wait for it to finish"));
+  await shoot("accounts-login-refused-twice", refusal(409, "Lokki already has this login's answer; wait for it to finish"));
   await shoot("accounts-login-refused-expired", refusal(409, "this login expired; start again"));
   await shoot("accounts-login-refused-cliproxy", refusal(409, "CLIProxyAPI did not take this login; start again"));
   await shoot("accounts-login-empty", pasted("", async () => { await expect(page.getByRole("alert")).toHaveText("paste the address first"); }));
@@ -451,7 +451,7 @@ test("the screenshots of Activity", async ({ page, core }) => {
   });
   await shoot("activity-read-limit", async () => {
     await bars(24)();
-    await expect(page.getByText(/^counted since .+: lokki reads the last 8 MiB of its run log; older runs in this window are not counted$/)).toBeVisible();
+    await expect(page.getByText(/^counted since .+: Lokki reads the last 8 MiB of its run log; older runs in this window are not counted$/)).toBeVisible();
   });
 });
 
@@ -571,7 +571,7 @@ test("the screenshots of Settings", async ({ page, core }) => {
   // patched: CLIProxyAPI's model list answers 502, which the fixture cannot make without a dead process; every chosen name stays removable.
   await page.route((u) => u.pathname === "/api/models", (route) => route.fulfill({ status: 502, json: { error: { message: "CLIProxyAPI did not answer" } } }));
   await open();
-  await expect(region("Mode").getByText("lokki could not read the models CLIProxyAPI offers: CLIProxyAPI did not answer")).toBeVisible();
+  await expect(region("Mode").getByText("Lokki could not read the models CLIProxyAPI offers: CLIProxyAPI did not answer")).toBeVisible();
   await expect(region("Mode").getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(region("Mode").getByText("Chosen but not listed:")).toHaveCount(0);
   await shoot("models-unread");

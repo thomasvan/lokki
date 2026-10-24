@@ -10,8 +10,8 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Manager, Wry};
 
-pub const OPEN: &str = "Open lokki";
-pub const QUIT: &str = "Quit lokki";
+pub const OPEN: &str = "Open Lokki";
+pub const QUIT: &str = "Quit Lokki";
 
 /// The icon as drawn: its form, ink and pixel size.
 type Look = (Form, Ink, u32);
@@ -166,7 +166,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Tray> {
     let os = Os::current();
     let look = (first.form, tray::ink(os, None), tray::tray_px(os, 1.0));
     let icon = TrayIconBuilder::with_id("lokki")
-        .tooltip("lokki")
+        .tooltip("Lokki")
         .icon(image(look))
         .icon_as_template(look.1 == Ink::Template)
         .menu(&menu)

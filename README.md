@@ -1,6 +1,11 @@
-# lokki
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/design/ux/wordmark-dark.svg">
+    <img src="docs/design/ux/wordmark-light.svg" alt="Lokki" width="265" height="100">
+  </picture>
+</h1>
 
-*lokki* is the product name; the relay inside it keeps its codename *midstream-abort* (the documents use the long name).
+*Lokki* is the product name; the relay inside it keeps its codename *midstream-abort* (the documents use the long name).
 A desktop app around the relay is being designed:
 `docs/superpowers/specs/2026-10-10-lokki-app-design.md`.
 
@@ -155,17 +160,17 @@ signature before it installs an update.
 
 ### macOS
 
-lokki needs macOS 12.4 or later: its window draws its colours and the token
+Lokki needs macOS 12.4 or later: its window draws its colours and the token
 prompt with the WebKit of Safari 15.5, which macOS has built in from 12.4. On an
 older Mac the disk image opens and the app can be dragged to Applications, but
 macOS refuses to open it, saying it needs macOS 12.4 or later.
 
-Open the `.dmg`, drag lokki into Applications, and open it from there. macOS
-says it could not verify lokki and does not open it: press **Done**, then
+Open the `.dmg`, drag Lokki into Applications, and open it from there. macOS
+says it could not verify Lokki and does not open it: press **Done**, then
 **Open Anyway** in System Settings › Privacy & Security, and give your password.
 Or, before you open it, run `xattr -cr /Applications/lokki.app`.
 
-Updates then install in place when lokki runs from a folder you can write to,
+Updates then install in place when Lokki runs from a folder you can write to,
 such as Applications.
 
 ### Windows
@@ -188,14 +193,14 @@ core makes no network call for updates; only the desktop shell does.
 
 **Install and restart** downloads the package and verifies its signature, so a
 package that fails verification stops nothing. It then stops both services
-cleanly, proves they are gone, installs, and restarts lokki. If the install
+cleanly, proves they are gone, installs, and restarts Lokki. If the install
 fails, both services start again and the banner says why. Your data directory is
 never touched.
 
 Some installs offer **Download** instead, with the reason beside it: a `.deb`
-install on Linux (only an AppImage updates itself), and a lokki on macOS that
+install on Linux (only an AppImage updates itself), and a Lokki on macOS that
 runs from somewhere it cannot replace itself, such as its disk image. A
-downloaded `.dmg` is quarantined again, and lokki from it is opened as at the
+downloaded `.dmg` is quarantined again, and Lokki from it is opened as at the
 first install (see [macOS](#macos)).
 
 The Linux installers are built on Ubuntu 26.04 (glibc 2.43) and run on

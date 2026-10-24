@@ -183,8 +183,8 @@ def hand_on(state, code, error):
 _PAGES = {ACCEPTED: (200, "You can close this tab."),
           NOT_WAITING: (409, "This login expired; start again."),
           EXPIRED: (409, "This login expired; start again."),
-          ANOTHER_LOGIN: (409, "This page belongs to another login; start again from lokki."),
-          ALREADY_ANSWERED: (409, "lokki already has this login's answer; you can close this tab."),
+          ANOTHER_LOGIN: (409, "This page belongs to another login; start again from Lokki."),
+          ALREADY_ANSWERED: (409, "Lokki already has this login's answer; you can close this tab."),
           REFUSED: (409, "CLIProxyAPI did not take this login; start again."),
           UNREACHABLE: (502, "CLIProxyAPI did not take this login; start again.")}
 
@@ -230,7 +230,7 @@ class Callback:
                 self._page(*_PAGES[hand_on(*answer)])
 
             def _page(self, code, text):
-                page = f"<!doctype html><title>lokki</title><p>{html.escape(text)}</p>".encode()
+                page = f"<!doctype html><title>Lokki</title><p>{html.escape(text)}</p>".encode()
                 self.send_response(code)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(page)))

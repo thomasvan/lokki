@@ -250,9 +250,9 @@ answers anything else with a 404 "Not found." and the paste route with its
 | the body is not an object with a string `url` | — | 400 `the body must be {"url": "<the address the browser ended on>"}` |
 | not the callback address | 404 "Not found." | 400 `this is not the address the login ended on: it starts http://localhost:1455/auth/callback?` |
 | no login pending, or its five minutes passed | 409 "This login expired; start again." | 409 `this login is no longer waiting; start again` |
-| the state is not the pending login's | 409 "This page belongs to another login; start again from lokki." | 409 `this login is no longer waiting; start again` |
+| the state is not the pending login's | 409 "This page belongs to another login; start again from Lokki." | 409 `this login is no longer waiting; start again` |
 | the address's state is not the path's | — | 409 `this address is from another login; paste the address of the login started last` |
-| already handed on, by either, and CLIProxyAPI took it or is still being asked | 409 "lokki already has this login's answer; you can close this tab." | 409 `lokki already has this login's answer; wait for it to finish` |
+| already handed on, by either, and CLIProxyAPI took it or is still being asked | 409 "Lokki already has this login's answer; you can close this tab." | 409 `Lokki already has this login's answer; wait for it to finish` |
 | CLIProxyAPI 404, for this answer or one before it | 409 "This login expired; start again." | 409 `this login expired; start again` |
 | CLIProxyAPI 409, for this answer or one before it | 409 "CLIProxyAPI did not take this login; start again." | 409 `CLIProxyAPI did not take this login; start again` |
 | CLIProxyAPI another status, no answer, or the post failed | 502 "CLIProxyAPI did not take this login; start again." | 502 `CLIProxyAPI did not take this login` |

@@ -137,7 +137,7 @@ describe("Accounts", () => {
       const view = render(Accounts);
       expect(screen.getByText("No Codex account yet")).toBeInTheDocument();
       // True in every mode: the quota is read whatever the mode, and only Auto decides by it.
-      expect(screen.getByText("Add the account your coding client uses; lokki reads its quota in every mode.")).toBeInTheDocument();
+      expect(screen.getByText("Add the account your coding client uses; Lokki reads its quota in every mode.")).toBeInTheDocument();
       expect(screen.getAllByRole("button", { name: "Add a Codex account" })).toHaveLength(1);
       view.unmount();
     }
@@ -152,7 +152,7 @@ describe("Accounts", () => {
     app.failed = { schema: null, settings: null, accounts: null };
   });
 
-  it("says lokki does not read the quota without a management secret file, with no banner", () => {
+  it("says Lokki does not read the quota without a management secret file, with no banner", () => {
     const poll = { last_ok_at: null, last_error: "no management secret file is set", reads: 0, running: true };
     app.settings = settingsFixture({ cliproxy: { ...settingsFixture().cliproxy, management_secret_file: "" } });
     app.status = statusFixture({ poll, decision: { relay_on: false, reason: "the quota cannot be read" } });
@@ -387,7 +387,7 @@ describe("Accounts", () => {
       expect(screen.getByText(START.url)).toBeInTheDocument();
       expect(screen.getByText(START.url)).not.toHaveAttribute("title");        // the link is shown once
       expect(screen.getByRole("heading", { name: "Finish the login in a browser" })).toBeInTheDocument();
-      expect(screen.getByText("lokki waits up to 5 minutes.")).toBeInTheDocument();
+      expect(screen.getByText("Lokki waits up to 5 minutes.")).toBeInTheDocument();
       expect(screen.getByText("Logging in from another device? Open this link there:")).toBeInTheDocument();
       const field = screen.getByRole("textbox", { name: /Paste that address here:/ });
       expect(field).toHaveAccessibleName(/an address that starts http:\/\/localhost:1455\/auth\/callback\./);
@@ -415,7 +415,7 @@ describe("Accounts", () => {
       { when: "a busy callback port", list: [refused(409, "another login is in progress")], shown: "another login is in progress" },
       { when: "a refused poll", list: [[200, START], poll("pending"), refused(502, "CLIProxyAPI refused the status request")], shown: "CLIProxyAPI refused the status request" },
       { when: "a failed login", list: [[200, START], poll("error", "the code expired")], shown: "the code expired" },
-      { when: "a login lokki no longer waits for", list: [[200, START], poll("error", "this login is no longer waiting; start again")], shown: "this login is no longer waiting; start again" },
+      { when: "a login Lokki no longer waits for", list: [[200, START], poll("error", "this login is no longer waiting; start again")], shown: "this login is no longer waiting; start again" },
       { when: "a rejected token", list: [refused(401, "the operator token was rejected")], shown: "the operator token was rejected", kind: "auth" },
     ] as Array<{ when: string; list: Array<[number, unknown]>; shown: string; kind?: string }>)("shows the error from $when and stops asking", async ({ list, shown, kind }) => {
       vi.spyOn(window, "open").mockReturnValue(null);
@@ -602,7 +602,7 @@ describe("Accounts", () => {
       { status: 400, sentence: "this is not the address the login ended on: it starts http://localhost:1455/auth/callback?" },
       { status: 409, sentence: "this login is no longer waiting; start again" },
       { status: 409, sentence: "this address is from another login; paste the address of the login started last" },
-      { status: 409, sentence: "lokki already has this login's answer; wait for it to finish" },
+      { status: 409, sentence: "Lokki already has this login's answer; wait for it to finish" },
       { status: 409, sentence: "this login expired; start again" },
       { status: 409, sentence: "CLIProxyAPI did not take this login; start again" },
       { status: 502, sentence: "CLIProxyAPI did not take this login" },
@@ -723,14 +723,14 @@ describe("Accounts", () => {
       answers([200, START], poll("pending"));
       render(Accounts);
       await addAccount();
-      const said = screen.queryByText("lokki opened the login page in this computer’s browser.");
+      const said = screen.queryByText("Lokki opened the login page in this computer’s browser.");
       if (hook === "none") {
         expect(window.open).toHaveBeenCalledWith(START.url, "_blank");          // not "noopener": that returns null even when the tab opens
         if (open) expect((open as { opener: unknown }).opener).toBeNull();      // so the opened page is cut off by hand
       }
       if (shown) expect(said).toBeInTheDocument();
       else expect(said).toBeNull();
-      expect(screen.getByText("lokki waits up to 5 minutes.")).toBeInTheDocument();
+      expect(screen.getByText("Lokki waits up to 5 minutes.")).toBeInTheDocument();
     });
 
     it("shows a gone login as a failure line, as the core says it", async () => {

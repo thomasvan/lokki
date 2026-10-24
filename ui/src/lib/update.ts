@@ -4,13 +4,13 @@
 export const offered = (u: UpdateStatus): boolean => u.state === "available" || (u.state === "error" && !!u.version);
 
 export function updateLine(u: UpdateStatus): string {
-  if (offered(u)) return `lokki ${u.version} is available.`;
+  if (offered(u)) return `Lokki ${u.version} is available.`;
   switch (u.state) {
     case "checking": return "Checking for an update…";
     case "downloading": return "Downloading the update…";
-    case "installing": return "Installing the update; lokki restarts when it is done.";
-    case "up_to_date": return `lokki ${u.current_version} is up to date.`;
-    default: return `lokki ${u.current_version}`;
+    case "installing": return "Installing the update; Lokki restarts when it is done.";
+    case "up_to_date": return `Lokki ${u.current_version} is up to date.`;
+    default: return `Lokki ${u.current_version}`;
   }
 }
 

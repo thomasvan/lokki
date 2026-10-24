@@ -42,7 +42,7 @@ describe("App", () => {
   it("has the mark, the wordmark and the destinations", async () => {
     core();
     render(App);
-    const heading = screen.getByRole("heading", { level: 1, name: "lokki" });
+    const heading = screen.getByRole("heading", { level: 1, name: "Lokki" });
     expect(heading.querySelector("svg[data-mark]")).toHaveAttribute("aria-hidden", "true");
     const nav = screen.getByRole("navigation", { name: "Destinations" });
     const names = ["Home", "Accounts", "Activity", "Settings"];

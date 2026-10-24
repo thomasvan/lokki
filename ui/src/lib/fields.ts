@@ -6,8 +6,8 @@ import type { SchemaRow, SettingsView } from "./api";
 // In the order Settings shows them. `advanced` is the fold; the groups after it are what it holds.
 // `about` is the UI's own group: no schema row has it.
 export const GROUP_TITLES = {
-  saving: { title: "Mode", note: "when lokki cuts" },
-  connection: { title: "Connection", note: "how clients reach lokki" },
+  saving: { title: "Mode", note: "when Lokki cuts" },
+  connection: { title: "Connection", note: "how clients reach Lokki" },
   about: { title: "Updates and About" },
   advanced: { title: "Advanced", note: "for a server operator, or with a measurement behind it" },
   cliproxy: { title: "CLIProxyAPI" },

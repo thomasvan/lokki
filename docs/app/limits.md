@@ -109,7 +109,7 @@ a request to 127.0.0.1:<port> answered by the core listener: True
 `core/callback_port_probe.py` is the Linux and macOS measurement; run it with
 `python3 -B core/callback_port_probe.py`. It binds one port the OS picks, on loopback
 and the wildcard address, and nothing else: no port below 1024, not 1455, not
-lokki's own. The Windows runs used a temporary probe step that is no longer in
+Lokki's own. The Windows runs used a temporary probe step that is no longer in
 the workflow.
 
 A browser's own address choice was not measured on any system, and Happy
@@ -120,7 +120,7 @@ whose source its log does not name; that traffic is its own.
 
 ## When the shell ends without its stop
 
-Quitting lokki stops both sidecars, the core drained first, and so does SIGTERM,
+Quitting Lokki stops both sidecars, the core drained first, and so does SIGTERM,
 SIGINT or SIGHUP to the shell on Linux and macOS. A shell that ends without running
 that stop (a crash; on Windows, End task in Task Manager or a logoff; on Linux and
 macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
@@ -133,7 +133,7 @@ macOS, SIGKILL) leaves its sidecars to the system, and the systems differ:
   moment leaves it suspended, holding no port, until the next reboot.
 - On Linux and macOS each sidecar leads a process group of its own, which a signal to
   the shell does not reach. A shell that ends this way leaves both sidecars running
-  and holding their ports. The next start of lokki on that data directory stops them
+  and holding their ports. The next start of Lokki on that data directory stops them
   ([first run](first-run.md)); until then nothing does. Neither system has an object
   that ends a process tree when its holder dies: Linux's parent-death signal reaches
   the direct child only, and comes when the thread that started it ends, not the
@@ -155,7 +155,7 @@ next start's check and was stopped ([updates](update.md), The hand test on Windo
   its output on pipes whose read ends were then closed, on a port the system chose:
   - with the pipes closed 1 to 5 s after it started, it stayed alive and listening for
     60 s with nothing connecting (4 runs), and through a connection that sent nothing,
-    as lokki's probe of a port is (3 runs);
+    as Lokki's probe of a port is (3 runs);
   - its first `GET /` was closed with no bytes back, and 3 s later it had ended on
     SIGPIPE, exit status −13 (4 runs of 4);
   - with the pipes closed 1 to 1.3 s after it started, it ended on SIGPIPE within 2 to
@@ -166,7 +166,7 @@ next start's check and was stopped ([updates](update.md), The hand test on Windo
   Windows such a write returns an error instead.
 
 A core whose shell has ended still drains and exits on `POST /api/shutdown` or
-SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of lokki
+SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of Lokki
 0.1.0 does not. Its drain dies on that write, so it takes the order, answers
 `/healthz` with `draining` and never exits. The next start kills such a core once its
 wait is over ([first run](first-run.md)).
@@ -182,9 +182,9 @@ through a leftover core.
 
 A leftover CLIProxyAPI is stopped by its pid, and so is a leftover core that has to be
 killed, with the processes that started it. Windows and Linux hold each pid while
-lokki checks and stops the process, by a handle and a pidfd. Windows keeps the pid of a
+Lokki checks and stops the process, by a handle and a pidfd. Windows keeps the pid of a
 parent that has ended, and that pid may name a later process, so a parent counts only
-if it was created before its child. macOS has no hold: lokki checks that the pid still
+if it was created before its child. macOS has no hold: Lokki checks that the pid still
 holds the port before each signal, and that each parent is still the parent of the
 process below it, and a process that exits between that check and the signal could
 lend its pid to another.
@@ -205,14 +205,14 @@ with 10,539,913 bytes. Interactive installs and the MSI were
 not tried. Each sidecar's file is named for its version, so what this leaves depends on
 the versions:
 
-- When the new build carries the same name, lokki runs the file the earlier install
+- When the new build carries the same name, Lokki runs the file the earlier install
   left until an install made with nothing running replaces it. For CLIProxyAPI that
   is the same file: `app/cliproxy.lock` pins the archive of each version by its hash.
   A core keeps its name until `core/VERSION` changes, and two builds of one version
   can differ.
 - When the name is new, the new file is installed beside the old one. At each start,
-  before it stops any leftover, lokki removes the sidecar files its build does not
-  carry. A file a leftover still runs cannot be removed, and lokki goes on without
+  before it stops any leftover, Lokki removes the sidecar files its build does not
+  carry. A file a leftover still runs cannot be removed, and Lokki goes on without
   it, so the old file is removed at the next start after its leftover was stopped.
 
 On Linux and macOS a running program's file can be removed and replaced, and none of
@@ -239,6 +239,14 @@ Waiting longer for a paused body would hold every such answer as long for a clie
 never sends one, and reading a chunked body would mean parsing one from a client that
 has not proved a token. Ordinary clients send the head and the body together, with a
 `Content-Length`.
+
+## What the app still calls lokki
+
+The product is named Lokki wherever the app's own text names it: the window and error page titles, the dialogs,
+the tray, the sidebar, the update banner and the sentences the shell and the core give. The macOS application
+menu and the Dock take the bundle's `productName`, which is still `lokki`, so they say "lokki" until a later
+change renames it. The bundle identifier, the binaries, the data directory and the `LOKKI_*` variables keep
+`lokki`: programs read them, not people.
 
 ## The CLIProxyAPI panel
 
@@ -280,7 +288,7 @@ reports.
 An Intel Mac is slow to start. In the hand test of 2026-10-21 the first run was
 ready in 77 s and a restart in 59 s. Where the time goes was not measured. In the
 hand test of 2026-10-22 ([updates](update.md), The hand test on an Intel Mac), the
-updated lokki's `app.log` has the install asked at 05:20:02Z and `ready` at 05:21:11Z.
+updated Lokki's `app.log` has the install asked at 05:20:02Z and `ready` at 05:21:11Z.
 
 The Intel build has been run through the hand test ([updates](update.md), The hand
 test on an Intel Mac). An x86_64 build that Rosetta runs on an Apple silicon Mac
