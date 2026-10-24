@@ -125,7 +125,11 @@ mod tests {
         // (core port, moved from, the page)
         let rows = [
             (43210, None, "http://127.0.0.1:43210/"),
-            (43210, Some(43211), "http://127.0.0.1:43210/?moved_from=43211"),
+            (
+                43210,
+                Some(43211),
+                "http://127.0.0.1:43210/?moved_from=43211",
+            ),
         ];
         for (port, from, want) in rows {
             assert_eq!(main_url(port, from).as_str(), want);

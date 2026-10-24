@@ -328,7 +328,7 @@ describe("Settings", () => {
     cleanup();
 
     // A moved port that did not come up is put back: the failure says so, and the settings are read again.
-    const back = "port 9475 is already in use; Lokki is back on port 8371";
+    const back = "port 9475 is already in use; the core is back on port 8371";
     restart.mockRejectedValueOnce(new Error(back));
     const fetch = answers(saved({ restart_required: ["listen"] }), [200, settingsFixture({ listen: ["127.0.0.1:9475"] })],
       [200, statusFixture()], [200, settingsFixture()]);

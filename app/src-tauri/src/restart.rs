@@ -21,8 +21,8 @@ pub enum Outcome {
     Ready(Config),
     /// A start failed on a port that did not move; nothing was put back.
     Failed(String),
-    /// A moved port did not come up, and Lokki is back on the previous one: the sentence
-    /// says both.
+    /// A moved port did not come up, and the service is back on the previous one: the
+    /// sentence says both.
     WentBack(Config, String),
     /// A moved port did not come up and the way back failed too; `port` is the one to put
     /// back by hand.
@@ -73,11 +73,18 @@ pub fn restart(ops: &mut impl Ops, before: &Config, service: Service) -> Outcome
     if moved.is_empty() {
         return Outcome::Failed(first.clone());
     }
+    // The failures come from `Sidecars::start`, which name the product; the clauses added
+    // here name the service, so a sentence carries one spelling of it.
     let what = moved
         .iter()
         .map(|(_, _, e)| e.as_str())
         .collect::<Vec<_>>()
         .join("; ");
+    let back = moved
+        .iter()
+        .map(|(s, port, _)| format!("{} is back on port {port}", s.title()))
+        .collect::<Vec<_>>()
+        .join(" and ");
     let ports = moved
         .iter()
         .map(|(_, port, _)| port.to_string())
@@ -88,13 +95,13 @@ pub fn restart(ops: &mut impl Ops, before: &Config, service: Service) -> Outcome
             return Outcome::Stuck {
                 service: s,
                 port,
-                sentence: format!("{what}; Lokki could not go back to port {port}: {e}"),
+                sentence: format!("{what}; going back to port {port} failed: {e}"),
             };
         }
     }
-    let (back, failed) = cycle(ops, &conf, service);
+    let (conf_back, failed) = cycle(ops, &conf, service);
     match failed.first() {
-        None => Outcome::WentBack(back, format!("{what}; Lokki is back on port {ports}")),
+        None => Outcome::WentBack(conf_back, format!("{what}; {back}")),
         Some((s, e)) => Outcome::Stuck {
             service: *s,
             port: s.port(before),
@@ -144,7 +151,8 @@ mod tests {
             Ok(())
         }
         fn set_port(&mut self, service: Service, port: u16) -> Result<()> {
-            self.calls.push(format!("set-port {} {port}", service.name()));
+            self.calls
+                .push(format!("set-port {} {port}", service.name()));
             if self.set_port_fails {
                 return Err("the file is read-only".into());
             }
@@ -187,7 +195,7 @@ mod tests {
                 false,
                 Outcome::WentBack(
                     conf(1001, 2001),
-                    "port 1002 is taken; Lokki is back on port 1001".into(),
+                    "port 1002 is taken; the core is back on port 1001".into(),
                 ),
                 &[
                     "stop core 1001",
@@ -205,7 +213,7 @@ mod tests {
                 false,
                 Outcome::WentBack(
                     conf(1001, 2001),
-                    "port 2002 is taken; Lokki is back on port 2001".into(),
+                    "port 2002 is taken; CLIProxyAPI is back on port 2001".into(),
                 ),
                 &[
                     "stop core 1001",
@@ -251,7 +259,7 @@ mod tests {
                 Outcome::Stuck {
                     service: Service::Core,
                     port: 1001,
-                    sentence: "port 1002 is taken; Lokki could not go back to port 1001: \
+                    sentence: "port 1002 is taken; going back to port 1001 failed: \
                                the file is read-only"
                         .into(),
                 },
