@@ -370,7 +370,12 @@ mod tests {
     #[test]
     fn each_outcome_finishes_as_the_shell_acts_on_it() {
         // (outcome, the window and what it says, the stuck page's service and port, the answer)
-        type Row = (Outcome, Option<(Config, Option<String>)>, Option<(Service, u16)>, Result<()>);
+        type Row = (
+            Outcome,
+            Option<(Config, Option<String>)>,
+            Option<(Service, u16)>,
+            Result<()>,
+        );
         let rows: [Row; 4] = [
             (
                 Outcome::Ready(conf(1002, 2001)),
