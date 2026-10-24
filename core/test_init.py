@@ -268,6 +268,25 @@ class InitTests(unittest.TestCase):
         self.assertIn("cannot read", run.stderr)
         self.assertEqual(self._snapshot(), before)
 
+    @unittest.skipIf(os.name == "nt", "a read-only directory: Windows lets its files be replaced")
+    def test_set_port_that_cannot_write_says_so_in_one_sentence_and_what_is_on_disk(self):
+        """A write that fails after CLIProxyAPI's file was written leaves that file on the new
+        port; the next start's sync-cliproxy brings it back in step with config.yaml."""
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        core_before = _read(out["core_config"])
+        os.chmod(self.dir, 0o500)
+        self.addCleanup(os.chmod, self.dir, 0o700)
+        if os.access(self.dir, os.W_OK):
+            self.skipTest("this user can write a read-only directory (root)")
+        run = self._set_port("--cliproxy-port", "9131")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
+        self.assertEqual(len(run.stderr.strip().splitlines()), 1, run.stderr)
+        self.assertIn(f"cannot write {out['core_config']}", run.stderr)
+        self.assertIn("the next start puts it back in step", run.stderr)
+        self.assertEqual(_read(out["core_config"]), core_before)
+        self.assertEqual(_load(out["cliproxy_config"])["server"]["port"], 9131)
+
     def test_set_port_writes_through_a_symlinked_config_as_save_does(self):
         out = init.run(self.dir, core_port=0, cliproxy_port=0)
         real = os.path.join(os.path.dirname(self.dir), "elsewhere.yaml")

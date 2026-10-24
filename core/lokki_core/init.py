@@ -346,8 +346,18 @@ def set_port(data_dir, core_port=None, cliproxy_port=None):
         # with `config.yaml` if the second write fails.
         cliproxy_path, cliproxy_doc = _cliproxy_doc(data_dir)
         cliproxy_doc.setdefault("server", {}).update({"host": "127.0.0.1", "port": cliproxy_port})
-        _write(cliproxy_path, _dump(cliproxy_doc), 0o600)
-    _write(path, _dump(doc), 0o600)
+        try:
+            _write(cliproxy_path, _dump(cliproxy_doc), 0o600)
+        except OSError as e:
+            raise InitError(f"cannot write {cliproxy_path}: {e.strerror or e}; nothing changed")
+    try:
+        _write(path, _dump(doc), 0o600)
+    except OSError as e:
+        said = f"cannot write {path}: {e.strerror or e}"
+        if cliproxy_port is not None:
+            said += (f"; {cliproxy_path} already holds port {cliproxy_port}, and the next start "
+                     "puts it back in step with config.yaml")
+        raise InitError(said)
 
 
 def shell_config(data_dir):

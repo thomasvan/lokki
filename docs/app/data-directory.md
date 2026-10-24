@@ -55,19 +55,23 @@ never the generated secrets. It writes `server.host: "127.0.0.1"` and
 `server.host` (`127.0.0.1`), `server.port` (`cliproxy.port`) and
 `management.disable-control-panel` (`not cliproxy.panel`) into CLIProxyAPI's
 file, keeping every other key as loaded and the file's mode. It prints nothing,
-and exits 1 with one sentence, writing nothing, for a file it cannot use. It is
-the only operation lokki performs on CLIProxyAPI's file; the rest of that
-document belongs to CLIProxyAPI.
+and exits 1 with one sentence, writing nothing, for a file it cannot use. It and
+`set-port` below are the only operations Lokki performs on CLIProxyAPI's file; the
+rest of that document belongs to CLIProxyAPI. Both replace that file whole, so a
+symlink there becomes a regular file.
 
 `set-port --data-dir DIR --core-port N` or `--cliproxy-port N` (1 to 65535) is
 the shell's way back when a moved port does not come up. It writes `listen` as one
-address on the host it had, or `cliproxy.port` with CLIProxyAPI's `server.port`,
-keeping every other key as loaded and dropping comments, as a settings write does.
-`config.yaml` is written at its real path, so a symlink keeps its link. It prints
-nothing; it reads both files before it writes either, and exits 1 with one sentence,
-writing neither, for a file it cannot use or a `listen` of several addresses, and 2
-without a port. It does not ask what listens on the
-port: the start that follows does.
+address on the host it had, or `cliproxy.port` with CLIProxyAPI's `server.host`
+(`127.0.0.1`) and `server.port`, keeping every other key as loaded and dropping
+comments, as a settings write does. The core's `config.yaml` is written at its real
+path, so a symlink there keeps its link. It prints nothing. It reads both files
+before it writes either, and exits 1 with one sentence, writing neither, for a file
+it cannot use or a `listen` of several addresses, and 2 without a port. A write that
+fails also exits 1 with one sentence: CLIProxyAPI's file is written first, so it may
+then hold the new port while `config.yaml` holds the old one, and the sentence says
+so; the next start's `sync-cliproxy` writes it back in step with `config.yaml`. It
+does not ask what listens on the port: the start that follows does.
 
 `shell-config --data-dir DIR` prints one JSON line, `{core_port, cliproxy_port,
 operator_token, management_secret_file, panel}`, read through the loader. It is
