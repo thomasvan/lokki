@@ -165,8 +165,9 @@ prompt with the WebKit of Safari 15.5, which macOS has built in from 12.4. On an
 older Mac the disk image opens and the app can be dragged to Applications, but
 macOS refuses to open it, saying it needs macOS 12.4 or later.
 
-Open the `.dmg`, drag Lokki into Applications, and open it from there. macOS
-says it could not verify Lokki and does not open it: press **Done**, then
+Open the `.dmg`, drag `lokki.app` into Applications, and open it from there. macOS
+says it could not verify “lokki” and does not open it (macOS names the app by its
+bundle, `lokki.app`): press **Done**, then
 **Open Anyway** in System Settings › Privacy & Security, and give your password.
 Or, before you open it, run `xattr -cr /Applications/lokki.app`.
 

@@ -36,19 +36,32 @@ describe("Wordmark", () => {
   });
 });
 
+const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), "utf8");
+const attrs = (tag: string) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2].replace(/\s+/g, " ").trim()]));
+const paths = (text: string) => [...text.matchAll(/<path\b[^>]*>/g)].map((m) => attrs(m[0]));
+const without = (tag: Record<string, string>, ...names: string[]) => Object.fromEntries(Object.entries(tag).filter(([k]) => !names.includes(k)));
+
+// The component's drawings by name: the letters, then the dot of each size's rule.
+const component = read("./Wordmark.svelte");
+const drawing = (branch: string, until: string) => paths(component.slice(component.indexOf(branch), component.indexOf(until, component.indexOf(branch))));
+const letters = paths(component.slice(0, component.indexOf("{#if dot")))[0];
+const dots = {
+  gull: drawing('{#if dot === "gull"}', "{:else if")[0],
+  gull16: drawing('{:else if dot === "gull16"}', "{:else}")[0],
+  dot: drawing("{:else}", "{/if}")[0],
+};
+
+it("tells the component's three dots apart", () => {
+  expect(new Set(Object.values(dots).map((d) => d.d)).size).toBe(3);
+  expect(letters.stroke).toBe("currentColor");
+});
+
 // error.html is not built from the UI, so it carries its own copy of the drawing it uses.
 describe("the error page's copy of the wordmark", () => {
-  const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), "utf8");
   const page = read("../../../app/src-tauri/dist/error.html");
-  const component = read("./Wordmark.svelte");
-  const attrs = (tag: string) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2].replace(/\s+/g, " ").trim()]));
-  const paths = (text: string) => [...text.matchAll(/<path\b[^>]*>/g)].map((m) => attrs(m[0]));
 
-  it("has the 16 px gull's drawing of Wordmark.svelte, path for path", () => {
-    const source = paths(component);
-    const copy = paths(page);
-    expect(copy).toHaveLength(2);
-    for (const path of copy) expect(source).toContainEqual(path);
+  it("is the letters and the 16 px gull of Wordmark.svelte, attribute for attribute and no other dot", () => {
+    expect(paths(page)).toEqual([letters, dots.gull16]);
   });
 
   it("is the same image: the 32 px size's box and its name", () => {
@@ -58,19 +71,17 @@ describe("the error page's copy of the wordmark", () => {
   });
 });
 
-// The README's drawings, one for each GitHub theme: the gull-dot wordmark in its own colours.
+// The README's drawings, one for each GitHub theme: the gull-dot wordmark in its own colours (sRGB, not currentColor or --accent).
 describe.each(["light", "dark"])("the README's %s wordmark", (theme) => {
-  const svg = readFileSync(resolve(import.meta.dirname, `../../../docs/design/ux/wordmark-${theme}.svg`), "utf8");
-  const component = readFileSync(resolve(import.meta.dirname, "./Wordmark.svelte"), "utf8");
-  const paths = (text: string) => [...text.matchAll(/<path\b[^>]*>/g)].map((m) => m[0]);
-  const geometry = (tag: string) => ["d", "transform", "stroke-width"].map((name) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]);
+  const svg = read(`../../../docs/design/ux/wordmark-${theme}.svg`);
 
-  it("has the 64 px drawing of Wordmark.svelte and no other", () => {
-    const [letters, gull] = paths(svg);
-    expect(paths(svg)).toHaveLength(2);
-    const source = paths(component).map(geometry);
-    expect(source).toContainEqual(geometry(letters));
-    expect(source).toContainEqual(geometry(gull));
+  it("is the letters and the 64 px gull of Wordmark.svelte, each but its colour, and no other dot", () => {
+    const [ink, gull, ...more] = paths(svg);
+    expect(more).toEqual([]);
+    expect(without(ink, "stroke")).toEqual(without(letters, "stroke"));
+    expect(ink.stroke).toMatch(/^#[0-9a-f]{6}$/);
+    expect(without(gull, "fill")).toEqual(without(dots.gull, "style"));
+    expect(gull.fill).toMatch(/^#[0-9a-f]{6}$/);
     expect(svg).toContain('viewBox="0 -6 212 80"');
     expect(svg).toContain('aria-label="Lokki"');
   });

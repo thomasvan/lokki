@@ -243,10 +243,12 @@ has not proved a token. Ordinary clients send the head and the body together, wi
 ## What the app still calls lokki
 
 The product is named Lokki wherever the app's own text names it: the window and error page titles, the dialogs,
-the tray, the sidebar, the update banner and the sentences the shell and the core give. The macOS application
-menu and the Dock take the bundle's `productName`, which is still `lokki`, so they say "lokki" until a later
-change renames it. The bundle identifier, the binaries, the data directory and the `LOKKI_*` variables keep
-`lokki`: programs read them, not people.
+the tray, the sidebar, the update banner and the sentences the shell and the core give. What the system or the
+release names from the bundle's `productName`, which is still `lokki`, says "lokki" until a later change renames
+it: the macOS application menu and the Dock, the macOS prompts that name the app ("could not verify “lokki”"),
+the Windows installer's name and its Start-menu shortcut, the Linux desktop entry, and the release title
+(`lokki ${TAG#v}`, set in `app.yml`). The bundle identifier, the binaries, the data directory and the `LOKKI_*`
+variables keep `lokki`: programs read them, not people.
 
 ## The CLIProxyAPI panel
 

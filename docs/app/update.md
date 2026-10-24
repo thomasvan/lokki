@@ -177,8 +177,8 @@ versions are A = `99.0.0` and B = `99.0.1`, which no release uses. It prints `PA
 3. `mac-update-handtest.sh download` puts a copy of A's `.dmg` in
    `~/Downloads/lokki-handtest-download`, with the quarantine attribute a browser writes
    (`0081;<time>;Safari;`). Then, by hand, install it as the README says: open that
-   `.dmg` from Finder, drag Lokki to Applications, eject the disk image, and open Lokki
-   from Applications. macOS says Lokki was not opened because Apple could not verify it;
+   `.dmg` from Finder, drag `lokki.app` to Applications, eject the disk image, and open it
+   from Applications. macOS says “lokki” was not opened because Apple could not verify it;
    press Done. In System Settings › Privacy & Security, press Open Anyway and give the
    password. Let first run finish, then quit Lokki and open it again once, so what step 4
    records has been through a restart, and wait for Home. Then "Check now" (or wait the
@@ -213,7 +213,7 @@ versions are A = `99.0.0` and B = `99.0.1`, which no release uses. It prints `PA
      it. *Pass:* "Download" and the not-writable reason; pressing nothing else, no
      password dialog appears;
    - `mac-update-handtest.sh copy translocate` puts a copy in `~/Downloads/lokki-handtest`
-     with a quarantine attribute; open it from Finder. *Pass:* macOS says Lokki was not
+     with a quarantine attribute; open it from Finder. *Pass:* macOS says “lokki” was not
      opened because Apple could not verify it; after Open Anyway in System Settings ›
      Privacy & Security, Lokki runs from a temporary copy, and offers "Download" with the
      translocation reason.

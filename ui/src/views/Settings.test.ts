@@ -732,7 +732,7 @@ describe("Settings", () => {
     const about = () => within(region("Updates and About"));
     const plain = rendered();
     expect(about().queryByRole("button", { name: "Check now" })).toBeNull();
-    expect(about().queryByText(/lokki checks once a day/)).toBeNull();
+    expect(about().queryByText(/Lokki checks once a day/)).toBeNull();
     plain.unmount();
 
     let answer: (u: NonNullable<typeof app.update>) => void = () => {};
