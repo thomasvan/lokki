@@ -90,7 +90,8 @@ The shell reads `https://github.com/thomasvan/lokki/releases/latest/download/lat
 (`plugins.updater.endpoints`), and waits up to 30 seconds for it to answer.
 It had no `latest.json` to serve until the first release, `v0.1.0`: a lightweight tag at
 17a0316, built by release run 39744117405 and published on 2026-10-22 at 08:08:08 UTC. The
-second, `v0.1.1`, is recorded under The in-app update from 0.1.0 to 0.1.1, below.
+second, `v0.1.1`, is recorded under The in-app update from 0.1.0 to 0.1.1, below. The
+third, `v0.1.2`, has a hand-test plan below, The in-app update from 0.1.1 to 0.1.2, and no result.
 
 Every package must be signed by the key whose public half is
 `plugins.updater.pubkey`. With `requireSignedVersion`, the signature must also carry
@@ -542,6 +543,32 @@ What is inferred:
 Not tried: a 0.1.0 installed through a browser download, with quarantine and Open
 Anyway, then updated; an update while a client streams through the core; the x86_64
 package.
+
+### The in-app update from 0.1.1 to 0.1.2 (planned, untested)
+
+Not run. 0.1.2 carries the wordmark and custom ports since 0.1.1. Once `v0.1.2` is
+published, update from the `v0.1.1` release to it from inside Lokki, once on an M4 Mac
+mini and once on a Windows 11 PC, each on a new default data directory with any real
+install and its data moved aside and put back after.
+
+- Install 0.1.1 from its release assets, not from a build of the tree. Record the
+  asset's SHA-256 and that `latest.json` names the 0.1.2 package of this platform.
+- Open it, let the check offer 0.1.2 (or press **Check now**), and install from the
+  page. Record the times of each step from the machine's clock.
+- After the relaunch: the page and the shell read 0.1.2; the bundle (macOS) or the
+  installed files (Windows) are the release's, compared byte for byte; the core and
+  CLIProxyAPI that ran are 0.1.2's and none of 0.1.1's is left; the data directory,
+  the token and the settings are the ones 0.1.1 had; `logs/app.log` has no error.
+- The update must keep whatever ports 0.1.1 was using (0.1.1 could already change
+  `listen` through the Address field and `cliproxy.port` under Advanced). Then try what
+  0.1.2 adds: the Port field with a free port, which must hold after a restart; a port
+  Save refuses; and a moved port that does not come up, after which the old port must
+  be in use again.
+- Check the wordmark in the sidebar, and on the error page.
+- On the Mac, `codesign --verify --deep --strict` on the installed bundle.
+
+What this would leave unproven: an Intel Mac, a Linux AppImage update, and an update
+while a client streams through the core.
 
 ## The leftover hand test on an M4 Mac mini
 
