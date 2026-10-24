@@ -75,7 +75,7 @@ impl Policy {
         match os {
             Os::Windows => yes,
             Os::Linux if env("APPIMAGE").is_some() => yes,
-            Os::Linux => no("this Lokki is not an AppImage; the updater replaces AppImages only, so download the new package"),
+            Os::Linux => no("this lokki is not an AppImage; the updater replaces AppImages only, so download the new package"),
             Os::Macos if mac.app.is_none() => no("this Lokki is not running from lokki.app, so it cannot replace itself; download the new .dmg"),
             Os::Macos if mac.translocated => no("macOS is running Lokki from a temporary copy, which cannot be updated: quit Lokki, move lokki.app into Applications with Finder, open it from there, then install"),
             Os::Macos if mac.read_only => no("Lokki is running from a read-only disk, such as its disk image: move lokki.app into Applications, open it from there, then install"),
