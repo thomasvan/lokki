@@ -17,7 +17,7 @@
   // address they were given, so the note says where they must point now. The query leaves the address bar at once,
   // so a reload does not say it again.
   const from = new URLSearchParams(location.search).get("moved_from");
-  let movedFrom = $state(from !== null && /^\d+$/.test(from) ? from : null);
+  let movedFrom = $state(from !== null && /^\d{1,5}$/.test(from) && Number(from) >= 1 && Number(from) <= 65535 ? from : null);
   if (from !== null) history.replaceState(history.state, "", location.pathname + location.hash);
   let typed = $state("");
   let checking = $state(false);

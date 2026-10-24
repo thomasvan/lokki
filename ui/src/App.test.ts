@@ -67,11 +67,11 @@ describe("App", () => {
     expect(screen.queryByText(/Lokki now listens on port/)).toBeNull();
     cleanup();
 
-    // A page that did not move, or a query that is not a port, says nothing.
-    for (const url of ["/", "/?moved_from=x"]) {
+    // A page that did not move, or a query that is not a port from 1 to 65535, says nothing.
+    for (const url of ["/", "/?moved_from=x", "/?moved_from=0", "/?moved_from=65536", "/?moved_from=99999999"]) {
       history.replaceState(null, "", url);
       render(App);
-      expect(screen.queryByText(/Lokki now listens on port/)).toBeNull();
+      expect(screen.queryByText(/Lokki now listens on port/), url).toBeNull();
       cleanup();
     }
     history.replaceState(null, "", "/");
