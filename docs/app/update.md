@@ -547,7 +547,7 @@ package.
 ### The in-app update from 0.1.1 to 0.1.2 (planned, untested)
 
 Not run. 0.1.2 carries the wordmark and custom ports since 0.1.1. Once `v0.1.2` is
-published, update from the `v0.1.1` release to it from inside lokki, once on an M4 Mac
+published, update from the `v0.1.1` release to it from inside Lokki, once on an M4 Mac
 mini and once on a Windows 11 PC, each on a new default data directory with any real
 install and its data moved aside and put back after.
 
@@ -559,10 +559,12 @@ install and its data moved aside and put back after.
   installed files (Windows) are the release's, compared byte for byte; the core and
   CLIProxyAPI that ran are 0.1.2's and none of 0.1.1's is left; the data directory,
   the token and the settings are the ones 0.1.1 had; `logs/app.log` has no error.
-- 0.1.1 has no custom port, so the update must keep the default ports. In 0.1.2, set a
-  custom port that is free and one that cannot come up, and check that the first holds
-  after a restart and the second is refused and the old port stays.
-- Check the wordmark in the header and the sidebar.
+- The update must keep whatever ports 0.1.1 was using (0.1.1 could already change
+  `listen` through the Address field and `cliproxy.port` under Advanced). Then try what
+  0.1.2 adds: the Port field with a free port, which must hold after a restart; a port
+  Save refuses; and a moved port that does not come up, after which the old port must
+  be in use again.
+- Check the wordmark in the sidebar, and on the error page.
 - On the Mac, `codesign --verify --deep --strict` on the installed bundle.
 
 What this would leave unproven: an Intel Mac, a Linux AppImage update, and an update
