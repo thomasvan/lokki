@@ -171,6 +171,10 @@ SIGTERM: a line it writes to a pipe no one reads any more is dropped. A core of 
 `/healthz` with `draining` and never exits. The next start kills such a core once its
 wait is over ([first run](first-run.md)).
 
+That kill comes at 30 s even while the core still drains, because its shell is gone. On
+Windows, where the orphaned CLIProxyAPI still answers, a stream still running through
+such a core is cut.
+
 A leftover CLIProxyAPI is stopped by its pid, and so is a leftover core that has to be
 killed, with the processes that started it. Windows and Linux hold each pid while
 lokki checks and stops the process, by a handle and a pidfd. Windows keeps the pid of a
