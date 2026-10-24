@@ -38,8 +38,8 @@ impl Outcome {
     /// core there, also after a go-back, which can leave the core on a port that moved.
     pub fn running(&self) -> Option<&Config> {
         match self {
-            Outcome::Ready(conf) => Some(conf),
-            Outcome::WentBack(..) | Outcome::Failed(_) | Outcome::Stuck { .. } => None,
+            Outcome::Ready(conf) | Outcome::WentBack(conf, _) => Some(conf),
+            Outcome::Failed(_) | Outcome::Stuck { .. } => None,
         }
     }
 }
