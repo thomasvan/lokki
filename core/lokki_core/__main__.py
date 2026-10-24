@@ -1,5 +1,5 @@
 """`python -m lokki_core`: serve (the default, `--config FILE` as server.py takes
-it), `init`, `sync-cliproxy`, `shell-config`, `schema --example`."""
+it), `init`, `sync-cliproxy`, `set-port`, `shell-config`, `schema --example`."""
 import argparse
 import json
 import sys
@@ -31,6 +31,10 @@ def main(argv=None):
     p.add_argument("--cliproxy-version", default="")
     for name in ("sync-cliproxy", "shell-config"):
         sub.add_parser(name).add_argument("--data-dir", required=True)
+    p = sub.add_parser("set-port")
+    p.add_argument("--data-dir", required=True)
+    p.add_argument("--core-port", type=_port(False))
+    p.add_argument("--cliproxy-port", type=_port(False))
     p = sub.add_parser("schema")
     p.add_argument("--example", action="store_true")
     args = parser.parse_args(argv)
@@ -46,11 +50,15 @@ def main(argv=None):
         print(json.dumps(out))
         if not out["created"]:
             print(note, file=sys.stderr)
-    elif args.cmd in ("sync-cliproxy", "shell-config"):
+    elif args.cmd in ("sync-cliproxy", "set-port", "shell-config"):
         from . import init
+        if args.cmd == "set-port" and args.core_port is None and args.cliproxy_port is None:
+            parser.error("set-port needs --core-port or --cliproxy-port")
         try:
             if args.cmd == "sync-cliproxy":
                 init.sync_cliproxy(args.data_dir)
+            elif args.cmd == "set-port":
+                init.set_port(args.data_dir, args.core_port, args.cliproxy_port)
             else:
                 # The one output that carries a secret (the operator token), for the shell's pipe.
                 print(json.dumps(init.shell_config(args.data_dir)))

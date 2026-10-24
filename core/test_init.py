@@ -209,6 +209,49 @@ class InitTests(unittest.TestCase):
         init.sync_cliproxy(self.dir)
         self.assertEqual(_read(out["cliproxy_config"]), before)
 
+    def test_set_port_puts_one_port_back_and_keeps_the_rest(self):
+        """The shell's way back from a port that did not come up writes that port alone:
+        `listen` on the host it had, or `cliproxy.port` with CLIProxyAPI's `server.port`."""
+        # (flag, value, the core file it writes from the one it read, CLIProxyAPI's port moves)
+        rows = [("--core-port", 9124, lambda doc: doc | {"listen": ["localhost:9124"]}, False),
+                ("--cliproxy-port", 9125, lambda doc: doc | {"cliproxy": doc["cliproxy"] | {"port": 9125}}, True)]
+        for flag, value, written, moves in rows:
+            with self.subTest(flag):
+                shutil.rmtree(self.dir, ignore_errors=True)
+                out = init.run(self.dir, core_port=0, cliproxy_port=0)
+                doc = _load(out["core_config"])
+                doc["listen"] = [f"localhost:{out['core_port']}"]
+                with open(out["core_config"], "w", encoding="utf-8") as f:
+                    f.write(yaml.safe_dump(doc, sort_keys=False))
+                cliproxy_before = _load(out["cliproxy_config"])
+                run = subprocess.run([sys.executable, "-m", "lokki_core", "set-port", "--data-dir", self.dir,
+                                      flag, str(value)], capture_output=True, text=True, timeout=30, cwd=HERE)
+                self.assertEqual((run.returncode, run.stdout), (0, ""), run.stderr)
+                self.assertEqual(_load(out["core_config"]), written(doc))
+                cliproxy_after = _load(out["cliproxy_config"])
+                server = dict(cliproxy_before["server"], port=value) if moves else cliproxy_before["server"]
+                self.assertEqual(cliproxy_after, dict(cliproxy_before, server=server))
+
+    def test_set_port_refuses_what_it_cannot_write_and_changes_nothing(self):
+        out = init.run(self.dir, core_port=0, cliproxy_port=0)
+        doc = _load(out["core_config"])
+        doc["listen"] = ["127.0.0.1:9126", "127.0.0.1:9127"]
+        with open(out["core_config"], "w", encoding="utf-8") as f:
+            f.write(yaml.safe_dump(doc, sort_keys=False))
+        before = self._snapshot()
+        # (arguments, exit status, what stderr says)
+        rows = [(["--core-port", "9128"], 1, "several listen addresses"),
+                ([], 2, "needs --core-port or --cliproxy-port"),
+                (["--core-port", "0"], 2, "port must be"),
+                (["--cliproxy-port", "70000"], 2, "port must be")]
+        for args, code, said in rows:
+            run = subprocess.run([sys.executable, "-m", "lokki_core", "set-port", "--data-dir", self.dir, *args],
+                                 capture_output=True, text=True, timeout=30, cwd=HERE)
+            self.assertEqual(run.returncode, code, (args, run.stderr))
+            self.assertIn(said, run.stderr)
+            self.assertNotIn("Traceback", run.stderr)
+            self.assertEqual(self._snapshot(), before, args)
+
     def test_the_cli_runs_init_and_prints_the_ports(self):
         out = subprocess.run([sys.executable, "-m", "lokki_core", "init", "--data-dir", self.dir,
                               "--core-port", "0", "--cliproxy-port", "0"],

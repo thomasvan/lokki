@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """The settings write path: an allow-list, one lock, nothing written on a
 refusal, a symlink kept, a read-only file, an env override or a value another
-source decides refused, and no secret in any answer."""
+source decides refused, a port the next start could not listen on refused, and
+no secret in any answer."""
+import contextlib
 import json
 import os
 import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -16,7 +19,7 @@ from unittest import mock
 import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lokki_core import config, handler, schema  # noqa: E402
+from lokki_core import config, handler, schema, settings_api  # noqa: E402
 from test_offline import TOKEN, _ServingHarness, _restore_globals, _snapshot_globals, assert_mode, json_get  # noqa: E402
 
 CLIENT_TOKEN = "cli-tok"
@@ -26,10 +29,10 @@ BASE = ("auth:\n  tokens:\n    - {name: app, token: '%s', operator: true}\n"
 
 # One valid value other than the default for every writable key, each PUT on its own.
 # The set of keys is compared with the schema's, so a key made writable there is a
-# key this table has to name.
+# key this table has to name. The two ports are ones the OS picks, filled in by the test.
 ROUND_TRIP = {
-    "listen": ["127.0.0.1:9999"],
-    "cliproxy.port": 9001,
+    "listen": None,
+    "cliproxy.port": None,
     "cliproxy.panel": True,
     "cliproxy.url": "http://127.0.0.1:9002",
     "routing": "direct",
@@ -84,6 +87,25 @@ def read(path):
         return f.read()
 
 
+def free_ports(n):
+    """`n` distinct ports nothing listens on, as the OS picks them."""
+    with contextlib.ExitStack() as stack:
+        socks = [stack.enter_context(socket.socket()) for _ in range(n)]
+        for s in socks:
+            s.bind(("127.0.0.1", 0))
+        return [s.getsockname()[1] for s in socks]
+
+
+@contextlib.contextmanager
+def holding(listen=True):
+    """A port another program holds: accepting connections, or bound and not accepting."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        if listen:
+            s.listen(1)
+        yield s.getsockname()[1]
+
+
 class SettingsApiTests(_ServingHarness):
     def setUp(self):
         super().setUp()
@@ -127,15 +149,17 @@ class SettingsApiTests(_ServingHarness):
         self.write(BASE + f"cliproxy:\n  management_secret_file: '{self.secret_file}'\n")
         self.load()
         self.assertEqual(set(ROUND_TRIP), {f.key for f in schema.FIELDS if f.writable})
+        core_port, cliproxy_port = free_ports(2)
+        values = dict(ROUND_TRIP, **{"listen": [f"127.0.0.1:{core_port}"], "cliproxy.port": cliproxy_port})
         for f in schema.FIELDS:
             if not f.writable:
                 continue
-            status, body = put(self.port, nested(f.key, ROUND_TRIP[f.key]))
+            status, body = put(self.port, nested(f.key, values[f.key]))
             self.assertEqual(status, 200, (f.key, body))
             self.assertEqual(body["restart_required"] if f.startup_only else body["applied"], [f.key])
             status, view = json_get(self.port, "/api/settings")
             top, _, rest = f.key.partition(".")
-            self.assertEqual(view[top][rest] if rest else view[f.key], ROUND_TRIP[f.key], f.key)
+            self.assertEqual(view[top][rest] if rest else view[f.key], values[f.key], f.key)
 
     def test_a_nested_key_merges_without_dropping_its_siblings(self):
         put(self.port, {"low_quota": {"threshold_percent": 40}})
@@ -216,11 +240,12 @@ class SettingsApiTests(_ServingHarness):
 
     def test_a_startup_only_key_is_written_and_reported_not_bound(self):
         bound, upstream = handler.BOUND_LISTEN, config.UPSTREAM
-        status, body = put(self.port, {"listen": ["127.0.0.1:9999"], "cliproxy": {"port": 9001}})
+        core_port, cliproxy_port = free_ports(2)
+        status, body = put(self.port, {"listen": [f"127.0.0.1:{core_port}"], "cliproxy": {"port": cliproxy_port}})
         self.assertEqual(status, 200, body)
         self.assertEqual(sorted(body["restart_required"]), ["cliproxy.port", "listen"])
         self.assertEqual(handler.BOUND_LISTEN, bound)          # what is bound did not move
-        self.assertEqual(config.UPSTREAM, upstream)            # nor the upstream: nothing listens on 9001 yet
+        self.assertEqual(config.UPSTREAM, upstream)            # nor the upstream: nothing listens on the new port yet
         self.assertIn("listen:", read(self.path))
 
     def test_a_put_of_listen_moves_the_file_not_what_the_guard_reads(self):
@@ -228,9 +253,10 @@ class SettingsApiTests(_ServingHarness):
         process bound. A loopback Host passes the guard either way, so the bound
         set here also holds a non-loopback address (the owner's Tailscale one)."""
         handler.BOUND_LISTEN = (f"127.0.0.1:{self.port}", f"100.64.0.9:{self.port}")
-        status, body = put(self.port, {"listen": ["127.0.0.1:9999"]})
+        moved = f"127.0.0.1:{free_ports(1)[0]}"
+        status, body = put(self.port, {"listen": [moved]})
         self.assertEqual(status, 200, body)
-        self.assertEqual(list(config.LISTEN), ["127.0.0.1:9999"])
+        self.assertEqual(list(config.LISTEN), [moved])
         self.assertEqual(handler.BOUND_LISTEN, (f"127.0.0.1:{self.port}", f"100.64.0.9:{self.port}"))
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}/version",
                                      headers={"X-Relay-Token": TOKEN, "Host": f"100.64.0.9:{self.port}"})
@@ -261,6 +287,64 @@ class SettingsApiTests(_ServingHarness):
                 config.load_settings(config_path=self.path, env={})
             self.assertIn("cliproxy.url", str(caught.exception))
             self.assertNotIn(bad, str(caught.exception))
+
+    def test_a_port_the_next_start_could_not_use_is_refused_naming_its_key(self):
+        """Either port, moved, is refused at the write when its service could not listen
+        there, with the reason beside the field; the restart would otherwise stop the
+        running service and fail to start it again."""
+        free_core, free_cliproxy = free_ports(2)
+        self.write(BASE + f"listen: ['127.0.0.1:{free_core}']\ncliproxy:\n  port: {free_cliproxy}\n")
+        self.load()
+        # (label, holder of the port, the body for it, its key, status, said)
+        rows = [("listen, a port that accepts", True, lambda p: {"listen": [f"127.0.0.1:{p}"]},
+                 "listen", 409, "is in use by another program"),
+                ("cliproxy.port, a port that accepts", True, lambda p: {"cliproxy": {"port": p}},
+                 "cliproxy.port", 409, "is in use by another program"),
+                ("listen, a port bound and not accepting", False, lambda p: {"listen": [f"127.0.0.1:{p}"]},
+                 "listen", 409, "Lokki cannot listen on 127.0.0.1:"),
+                ("the core on CLIProxyAPI's port", None, lambda _: {"listen": [f"127.0.0.1:{free_cliproxy}"]},
+                 "listen", 400, f"cannot both use port {free_cliproxy}"),
+                ("CLIProxyAPI on the core's port", None, lambda _: {"cliproxy": {"port": free_core}},
+                 "cliproxy.port", 400, f"cannot both use port {free_core}"),
+                ("listen, a port past 65535", None, lambda _: {"listen": ["127.0.0.1:70000"]},
+                 "listen", 400, "from 1 to 65535"),
+                ("listen, port 0", None, lambda _: {"listen": ["127.0.0.1:0"]},
+                 "listen", 400, "from 1 to 65535")]
+        before = read(self.path)
+        for label, listening, body, key, code, said in rows:
+            with self.subTest(label), (holding(listening) if listening is not None
+                                       else contextlib.nullcontext(None)) as port:
+                status, payload = put(self.port, body(port))
+                self.assertEqual((status, payload.get("key")), (code, key), payload)
+                self.assertIn(said, payload["error"]["message"])
+                self.assertEqual(read(self.path), before)
+
+    def test_port_1455_is_refused_by_its_value_without_a_bind(self):
+        """1455 is where a Codex login returns, held while one waits: refused as a value,
+        so the suite never binds it."""
+        def no_probe_of_1455(host, port):
+            if port == 1455:
+                raise AssertionError("1455 was probed")
+            return None
+        with mock.patch.object(settings_api, "_unusable", side_effect=no_probe_of_1455):
+            for body, key in (({"listen": ["127.0.0.1:1455"]}, "listen"), ({"cliproxy": {"port": 1455}}, "cliproxy.port")):
+                status, payload = put(self.port, body)
+                self.assertEqual((status, payload.get("key")), (400, key), payload)
+                self.assertIn("where a Codex login returns", payload["error"]["message"])
+
+    def test_the_port_a_service_listens_on_now_passes_unprobed(self):
+        """The running service holds its own port, so the value it has is never probed;
+        the same port, held by another program, is refused."""
+        with holding() as cliproxy_port:
+            self.write(BASE + f"cliproxy:\n  port: {cliproxy_port}\n")
+            self.load()            # a start: CLIProxyAPI runs on the file's port
+            handler.BOUND_LISTEN = (f"127.0.0.1:{self.port}",)
+            for body in ({"listen": [f"127.0.0.1:{self.port}"]}, {"cliproxy": {"port": cliproxy_port}}):
+                status, payload = put(self.port, body)
+                self.assertEqual(status, 200, (body, payload))
+            handler.BOUND_LISTEN = (f"127.0.0.1:{free_ports(1)[0]}",)
+            status, payload = put(self.port, {"listen": [f"127.0.0.1:{self.port}"]})
+            self.assertEqual((status, payload.get("key")), (409, "listen"), payload)
 
     def test_url_and_port_in_one_body_is_refused(self):
         status, payload = put(self.port, {"cliproxy": {"port": 9000, "url": "http://10.0.0.2:8317"}})
@@ -334,7 +418,7 @@ class SettingsApiTests(_ServingHarness):
         self.load()
         self.assert_conflict({"cliproxy": {"port": 9001}}, "cliproxy.port", "cliproxy.url")
         # Clearing the URL in the same body is how the port is chosen again.
-        status, body = put(self.port, {"cliproxy": {"url": "", "port": 9001}})
+        status, body = put(self.port, {"cliproxy": {"url": "", "port": free_ports(1)[0]}})
         self.assertEqual(status, 200, body)
 
     def test_clearing_a_running_url_is_reported_for_the_next_start(self):

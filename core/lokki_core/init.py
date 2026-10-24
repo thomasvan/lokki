@@ -15,7 +15,7 @@ _LAYOUT = ("config.yaml", "cliproxy", "secrets", "logs", "runs.jsonl")     # wha
 
 
 class InitError(Exception):
-    """A refusal `init`, `sync-cliproxy` or `shell-config` states in one sentence."""
+    """A refusal `init`, `sync-cliproxy`, `set-port` or `shell-config` states in one sentence."""
 
 
 def check_port(port, allow_zero=False):
@@ -312,6 +312,30 @@ def sync_cliproxy(data_dir):
     doc.setdefault("server", {}).update({"host": "127.0.0.1", "port": cliproxy["port"]})
     doc.setdefault("management", {})["disable-control-panel"] = not cliproxy["panel"]
     _write(path, _dump(doc), 0o600)
+
+
+def set_port(data_dir, core_port=None, cliproxy_port=None):
+    """The shell's way back to a port that worked, when a moved one did not come up:
+    `listen` becomes one address on the host it had, and `cliproxy.port` is written
+    with CLIProxyAPI's `server.port` in step. Every other key is kept as loaded. What
+    listens on the port is not asked: the start that follows says."""
+    from . import config
+    data_dir = os.path.abspath(data_dir)
+    path = os.path.join(data_dir, "config.yaml")
+    _, doc = _load(path, "cliproxy")
+    if core_port is not None:
+        try:
+            listen = config.parse_listen(doc.get("listen"))
+        except config.ConfigError as e:
+            raise InitError(f"{path}: {e}")
+        if len(listen) != 1:
+            raise InitError(f"{path} names several listen addresses; set the port there by hand")
+        doc["listen"] = [f"{listen[0].rpartition(':')[0]}:{check_port(core_port)}"]
+    if cliproxy_port is not None:
+        doc.setdefault("cliproxy", {})["port"] = check_port(cliproxy_port)
+    _write(path, _dump(doc), 0o600)
+    if cliproxy_port is not None:
+        sync_cliproxy(data_dir)
 
 
 def shell_config(data_dir):
