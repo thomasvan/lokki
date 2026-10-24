@@ -50,7 +50,7 @@ const WENT_BACK_MAX: usize = 500;
 /// core's origin. Any other window gets none. Not the URL, which any link can write.
 fn went_back_script(origin: &str, went_back: Option<&str>) -> Option<String> {
     let said = went_back?;
-    let said: String = if said.chars().count() > WENT_BACK_MAX {
+    let said: String = if said.chars().count() > WENT_BACK_MAX * 2 {
         said.chars().take(WENT_BACK_MAX - 1).chain(['…']).collect()
     } else {
         said.to_string()
