@@ -71,7 +71,13 @@ out and writes the `routing` it chose. The
 `upstream` file key, or an existing `cliproxy.url` for a port update determines
 the upstream. Settings controlled by environment variables, a missing or
 unwritable settings file, a file that cannot load (with the loader's error), or
-a file with no usable client token are also refused with 409. Reload holds a
+a file with no usable client token are also refused with 409. A `listen` or
+`cliproxy.port` in the body is checked as the next start would use it: a port
+outside 1 to 65535, 1455 (the Codex login's callback), or the core and CLIProxyAPI
+on one port is 400; a port something accepts connections on at `127.0.0.1`, or one
+the core cannot bind on that address as its listener does (`SO_REUSEADDR` on POSIX,
+not on Windows), is 409 with the system's reason. A port the same service listens
+on now is not probed. Each refusal names its key and writes nothing. Reload holds a
 port-derived upstream at its running value and logs that hold.
 
 The Host/Origin guard checks every `/api/*` route and `/version`: Host must be a

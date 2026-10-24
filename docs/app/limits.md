@@ -240,6 +240,22 @@ never sends one, and reading a chunked body would mean parsing one from a client
 has not proved a token. Ordinary clients send the head and the body together, with a
 `Content-Length`.
 
+## Changing a port
+
+No port has been changed on a built app, on any system. The refusal at Save is
+tested in the core suite on Linux, macOS and Windows, with ports the system picks;
+the way back is tested in the shell's Rust tests against a fake that records each
+stop, start and write, never against running sidecars.
+
+The check at Save is a probe at that moment. A port another program takes between
+Save and the restart is found only by the start, and Lokki then goes back. A start
+that does not answer on its new port within 30 s counts as the port failing, so a
+slow start on a free port also goes back. Exchanging the two ports in one save is
+refused: each port is held by the other service until the restart.
+
+The note that clients must follow shows in the window that moved, once. Nothing
+tells a client, and nothing records the old port once the note is dismissed.
+
 ## The CLIProxyAPI panel
 
 CLIProxyAPI's management panel downloads its assets from GitHub when it runs,

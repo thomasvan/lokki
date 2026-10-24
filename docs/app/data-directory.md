@@ -17,7 +17,7 @@ naming the directory and an entry it did not make, exits with status 1 and
 changes nothing. The line says to point `LOKKI_DATA_DIR` at an empty or new
 folder, or to move those files out and press Try again, which runs `init` again.
 The app reads `LOKKI_DATA_DIR` once, when it starts (`paths::data_dir()` at
-`app/src-tauri/src/lib.rs:503`, reading it at `app/src-tauri/logic/src/paths.rs:12`),
+`app/src-tauri/src/lib.rs:591`, reading it at `app/src-tauri/logic/src/paths.rs:12`),
 so an app opened from Finder, the Start menu or a launcher must be quit and opened
 again with the variable set; Try again does not pick it up. Moving the files out and
 pressing Try again needs no environment.
@@ -58,6 +58,14 @@ file, keeping every other key as loaded and the file's mode. It prints nothing,
 and exits 1 with one sentence, writing nothing, for a file it cannot use. It is
 the only operation lokki performs on CLIProxyAPI's file; the rest of that
 document belongs to CLIProxyAPI.
+
+`set-port --data-dir DIR --core-port N` or `--cliproxy-port N` (1 to 65535) is
+the shell's way back when a moved port does not come up. It writes `listen` as one
+address on the host it had, or `cliproxy.port` and then `server.port` as
+`sync-cliproxy` does, keeping every other key as loaded. It prints nothing; it
+exits 1 with one sentence, writing nothing, for a file it cannot use or a `listen`
+of several addresses, and 2 without a port. It does not ask what listens on the
+port: the start that follows does.
 
 `shell-config --data-dir DIR` prints one JSON line, `{core_port, cliproxy_port,
 operator_token, management_secret_file, panel}`, read through the loader. It is

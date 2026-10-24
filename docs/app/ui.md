@@ -281,7 +281,7 @@ resumes on visibility, and skips a tick while that poll is still in flight.
   (`label`, `group`, `choice_labels`), with its `meaning` under it; the UI owns only
   the group titles and their order (`GROUP_TITLES` in `ui/src/lib/fields.ts`): Mode,
   Connection, Updates and About, then Advanced, a fold closed by default holding
-  CLIProxyAPI, Quota reading, Cutting, Tool calls, Traffic, Other and Set in the file
+  The core's address, CLIProxyAPI, Quota reading, Cutting, Tool calls, Traffic, Other and Set in the file
   (read-only). A row of a group the UI does not know is never dropped: a writable
   one shows under Advanced › Other, a read-only one under Advanced › Set in the
   file. `hidden` rows (`auth.*`) are never shown. Above 1000 px a column of links
@@ -335,13 +335,26 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     its value as text with a lock and "read-only", no input, and is never
     counted. A field the environment sets is locked with "set by the
     environment"; a `listen` of several addresses with "edit the file to change
-    several addresses"; a file that is not writable puts "the settings file is not
+    several addresses", and Connection's Port with it; a file that is not writable puts "the settings file is not
     writable here" once at the top and disables every field and Save.
   - A saved `startup_only` key puts a notice per service in a bar at the top of
     the groups' column, which stays in view as the page scrolls, "Restart CLIProxyAPI to apply" or "Restart the core to apply", with
     its button when the shell has `restart`. Notices stay pending in
     `app.restart` until `window.lokki.restart(service)` succeeds or the page
-    reloads; one restart runs at a time.
+    reloads; one restart runs at a time. CLIProxyAPI's restart restarts the core,
+    so its success clears both notices. A failed restart reads the settings
+    again: a moved port that did not come up has been put back in the file, and
+    the shell's sentence says so beside the notice.
+  - Connection's one row is Port, a field of the UI's own (`PORT` in
+    `ui/src/lib/fields.ts`) over `listen`: it shows the port of the core's one
+    address and saves `listen` as that address with the port changed and the host
+    kept. A refusal of `listen` marks it invalid. The whole address is the
+    `listen` row under Advanced › The core's address.
+  - A window the shell opens at `?moved_from=<port>`, because the core came back on
+    a new port, says above the view "Lokki now listens on port N, not M. Clients
+    such as Codex CLI still use the old address: set their base URL to
+    `http://127.0.0.1:N/v1`", with Dismiss. The query leaves the address bar at
+    once, so a reload does not say it again.
   - CLIProxyAPI's panel sits under the Web panel switch and follows the saved
     `cliproxy.panel`. Off, it says to turn it on and save. On, the shell gets
     "Open the panel" and "Copy the management secret" ("Copied" for 3 seconds),

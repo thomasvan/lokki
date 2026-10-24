@@ -20,9 +20,22 @@ The data directory is `~/Library/Application Support/lokki` on macOS,
 `%APPDATA%\lokki` on Windows, and `$XDG_DATA_HOME/lokki` or
 `~/.local/share/lokki` on Linux. `LOKKI_DATA_DIR` overrides the location.
 The core and CLIProxyAPI use ports 8381 and 8317 when available, then the next
-free ports. Both listen on loopback. Find the address and port of the core under
-Settings › Connection; the CLIProxyAPI port is under Settings › Advanced ›
-CLIProxyAPI.
+free ports. Both listen on loopback. The core's port is Port under Settings ›
+Connection, its whole address under Settings › Advanced › The core's address, and
+CLIProxyAPI's port under Settings › Advanced › CLIProxyAPI.
+
+## Changing a port
+
+Type the new port and save the group. A port Lokki could not listen on is refused
+at Save with the reason beside the field: one another program holds, one the
+system does not permit, the other service's port, or 1455, where a Codex login
+returns. Then press the restart Settings offers. The window reopens on the new
+port and says that clients now use `http://127.0.0.1:<port>/v1`: each client, such
+as Codex CLI, keeps the address it was given until it is changed there. If the
+service does not come up on the new port, Lokki writes the previous port back,
+starts on it, and says both beside the restart. If that fails too, the error page
+says what to set in `config.yaml` by hand; its Try again starts both services from
+the file.
 The files and their owners are listed in [Data directory](data-directory.md).
 
 The shell writes `logs/app.log`; the sidecars write `logs/core.log` and
@@ -47,7 +60,7 @@ own machine can reach `127.0.0.1:1455`.
 
 The CLIProxyAPI management panel is off by default. Turn on Web panel in
 Settings › Advanced › CLIProxyAPI and save the group. Settings marks a CLIProxyAPI restart
-as needed and offers that restart through the shell. Under the Web panel switch,
+as needed and offers that restart through the shell, which restarts the core too. Under the Web panel switch,
 choose “Open the panel” to open it in the system browser, then “Copy the
 management secret” to copy its login secret. See [UI](ui.md) for the UI's views and [Limits](limits.md) for the
 panel's runtime dependency.
