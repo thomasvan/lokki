@@ -120,7 +120,7 @@ impl Shell {
         let dir = &self.cx.dir;
         let conf = firstrun::ensure(dir, |args| sidecars::run_core(dir, args, &self.cx.log))
             .map_err(|e| Failure {
-                title: "lokki could not set up its data directory".into(),
+                title: "Lokki could not set up its data directory".into(),
                 what: format!(
                     "The core's first-run step failed for {}. What it said:",
                     dir.display()
@@ -134,9 +134,9 @@ impl Shell {
         if self.lock.get().is_none() {
             let file = leftover::lock(dir, &self.cx.clock).map_err(|e| {
                 let (title, what) = match e {
-                    leftover::NotLocked::Held(what) => ("lokki is already running", what),
+                    leftover::NotLocked::Held(what) => ("Lokki is already running", what),
                     leftover::NotLocked::Failed(what) => {
-                        ("lokki could not lock its data directory", what)
+                        ("Lokki could not lock its data directory", what)
                     }
                 };
                 Failure {
@@ -165,7 +165,7 @@ impl Shell {
         if let Err((service, e)) = side.start_all(&self.cx, &conf) {
             stop_both(&mut side);
             return Err(Failure {
-                title: "lokki could not start its services".into(),
+                title: "Lokki could not start its services".into(),
                 what: format!("{e}. The last lines of logs/{}.log:", service.name()),
                 name: "start".into(),
                 tail: self.log_tail(service),
@@ -182,7 +182,7 @@ impl Shell {
         self.report_started(&side, &conf);
         drop(side);
         self.open_window(&conf, None).map_err(|e| Failure {
-            title: "lokki could not open its window".into(),
+            title: "Lokki could not open its window".into(),
             what: e,
             name: "start".into(),
             tail: String::new(),
@@ -272,12 +272,12 @@ impl Shell {
     fn restart(self: &Arc<Self>, service: Service) -> Result<()> {
         let mut side = self.side();
         if self.quitting.load(Ordering::SeqCst) {
-            return Err("lokki is quitting".into());
+            return Err("Lokki is quitting".into());
         }
         if self.installing.load(Ordering::SeqCst) {
             return Err(INSTALLING.into());
         }
-        let conf = self.conf().ok_or("lokki has not started its services")?;
+        let conf = self.conf().ok_or("Lokki has not started its services")?;
         self.cx
             .log
             .line(format_args!("restart of {} asked", service.name()));
@@ -324,12 +324,12 @@ impl Shell {
         };
         let mut side = self.side();
         if self.quitting.load(Ordering::SeqCst) {
-            return Err("lokki is quitting".into());
+            return Err("Lokki is quitting".into());
         }
         if self.installing.load(Ordering::SeqCst) {
             return Err(INSTALLING.into());
         }
-        let conf = self.conf().ok_or("lokki has not started its services")?;
+        let conf = self.conf().ok_or("Lokki has not started its services")?;
         side.forgive(service);
         let conf = self.reread_conf(conf);
         let started = side.start(&self.cx, &conf, service, true);
@@ -582,7 +582,7 @@ fn stuck_page(dir: &Path, service: Service, port: u16, sentence: &str, tail: Str
 
 fn gave_up_page(service: Service, sentence: &str, tail: String) -> Failure {
     Failure {
-        title: format!("lokki stopped {}", service.title()),
+        title: format!("Lokki stopped {}", service.title()),
         what: format!("{sentence} The last lines of logs/{}.log:", service.name()),
         name: service.name().into(),
         tail,

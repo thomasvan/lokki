@@ -50,7 +50,7 @@ test("the UI against a real core and a fake CLIProxyAPI", async ({ page, core })
       recent: Array<{ outcome: string; route: string }>; events: unknown[];
     };
     const read = async (window: string) => (await (await page.request.get(`/api/activity?window=${window}`, { headers })).json()) as Answer;
-    const since = page.getByText(/^(counted )?since .+: (the run log holds runs since then|lokki reads)/);
+    const since = page.getByText(/^(counted )?since .+: (the run log holds runs since then|Lokki reads)/);
 
     await page.getByRole("region", { name: "Last 24 h" }).getByRole("button", { name: "Open Activity" }).click();
     await expect(page.getByRole("heading", { name: "Activity", level: 2 })).toBeVisible();
@@ -291,6 +291,33 @@ test("the UI against a real core and a fake CLIProxyAPI", async ({ page, core })
     }
   });
 
+  await test.step("the sidebar's brand is the mark and the wordmark Lokki, in the ink and the accent of each colour scheme", async () => {
+    const brand = page.locator(".sidebar .brand");
+    await expect(page.getByRole("heading", { level: 1, name: "Lokki" })).toBeVisible();
+    const word = brand.getByRole("img", { name: "Lokki" });
+    await expect(word).toHaveAttribute("data-wordmark", "dot");
+    const box = await word.boundingBox();
+    expect(box && Math.round(box.height * 10) / 10).toBe(14.4);
+    const markBox = await brand.locator("svg.mark").boundingBox();
+    expect(box && markBox && box.x > markBox.x + markBox.width).toBe(true);          // beside the mark, not under it
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      const ink = await word.evaluate((el) => {
+        const [letters, dot] = Array.from(el.querySelectorAll("path")).map((p) => getComputedStyle(p));
+        const probe = document.createElement("i");
+        probe.style.color = "var(--accent)";
+        document.body.append(probe);
+        const accent = getComputedStyle(probe).color;
+        probe.remove();
+        return { letters: letters.stroke, text: getComputedStyle(el).color, dot: dot.fill, accent };
+      });
+      expect(ink.letters, scheme).toBe(ink.text);
+      expect(ink.dot, scheme).toBe(ink.accent);
+      expect(ink.dot, scheme).not.toBe(ink.letters);
+    }
+    await page.emulateMedia({ colorScheme: null });
+  });
+
   await test.step("the narrow window: the destinations fold into a row of tabs and nothing leaves the window", async () => {
     await page.setViewportSize({ width: 480, height: 600 });
     const overflowing = () => page.evaluate(() => {
@@ -312,7 +339,7 @@ test("the UI against a real core and a fake CLIProxyAPI", async ({ page, core })
       // The brand folds away from sight, and its h1 stays the page heading for assistive technology.
       const brand = await page.locator(".brand").boundingBox();
       expect(brand && brand.width <= 1 && brand.height <= 1, where).toBe(true);
-      await expect(page.getByRole("heading", { level: 1, name: "lokki" })).toHaveCount(1);
+      await expect(page.getByRole("heading", { level: 1, name: "Lokki" })).toHaveCount(1);
       const fold = await page.evaluate(() => {
         const bar = document.querySelector("header.topbar")!.getBoundingClientRect();
         const tabs = [...document.querySelectorAll("nav[aria-label=Destinations] button")].map((b) => b.getBoundingClientRect());

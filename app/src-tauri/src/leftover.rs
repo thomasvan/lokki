@@ -56,7 +56,7 @@ pub fn lock(dir: &Path, clock: &impl Clock) -> std::result::Result<File, NotLock
     let path = dir.join(LOCK_FILE);
     let file = open
         .open(&path)
-        .map_err(|e| NotLocked::Failed(format!("lokki could not open {}: {e}", path.display())))?;
+        .map_err(|e| NotLocked::Failed(format!("Lokki could not open {}: {e}", path.display())))?;
     let end = clock.now() + LOCK_WAIT;
     loop {
         match file.try_lock() {
@@ -66,14 +66,14 @@ pub fn lock(dir: &Path, clock: &impl Clock) -> std::result::Result<File, NotLock
             }
             Err(std::fs::TryLockError::WouldBlock) => {
                 return Err(NotLocked::Held(format!(
-                    "Another lokki is running on the data directory {}. Open it from its \
+                    "Another Lokki is running on the data directory {}. Open it from its \
                      tray icon, or quit it and try again.",
                     dir.display()
                 )))
             }
             Err(std::fs::TryLockError::Error(e)) => {
                 return Err(NotLocked::Failed(format!(
-                    "lokki could not lock {}: {e}. lokki runs only on a data directory whose \
+                    "Lokki could not lock {}: {e}. Lokki runs only on a data directory whose \
                      file system supports file locks.",
                     path.display()
                 )))

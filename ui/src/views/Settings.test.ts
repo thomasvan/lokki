@@ -673,7 +673,7 @@ describe("Settings", () => {
   it("says why the model list could not be read, offers Retry, and keeps every chosen name removable", async () => {
     const core = modelsCore({ models: ["m1", "gone"], failure: [502, "CLIProxyAPI did not answer"] });
     rendered();
-    const alert = await picker().findByText("lokki could not read the models CLIProxyAPI offers: CLIProxyAPI did not answer");
+    const alert = await picker().findByText("Lokki could not read the models CLIProxyAPI offers: CLIProxyAPI did not answer");
     expect(alert.closest('[role="alert"]')).not.toBeNull();
     expect(picker().queryByRole("checkbox")).toBeNull();
     expect(picker().queryByText(/Chosen but not listed/)).toBeNull();               // no list to compare against
@@ -779,7 +779,7 @@ describe("Settings", () => {
 
       app.settings = withCliproxy({ management_secret_file: "/data/secrets/cliproxy-mgmt.secret" });
       const set = rendered();
-      expect(within(region("Mode")).queryByText(/^lokki does not read the quota here/), routing).toBeNull();
+      expect(within(region("Mode")).queryByText(/^Lokki does not read the quota here/), routing).toBeNull();
       set.unmount();
     }
   });
@@ -788,7 +788,7 @@ describe("Settings", () => {
     const about = () => within(region("Updates and About"));
     const plain = rendered();
     expect(about().queryByRole("button", { name: "Check now" })).toBeNull();
-    expect(about().queryByText(/lokki checks once a day/)).toBeNull();
+    expect(about().queryByText(/Lokki checks once a day/)).toBeNull();
     plain.unmount();
 
     let answer: (u: NonNullable<typeof app.update>) => void = () => {};
@@ -797,7 +797,7 @@ describe("Settings", () => {
     app.update = update;
     rendered();
     expect(about().getByText(updateLine(update))).toBeInTheDocument();
-    expect(about().getByText("lokki checks once a day; a new release shows a banner at the top")).toBeInTheDocument();
+    expect(about().getByText("Lokki checks once a day; a new release shows a banner at the top")).toBeInTheDocument();
     const check = about().getByRole("button", { name: "Check now" });
     await fireEvent.click(check);
     expect(window.lokki.checkForUpdate).toHaveBeenCalledTimes(1);
@@ -806,7 +806,7 @@ describe("Settings", () => {
     await fireEvent.click(check);
     expect(window.lokki.checkForUpdate).toHaveBeenCalledTimes(1);          // a press meanwhile does nothing
     answer({ ...update, state: "available", version: "0.2.0", can_install: true });
-    await waitFor(() => expect(about().getByText("lokki 0.2.0 is available.")).toBeInTheDocument());
+    await waitFor(() => expect(about().getByText("Lokki 0.2.0 is available.")).toBeInTheDocument());
     expect(check).not.toHaveAttribute("aria-busy", "true");
     expect(check).toBeEnabled();
   });

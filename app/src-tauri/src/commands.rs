@@ -17,7 +17,7 @@ const SMOKE_HOLD: Duration = Duration::from_secs(2);
 async fn off_runtime(work: impl FnOnce() -> Answer + Send + 'static) -> Answer {
     tauri::async_runtime::spawn_blocking(work)
         .await
-        .unwrap_or_else(|_| Err("lokki's shell failed while doing that; see logs/app.log".into()))
+        .unwrap_or_else(|_| Err("Lokki's shell failed while doing that; see logs/app.log".into()))
 }
 
 fn open_in_browser(app: &AppHandle, url: &str) -> Answer {
@@ -30,7 +30,7 @@ fn open_in_browser(app: &AppHandle, url: &str) -> Answer {
 fn external_url(url: &str) -> Result<Url, String> {
     let parsed: Url = url.parse().map_err(|_| "that is not a URL".to_string())?;
     if parsed.scheme() != "https" {
-        return Err("lokki opens https: links only".into());
+        return Err("Lokki opens https: links only".into());
     }
     Ok(parsed)
 }
@@ -54,7 +54,7 @@ pub async fn open_external(app: AppHandle, url: String) -> Answer {
 /// CLIProxyAPI's panel in the system browser, when `cliproxy.panel` is on.
 #[tauri::command]
 pub async fn open_panel(app: AppHandle, shell: State<'_, Arc<Shell>>) -> Answer {
-    let conf = shell.conf().ok_or("lokki has not started its services")?;
+    let conf = shell.conf().ok_or("Lokki has not started its services")?;
     if !conf.panel {
         return Err("the panel is off".into());
     }
@@ -69,7 +69,7 @@ pub async fn open_panel(app: AppHandle, shell: State<'_, Arc<Shell>>) -> Answer 
 pub async fn copy_management_secret(app: AppHandle, shell: State<'_, Arc<Shell>>) -> Answer {
     let secret = shell
         .secret()
-        .ok_or("lokki could not read the management secret file")?;
+        .ok_or("Lokki could not read the management secret file")?;
     app.clipboard()
         .write_text(secret)
         .map_err(|e| format!("could not reach the clipboard: {e}"))

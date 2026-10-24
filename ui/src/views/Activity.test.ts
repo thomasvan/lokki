@@ -89,7 +89,7 @@ describe("Activity", () => {
     const inside = base.from + 5 * HOUR;
     expect(sentence({ ...base, coverage: { ...base.coverage, oldest: inside } })).toBe(`since ${clock(inside)}: the run log holds runs since then`);
     expect(sentence({ ...base, coverage: { ...base.coverage, oldest: inside, complete: false } }))
-      .toBe(`counted since ${clock(inside)}: lokki reads the last 8 MiB of its run log; older runs in this window are not counted`);
+      .toBe(`counted since ${clock(inside)}: Lokki reads the last 8 MiB of its run log; older runs in this window are not counted`);
     expect(sentence({ ...base, coverage: { ...base.coverage, oldest: base.from - 5 * HOUR } })).toBeNull();      // complete, and the log reaches back past the window
     expect(sentence({ ...base, coverage: { ...base.coverage, oldest: base.from } })).toBeNull();
     const old = NOW - 30 * HOUR;
@@ -153,7 +153,7 @@ describe("Activity", () => {
     }
   });
 
-  it("lists the recent runs with their outcome as given, and the decision changes newest first, the reasons verbatim, since lokki started", () => {
+  it("lists the recent runs with their outcome as given, and the decision changes newest first, the reasons verbatim, since Lokki started", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW * 1000);
     answered(full({
@@ -179,7 +179,7 @@ describe("Activity", () => {
       `${clock(NOW - 600)} Cutting every request·every account in scope is low`,
       `${clock(NOW - 3 * HOUR)} Passing requests through·no snapshot yet`,
     ]);
-    expect(screen.getByText(`since lokki started at ${clock(NOW - 5 * HOUR)}`)).toBeInTheDocument();
+    expect(screen.getByText(`since Lokki started at ${clock(NOW - 5 * HOUR)}`)).toBeInTheDocument();
   });
 
   it("names no saving", () => {
@@ -208,14 +208,14 @@ describe("Activity", () => {
     render(Activity, { ontab: () => {} });
     const at = NOW - 23 * HOUR;
     expect(screen.getByText(`since ${clock(at)}: the run log holds runs since then`)).toBeInTheDocument();
-    expect(screen.getByText(`since lokki started at ${clock(at)}`)).toBeInTheDocument();
+    expect(screen.getByText(`since Lokki started at ${clock(at)}`)).toBeInTheDocument();
     const firstTime = () => cells(within(screen.getByRole("table", { name: "Recent runs" })).getAllByRole("row")[1])[0];
     expect(firstTime()).toBe(clock(NOW - 22 * HOUR));
 
     await advance(2 * HOUR * 1000);                            // two hours on, all of them are more than a day old
     const dated = (t: number) => `${weekday(t)} ${clock(t)}`;
     expect(screen.getByText(`since ${dated(at)}: the run log holds runs since then`)).toBeInTheDocument();
-    expect(screen.getByText(`since lokki started at ${dated(at)}`)).toBeInTheDocument();
+    expect(screen.getByText(`since Lokki started at ${dated(at)}`)).toBeInTheDocument();
     expect(firstTime()).toBe(dated(NOW - 22 * HOUR));
     expect(within(screen.getByRole("list", { name: "Decision changes" })).getAllByRole("listitem")[0]).toHaveTextContent(dated(NOW - 22 * HOUR));
     expect(fetch).not.toHaveBeenCalled();

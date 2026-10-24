@@ -2,18 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>lokki</title>
+<title>Lokki</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  :root { --accent: oklch(0.40 0.060 228); }
+  @media (prefers-color-scheme: dark) { :root { --accent: oklch(0.800 0.070 215); } }
   body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 2rem; color: #1b1b1f; background: #fafafa; }
   @media (prefers-color-scheme: dark) { body { color: #e8e8ec; background: #1b1b1f; } pre { background: #26262c; } }
+  .wordmark { display: block; margin: 0 0 1.5rem; }
   h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
   pre { padding: 1rem; overflow: auto; max-height: 60vh; white-space: pre-wrap; background: #eee; }
   button { font: inherit; padding: .5rem 1rem; }
 </style>
 </head>
 <body>
-<h1 id="title">lokki could not start</h1>
+<!-- The wordmark at 32 px, a copy of the drawing in ui/src/components/Wordmark.svelte (its 16 px gull);
+     ui/src/components/Wordmark.test.ts fails when the two differ. -->
+<svg class="wordmark" role="img" aria-label="Lokki" width="67.84" height="25.6" viewBox="0 -6 212 80" style="overflow: visible">
+  <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5" />
+  <path style="fill: var(--accent)" transform="translate(188.5 16.5) scale(2.7) translate(-8 -13)" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z" />
+</svg>
+<h1 id="title">Lokki could not start</h1>
 <p id="what"></p>
 <pre id="log"></pre>
 <button id="retry" type="button">Try again</button>
@@ -22,7 +31,7 @@
   // runs; `name` says what "Try again" retries. A later failure calls render() with its own.
   function render(e) {
     window.__LOKKI_ERROR__ = e;
-    document.getElementById("title").textContent = e.title || "lokki could not start";
+    document.getElementById("title").textContent = e.title || "Lokki could not start";
     document.getElementById("what").textContent = e.what || "";
     document.getElementById("log").textContent = e.tail || "";
     document.getElementById("retry").disabled = false;

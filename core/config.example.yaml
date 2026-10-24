@@ -61,10 +61,10 @@ tail_chars: 1500
 # a continued text answer is one message; env RELAY_MERGE_TEXT
 merge_text: true
 
-# send a session id of lokki's own, one per client; env RELAY_SESSION_PIN
+# send a session id of Lokki's own, one per client; env RELAY_SESSION_PIN
 session_pin: false
 
-# the model writes its exec call as text, and lokki makes the call and cuts there; env RELAY_TEXT_CALLS
+# the model writes its exec call as text, and Lokki makes the call and cuts there; env RELAY_TEXT_CALLS
 text_calls: true
 
 # with text_calls: still carry the padding tool; env RELAY_TEXT_CALLS_PAD

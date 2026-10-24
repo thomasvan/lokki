@@ -202,7 +202,7 @@ describe("ModeControl", () => {
     expect(MODES.map((m) => m.sentence)).toEqual([
       "Every request goes to CLIProxyAPI untouched, at full price.",
       "Cut when the watched accounts run low; otherwise pass through at full price.",
-      "Every request is cut: lokki ends the answer early so it costs less.",
+      "Every request is cut: Lokki ends the answer early so it costs less.",
     ]);
     render(ModeControl);
     for (const { mode, sentence } of MODES) expect(radio(labelOf(mode))).toHaveAccessibleDescription(sentence);

@@ -476,9 +476,27 @@ point of body, drawn for lokki on a 64-unit grid. The files, in `docs/design/ux/
 | `logo-template-line.svg` | the tray while passing through: the same wings as a 1.5 px open line, black on transparent |
 
 `logo.html` shows the mark at 512, 128, 32 and 16 px on light and dark, its construction, the app icon at 512, 128, 32 and
-16 px, the wordmark ("lokki", lower case, the system face at 600 with tracking that
-tightens as it grows: −0.035em at 64 px, −0.025em at 28 px, −0.01em at 15 px in the
-sidebar), both tray forms at 16 and 32 px on light and dark bars, and the favicon.
+16 px, the wordmark at 64, 28 and 18 px, both tray forms at 16 and 32 px on light and dark bars, and the favicon.
+
+The wordmark is "Lokki", a proper noun: capital L, the rest lower case. It is drawn, not set in a
+font, so it looks the same on every platform and needs no font. The letters are centrelines stroked at
+13 units on a 100-unit em (ascender and capital at y 0, x-height at 22, baseline at 72), with round caps
+and joins, in `currentColor`. The dot of the i is filled in `--accent` and follows the mark's rule: the
+gull at 64 px and up, the gull's 16 px drawing from 28 px, and a plain dot below, where a gull of 2 px
+does not read. `size` is the em a text wordmark would be set at; the drawing is 0.8 em tall. The sidebar
+sets it at 18 px beside the 26 px mark, where it reads above the destinations' 13 px and does not crowd the
+mark; the plain dot is what it draws there. Where the drawing lives:
+
+| file | what it is |
+| --- | --- |
+| `ui/src/components/Wordmark.svelte` | the wordmark's home: the paths and the size rule; the app draws it from here |
+| `app/src-tauri/dist/error.html` | the error page, which is not built from the UI, carries a copy of the 32 px drawing; `Wordmark.test.ts` fails when it differs |
+| `docs/design/ux/wordmark-light.svg`, `wordmark-dark.svg` | the gull-dot drawing for the README, one file for each GitHub theme, in the ink and accent of that theme as sRGB; `Wordmark.test.ts` holds them to the same paths |
+| `docs/design/ux/wordmark.html` | the three directions the wordmark was chosen from; direction B is the one drawn, and the page stays as the record |
+
+Wherever a person reads the name it is "Lokki"; identifiers, paths, `productName`, the bundle identifier,
+the `LOKKI_*` variables, `window.lokki` and the log lines keep `lokki`. The macOS menu and the Dock take
+`productName` and say "lokki" until a rename PR (`docs/app/limits.md`).
 
 At 32 px and under, the app icon and the favicon use the 16 px drawing of the mark, so
 each wing keeps a full pixel; at 16 px the favicon drops the sea band. The icon PR

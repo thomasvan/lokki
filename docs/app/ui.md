@@ -25,9 +25,10 @@ page is served by the core itself and is same-origin; it needs no rewrite.
 ## Views and reads
 
 The window is the update banner over the shell. The shell is a sidebar, a top
-bar and the open view. The sidebar holds the mark and the wordmark, the
+bar and the open view. The sidebar holds the mark and the wordmark ("Lokki", drawn,
+18 px; `Wordmark.svelte` is its home), the
 destinations (Home, Accounts, Activity, Settings) and, at its foot,
-"CLIProxyAPI running" or "CLIProxyAPI not reachable" and the lokki version.
+"CLIProxyAPI running" or "CLIProxyAPI not reachable" and the Lokki version.
 Below 720 px the sidebar folds into a row of tabs under the top bar, its foot
 hidden and its brand out of sight but still the page's heading for assistive
 technology.
@@ -147,7 +148,7 @@ resumes on visibility, and skips a tick while that poll is still in flight.
   `runs_since_start`, and "CLIProxyAPI running" or "not reachable"); and "Last 24 h".
   - The strip has one state at a time. With the settings'
     `cliproxy.management_secret_file` empty (a server deployment that gives the
-    core no secret), there is nothing to read and so no read to fail: "lokki does
+    core no secret), there is nothing to read and so no read to fail: "Lokki does
     not read the quota here: no management secret file is set", adding in Auto
     "; Auto passes every request through at full price", and no banner. No
     snapshot (`read_at` null, or no answer yet): "Reading the quota…", or, with
@@ -184,12 +185,12 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     nothing; choosing the other meanwhile is read at once and its answer is the one
     drawn (the earlier read's answer is dropped, and the group stays busy until the
     newest read answers).
-  - Coverage, above the chart: with `complete: false`, "counted since <oldest>: lokki
+  - Coverage, above the chart: with `complete: false`, "counted since <oldest>: Lokki
     reads the last 8 MiB of its run log; older runs in this window are not counted";
     with `complete: true` and `oldest` after `from`, "since <oldest>: the run log holds
     runs since then"; otherwise nothing. A time is its clock within the last day and
     its weekday and clock before that (`stamp`), for the coverage line, the recent
-    runs, the decision changes and "since lokki started at …" (from
+    runs, the decision changes and "since Lokki started at …" (from
     `/api/status.started_at`). They are seen from the wall clock, which ticks every 10
     seconds and is read again when an answer lands, so a screen left open moves them.
   - Then: "Requests over time" (`RequestsChart`); "Relay outcomes" (cut,
@@ -235,18 +236,18 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     countdown and the passed reset ticks every 10 seconds and is read again
     whenever an accounts answer lands.
   - Read, no account: "No Codex account yet" and "Add the account your coding
-    client uses; lokki reads its quota in every mode", with the add button. Never
+    client uses; Lokki reads its quota in every mode", with the add button. Never
     read: "No account read yet", or, when `GET /api/accounts` itself failed, Home's
     line "The accounts could not be read: <error>" from `app.failed.accounts` (the
     shell's banner clears at the next read that answers). With the settings' `cliproxy.management_secret_file`
-    empty, Home's line "lokki does not read the quota here: no management secret
+    empty, Home's line "Lokki does not read the quota here: no management secret
     file is set" and no banner (`noSecretFile` in `state.svelte.ts`, which both
     views read).
   - "Add a Codex account" works in every state.
     - It posts `/api/accounts/oauth` and opens the login URL through
       `window.lokki.openExternal`, or `window.open` without the hook. A panel
-      under the header holds "Finish the login in a browser" and "lokki waits up
-      to 5 minutes."; "lokki opened the login page in this computer's browser."
+      under the header holds "Finish the login in a browser" and "Lokki waits up
+      to 5 minutes."; "Lokki opened the login page in this computer's browser."
       only when `openExternal` resolved or `window.open` returned a window;
       "Logging in from another device? Open this link there:" with the URL, "Copy
       login link" (it says "Copied" for 3 seconds) and "Cancel"; and the paste
@@ -293,7 +294,7 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     Home's, writing the same bodies through the same shared write); it sets the
     threshold, so "Cut below, % left" has no field of its own. While Auto is the mode
     (between the slider's ends) the group also shows, on a core with no management
-    secret file, "lokki does not read the quota here: no management secret file is
+    secret file, "Lokki does not read the quota here: no management secret file is
     set; Auto passes every request through at full price", then "Watched accounts: 3 of 4"
     (the rows of the last `/api/accounts` read that the core marks in scope,
     out of every row of that read) with "Manage on Accounts", and Cut when only with more
@@ -308,7 +309,7 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     second that a model not picked passes through at full price and that a model at any thinking
     level, such as gpt-5.5(high), counts as gpt-5.5. "Only the ones I pick" with nothing picked is local until a model is picked, and
     says "Nothing is picked yet, so every model is still cut when low". A chosen model the
-    list lacks shows "Chosen but not listed: <model>" with Remove; a failed read says "lokki
+    list lacks shows "Chosen but not listed: <model>" with Remove; a failed read says "Lokki
     could not read the models CLIProxyAPI offers: <error>" with Retry, every chosen name
     stays listed with its Remove, and none is marked "not listed", having no list to compare
     with. Under Relay and Direct
@@ -318,7 +319,7 @@ resumes on visibility, and skips a tick while that poll is still in flight.
     with "counted at the last read" and the failure, until a read answers.
   - Updates and About reads `app.update`, the banner's own slot, through
     `updateWords` (`ui/src/lib/update.ts`, the one home of the update state's
-    words, which wraps `updateLine` and which the banner uses too): the line, "lokki checks once a day; a new
+    words, which wraps `updateLine` and which the banner uses too): the line, "Lokki checks once a day; a new
     release shows a banner at the top" and "Check now" (`checkNow`, busy while it
     runs). In a plain browser `app.update` is `null` and there is no update line.
     Below it: the core's version and revision, the UI's version, CLIProxyAPI's
@@ -382,9 +383,9 @@ which the shell answers from memory. The banner sits above the shell:
 
 | State | The banner shows |
 | --- | --- |
-| `idle` | "lokki <version>" and "Check now" |
-| `up_to_date` | "lokki <version> is up to date", the `reason` when there is one (no build for this platform), and "Check now" |
-| `available` | "lokki <new version> is available", "Release notes", "Check now", and "Install and restart" when `can_install`; otherwise "Download" and the `reason` |
+| `idle` | "Lokki <version>" and "Check now" |
+| `up_to_date` | "Lokki <version> is up to date", the `reason` when there is one (no build for this platform), and "Check now" |
+| `available` | "Lokki <new version> is available", "Release notes", "Check now", and "Install and restart" when `can_install`; otherwise "Download" and the `reason` |
 | `checking`, `downloading`, `installing` | one sentence, no buttons |
 | `error` | the error sentence and "Check now"; when the state still names a version, the full `available` banner above it, so a failed install keeps its button |
 
@@ -392,7 +393,7 @@ which the shell answers from memory. The banner sits above the shell:
 through `openExternal`; a rejection is shown in a `role="alert"` beside the
 buttons. "Check now" calls
 `checkForUpdate()` and shows `checking` until it answers. "Install and restart"
-calls `installUpdate()` and shows `downloading` at once; on success lokki
+calls `installUpdate()` and shows `downloading` at once; on success Lokki
 restarts and the call never answers, and a rejection puts its sentence in the
 state. A hook that rejects, `updateStatus()` included, lands as `error` with
 that sentence.

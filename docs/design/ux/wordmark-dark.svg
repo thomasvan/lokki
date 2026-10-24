@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -6 212 80" width="530" height="200" role="img" aria-label="Lokki">
+  <title>Lokki</title>
+  <!-- direction B of wordmark.html at 64 px and up, in the dark theme's ink and accent; the drawing is ui/src/components/Wordmark.svelte's -->
+  <path fill="none" stroke="#e6ecef" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+  <path fill="#88cada" transform="translate(188.5 16) scale(.78) translate(-32 -42)" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/>
+</svg>

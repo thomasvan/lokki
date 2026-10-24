@@ -37,14 +37,14 @@ from before the DACL made such a directory; no released build did.
 
 | Path | Purpose and owner | POSIX mode |
 | --- | --- | --- |
-| `config.yaml` | lokki core settings, including its client credentials and the CLIProxyAPI connection details; owned by the core. A key an older version wrote under a name that moved is read under the old name and rewritten under the new one by the next `init`; a key this version does not know stays and is listed in `unknown_keys` | `0600` |
+| `config.yaml` | Lokki core settings, including its client credentials and the CLIProxyAPI connection details; owned by the core. A key an older version wrote under a name that moved is read under the old name and rewritten under the new one by the next `init`; a key this version does not know stays and is listed in `unknown_keys` | `0600` |
 | `cliproxy/config.yaml` | CLIProxyAPI server, auth directory, API key and management settings; CLIProxyAPI owns it after initialization, including edits from its panel | `0600` |
 | `cliproxy/auth/` | CLIProxyAPI OAuth/authentication state; owned by CLIProxyAPI | `0700` |
-| `secrets/` | lokki-managed secret files | `0700` |
-| `secrets/cliproxy-mgmt.secret` | Plaintext management secret CLIProxyAPI needs at startup; owned by lokki core | `0600` |
+| `secrets/` | Lokki-managed secret files | `0700` |
+| `secrets/cliproxy-mgmt.secret` | Plaintext management secret CLIProxyAPI needs at startup; owned by Lokki core | `0600` |
 | `logs/` | Log directory for the sidecar processes; those processes own files they create | `0700` |
-| `runs.jsonl` | lokki core's run evidence log | `0600` |
-| `lokki.lock` | Locked by the running shell, so that no second lokki runs on this directory ([first run](first-run.md)); owned by the shell | `0600` |
+| `runs.jsonl` | Lokki core's run evidence log | `0600` |
+| `lokki.lock` | Locked by the running shell, so that no second Lokki runs on this directory ([first run](first-run.md)); owned by the shell | `0600` |
 
 `init` prints the selected core and CLIProxyAPI ports and configuration paths,
 never the generated secrets. It writes `server.host: "127.0.0.1"` and

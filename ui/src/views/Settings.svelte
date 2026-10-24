@@ -335,7 +335,7 @@
   {#if picking}
     <div class="mpick" role="group" aria-labelledby="lbl-models" aria-busy={modelsSaving ? "true" : undefined}>
       {#if listFailure}
-        <div class="g-err in" role="alert"><Icon name="error" size={16} /><p>lokki could not read the models CLIProxyAPI offers: {listFailure}</p>
+        <div class="g-err in" role="alert"><Icon name="error" size={16} /><p>Lokki could not read the models CLIProxyAPI offers: {listFailure}</p>
           <button type="button" class="btn-sm" aria-busy={listReading ? "true" : undefined} onclick={readModels}>Retry</button></div>
       {/if}
       {#if listed !== null}
@@ -530,7 +530,7 @@
               <span class="t">{w.line}</span>
               {#if w.reason}<p class="h">{w.reason}</p>{/if}
               {#if w.error}<p class="why err">{w.error}</p>{/if}
-              <p class="h">lokki checks once a day; a new release shows a banner at the top</p>
+              <p class="h">Lokki checks once a day; a new release shows a banner at the top</p>
             </div>
             <!-- As the banner: none while a download or install runs; busy, with no second check, while one runs -->
             {#if u.state !== "downloading" && u.state !== "installing"}
