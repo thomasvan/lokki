@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lokki · wordmark</title>
+<style>
+/* tokens: the subset of tokens.css this page uses */
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --bg: oklch(0.985 0.004 220); --surface: oklch(1 0 0); --surface-2: oklch(0.962 0.007 225);
+  --border: oklch(0.885 0.012 225); --border-strong: oklch(0.64 0.016 230);
+  --text: oklch(0.27 0.030 238); --text-muted: oklch(0.49 0.022 238);
+  --accent: oklch(0.40 0.060 228); --accent-contrast: oklch(1 0 0);
+  --cutting: oklch(0.55 0.085 195);
+  --focus: oklch(0.55 0.140 245);
+  --shadow-1: 0 1px 2px oklch(0.27 0.03 238 / 0.08), 0 1px 1px oklch(0.27 0.03 238 / 0.04);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.185 0.025 238); --surface: oklch(0.225 0.027 238); --surface-2: oklch(0.265 0.028 238);
+  --border: oklch(0.340 0.028 238); --border-strong: oklch(0.540 0.025 236);
+  --text: oklch(0.940 0.008 230); --text-muted: oklch(0.750 0.020 232);
+  --accent: oklch(0.800 0.070 215); --accent-contrast: oklch(0.185 0.025 238);
+  --cutting: oklch(0.760 0.090 190);
+  --focus: oklch(0.760 0.110 232);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.35);
+}
+:root, [data-theme] {
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-2xl: 32px;
+  --fw-medium: 500; --fw-semi: 600;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px;
+  --sidebar-w: 208px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: var(--fs-base)/1.5 var(--font-ui); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+.mono, .cap { font-family: var(--font-mono); }
+.cap { font-size: var(--fs-xs); color: var(--text-muted); letter-spacing: .02em; }
+svg { display: block; }
+
+.toolbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: var(--sp-5); padding: var(--sp-2) var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.tb-title { font-weight: var(--fw-semi); display: flex; align-items: center; gap: var(--sp-2); margin-right: auto; }
+.tb-title svg { width: 20px; height: 20px; color: var(--accent); }
+.tb-title a { color: var(--text-muted); font-weight: 400; text-decoration: none; padding: 2px 6px; border-radius: var(--r-sm); }
+.tb-title a:hover { background: var(--surface-2); color: var(--text); }
+.tb-title a[aria-current="page"] { color: var(--text); font-weight: var(--fw-semi); }
+.toolbar .tbl { color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-2); }
+.tb-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.tb-seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--text); font: inherit; }
+.tb-seg button + button { border-left: 1px solid var(--border); }
+.tb-seg button:hover { background: var(--surface-2); }
+.tb-seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.toolbar :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.page { max-width: 1200px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) 80px; }
+.page-head { padding-bottom: var(--sp-7); border-bottom: 1px solid var(--border); }
+.page-head h1 { font-size: var(--fs-2xl); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.page-head p { color: var(--text-muted); margin-top: var(--sp-2); font-size: var(--fs-md); max-width: 72ch; }
+.sec { padding: var(--sp-8) 0 var(--sp-6); border-bottom: 1px solid var(--border); }
+.sec:last-child { border-bottom: 0; }
+.sec-head { display: grid; grid-template-columns: 240px 1fr; gap: var(--sp-6); margin-bottom: var(--sp-5); }
+.sec-head h2 { font-size: var(--fs-lg); font-weight: 600; line-height: 1.2; }
+.sec-head .idx { display: block; font: var(--fs-xs)/1 var(--font-mono); color: var(--text-muted); margin-bottom: var(--sp-2); }
+.sec-head p { color: var(--text-muted); max-width: 72ch; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.panel { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-4); min-width: 0; display: grid; gap: var(--sp-6); align-content: start; }
+.panel .tag { display: flex; justify-content: space-between; font: var(--fs-xs)/1 var(--font-mono); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.row { display: grid; gap: var(--sp-3); }
+.sizes { display: flex; align-items: flex-end; gap: var(--sp-7); flex-wrap: wrap; }
+.sizes figure { margin: 0; display: grid; justify-items: start; gap: 6px; }
+
+/* a drawn wordmark: --s is the size the text wordmark would be set at (its em) */
+.wm { display: block; color: var(--text); height: calc(var(--s) * 0.8); width: auto; overflow: visible; }
+/* placed as the sidebar places it: the 26 px mark, an 8 px gap, the 15 px wordmark, centred */
+.lockup { display: flex; align-items: center; gap: calc(var(--s) * 8 / 15); }
+.lockup .mk { width: calc(var(--s) * 26 / 15); height: calc(var(--s) * 26 / 15); color: var(--accent); flex: none; }
+.today { color: var(--text); font-family: var(--font-ui); font-weight: 600; font-size: var(--s); line-height: 1.2; white-space: nowrap; }
+
+/* the sidebar, as the UI draws it (ui/src/app.css .sidebar, .brand) */
+.side { width: var(--sidebar-w); height: 300px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3); }
+.brand { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) var(--sp-5); font-size: var(--fs-md); font-weight: var(--fw-semi); letter-spacing: -0.01em; line-height: 1.2; }
+.brand .mk { width: 26px; height: 26px; color: var(--accent); flex: none; }
+.brand .wm { --s: var(--fs-md); }
+.nav { display: grid; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 var(--sp-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; font-weight: var(--fw-medium); }
+.nav a .ic { color: var(--text-muted); }
+.nav a[aria-current="page"] { background: var(--surface); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border); font-weight: var(--fw-semi); }
+.nav a[aria-current="page"] .ic { color: var(--accent); }
+.nav a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.side-foot { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border); display: grid; gap: 4px; font-size: var(--fs-sm); }
+.side-foot .st { display: flex; align-items: center; gap: var(--sp-2); }
+.side-foot .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sides { display: flex; gap: var(--sp-5); flex-wrap: wrap; }
+.sides figure { margin: 0; display: grid; gap: 6px; }
+
+/* construction */
+.cons { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+.cons figure { margin: 0; display: grid; gap: 6px; }
+.construct { width: 100%; height: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); color: var(--text); }
+.construct .g { stroke: var(--cutting); stroke-width: .3; fill: none; stroke-dasharray: 1.5 1; }
+.construct .c { stroke: var(--focus); stroke-width: .5; fill: none; }
+
+.note { display: grid; grid-template-columns: 120px 1fr; gap: var(--sp-2) var(--sp-4); margin-top: var(--sp-5); max-width: 96ch; }
+.note dt { font-weight: 600; }
+.note dd { margin: 0; color: var(--text-muted); }
+
+@media (max-width: 1000px) { .pair, .sec-head, .cons { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark" viewBox="0 0 64 64"><path fill="currentColor" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 20 20"><path d="M3.25 9.25 10 3.5l6.75 5.75"/><path d="M5 8v8.25h3.5V12h3v4.25H15V8"/></symbol>
+    <symbol id="i-accounts" viewBox="0 0 20 20"><circle cx="8" cy="7" r="3"/><path d="M2.75 16.25c.55-2.85 2.65-4.5 5.25-4.5s4.7 1.65 5.25 4.5"/><path d="M12.75 4.15a3 3 0 0 1 0 5.7"/><path d="M14.75 11.9c1.4.6 2.3 2.1 2.5 4.35"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 20 20"><path d="M4.75 16.25V11M8.25 16.25V6M11.75 16.25V9M15.25 16.25V3.75"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20"><path d="M3.25 6H9m4 0h3.75"/><circle cx="11" cy="6" r="2"/><path d="M3.25 14H7m4 0h5.75"/><circle cx="9" cy="14" r="2"/></symbol>
+
+    <!-- The wordmarks, on a 100-unit em: ascender and capital at y 0, x-height at 22, baseline at 72.
+         Letters are centrelines stroked with round caps and joins; the dot is a filled path. -->
+    <!-- (a) "Lokki": rounded geometric sans, stroke 13 (the text wordmark's 600 is about 9) -->
+    <symbol id="wm-a" viewBox="0 -6 196 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path fill="currentColor" d="M181 7.5a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0Z"/>
+    </symbol>
+    <!-- (b) as (a), the dot of the i in the structure colour: the gull at 64, the 16 px gull at 28, a plain dot at 15 -->
+    <symbol id="wm-b64" viewBox="0 -6 212 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path style="fill:var(--accent)" transform="translate(188.5 16) scale(.78) translate(-32 -42)" d="M4 36C12 24 22 20 32 34C42 20 52 24 60 36C50 30 40 32 32 42C24 32 14 30 4 36Z"/>
+    </symbol>
+    <symbol id="wm-b28" viewBox="0 -6 212 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path style="fill:var(--accent)" transform="translate(188.5 16.5) scale(2.7) translate(-8 -13)" d="M1 9.5C3 4.25 5.75 3.25 8 7.25C10.25 3.25 13 4.25 15 9.5C12.5 7.75 10.25 8.5 8 13C5.75 8.5 3.5 7.75 1 9.5Z"/>
+    </symbol>
+    <symbol id="wm-b15" viewBox="0 -6 196 80">
+      <path fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5V65.5H30M42.5 47a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M99.5 6.5V65.5M99.5 58L124 28.5M110 45.4L127 65.5M143.5 6.5V65.5M143.5 58L168 28.5M154 45.4L171 65.5M188.5 28.5V65.5"/>
+      <path style="fill:var(--accent)" d="M181 7.5a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0Z"/>
+    </symbol>
+    <!-- (c) "lokki" lettered: stroke 12, tails on the l and the i, the first k's leg running up into the second k's stem -->
+    <symbol id="wm-c" viewBox="0 -6 189 80">
+      <path fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" d="M8 6V50C8 61 13 66 22 66M33.5 47.5a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0M89.5 6V66M110 29L96 47L128 66V6M147.5 29L134 47L154 66M168 28V50C168 61 173 66 182 66"/>
+      <path fill="currentColor" d="M161 8a7 7 0 1 0 14 0a7 7 0 1 0 -14 0Z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <span class="tb-title"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>lokki prototype
+    <a href="home.html">Home</a><a href="accounts.html">Accounts</a><a href="activity.html">Activity</a><a href="settings.html">Settings</a><a href="tray.html">Tray</a><a href="wordmark.html" aria-current="page">Wordmark</a></span>
+  <div class="tbl" role="group" aria-label="Scheme">Scheme
+    <span class="tb-seg" id="themeSeg">
+      <button type="button" data-t="light" aria-pressed="true">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+</div>
+
+<main class="page">
+  <header class="page-head">
+    <h1>lokki — three drawn wordmarks</h1>
+    <p>Today the wordmark is the text “lokki” in the system face at 600. Each direction below is drawn as SVG paths, so it needs no font and stays offline. Each is shown at 64, 28 and 15 px on light and dark, beside the mark as the sidebar places it, and inside the 208 px sidebar. In the app the wordmark appears only in the sidebar, at 15 px.</p>
+  </header>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">00</span><h2>Today</h2></div>
+      <p>The text wordmark, for comparison: system face, 600, tracking from −0.035em at 64 px to −0.01em at 15 px. It renders in whatever face the platform supplies, so it looks different on macOS, Windows and Linux.</p></div>
+    <div class="pair" id="d-today"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">01</span><h2>A · “Lokki”</h2></div>
+      <p>A rounded geometric sans with a capital L, heavier than today’s 600, set tight. Every stroke is a centreline with round caps; the k’s arm meets the stem low and the leg branches from the arm.</p></div>
+    <div class="pair" id="d-a"></div>
+    <dl class="note">
+      <dt>At 15 px</dt><dd>Reads as a word at 1× and 2×: 11 px to the top of the L, a 7.5 px x-height, stems about 2 px, so it is as heavy as the 26 px gull beside it. The counter of the o stays open. Set on the same em as today’s text it looks a size smaller than the system face, whose x-height is larger; the sidebar can set it at 16 or 17 px without changing the drawing. The capital makes it the only place the name is not lower case; the window title, the docs and the error page say “lokki”.</dd>
+      <dt>Paths</dt><dd>2: one stroked path of 9 strokes (L, o, two k’s of three strokes each, the i’s stem) and one filled dot.</dd>
+      <dt>To keep</dt><dd>Cheap. The weight is one number (the stroke width) and the tracking is where each stroke starts, so a heavier, lighter or looser version is an edit, not a redraw; a different letter is one new centreline. In the UI it is a <span class="mono">Wordmark.svelte</span> beside <span class="mono">Mark.svelte</span>, inside the sidebar’s h1 with <span class="mono">role="img"</span> and <span class="mono">aria-label="lokki"</span>, so the heading keeps its name. The error page has no wordmark today; giving it one is a second copy of the path, because that page is not built from the UI.</dd>
+    </dl>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">02</span><h2>B · “Lokki”, the gull as the dot</h2></div>
+      <p>As A, with the dot of the i in the structure colour: the gull at 64 px, the gull’s 16 px drawing at 28 px (the rule the app icon follows at 32 px and under), and a plain dot at 15 px, where a 2 px gull does not read.</p></div>
+    <div class="pair" id="d-b"></div>
+    <dl class="note">
+      <dt>At 15 px</dt><dd>The same as A with a coloured dot, and at 1× the dot’s colour barely shows. Since the app shows the wordmark only at 15 px, the gull-dot never appears in the app: it lives where the wordmark is drawn large, such as a README or a release page. Beside the mark at 28 and 64 px the gull appears twice.</dd>
+      <dt>Paths</dt><dd>2 at each size, in three drawings: A’s stroked path, plus the gull (64), the 16 px gull (28) or the dot (15).</dd>
+      <dt>To keep</dt><dd>A’s cost plus the mark’s: the dot is a copy of the mark at two sizes, so a change to the mark is three places to change, and the size at which the dot switches drawing is one more rule to keep.</dd>
+    </dl>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">03</span><h2>C · “lokki”, lettered</h2></div>
+      <p>Lower case, drawn as one piece of lettering: the l and the i end in the same tail, and the first k’s leg runs on into the stem of the second, so the double k is one stroke. A little lighter than A, as lettering wants.</p></div>
+    <div class="pair" id="d-c"></div>
+    <dl class="note">
+      <dt>At 15 px</dt><dd>Reads at 1× and 2×, and stays lower case like the name. At 1× the join of the k’s blurs into one dark v at the baseline, so the double k reads as a block; at 2× the join shows. The tails shrink to a pixel but still keep the l from reading as an I. Like A, it looks a size smaller than today’s text on the same em.</dd>
+      <dt>Paths</dt><dd>2: one stroked path of 6 strokes (l, o, the first k’s stem, the first k’s arm and leg running into the second stem, the second k’s arm and leg, the i) and one filled dot.</dd>
+      <dt>To keep</dt><dd>The weight is still one number, but the k’s are tied: moving either k, or changing the space between them, means redrawing the joining stroke. A change of letter means re-lettering the neighbours so the tails and the join still agree. In the UI and the error page it sits as A does.</dd>
+    </dl>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">04</span><h2>The four in the sidebar</h2></div>
+      <p>At the size the app uses them, side by side.</p></div>
+    <div class="pair" id="d-all"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><div><span class="idx">05</span><h2>Construction</h2></div>
+      <p>The three drawings on their grid: capital and ascender at 0, x-height at 22, baseline at 72, on a 100-unit em. The blue line is the centreline each stroke is drawn on.</p></div>
+    <div id="construct" class="cons"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var W = { 'wm-a': 196, 'wm-b64': 212, 'wm-b28': 212, 'wm-b15': 196, 'wm-c': 189 };
+  var PICK = {
+    a: function () { return 'wm-a'; },
+    b: function (s) { return s >= 64 ? 'wm-b64' : s >= 28 ? 'wm-b28' : 'wm-b15'; },
+    c: function () { return 'wm-c'; }
+  };
+  function drawn(id, s) { return '<svg class="wm" style="--s:' + s + 'px" viewBox="0 0 ' + W[id] + ' 80" role="img" aria-label="lokki"><use href="#' + id + '"/></svg>'; }
+  function word(d, s) {
+    if (d === 'today') return '<span class="today" style="--s:' + s + 'px;letter-spacing:' + ({ 64: '-0.035em', 28: '-0.025em', 15: '-0.01em' })[s] + '">lokki</span>';
+    return drawn(PICK[d](s), s);
+  }
+  function mark(cls) { return '<svg class="' + cls + '" viewBox="0 0 64 64" aria-hidden="true"><use href="#mark"/></svg>'; }
+  function lockup(d, s) { return '<div class="lockup" style="--s:' + s + 'px">' + mark('mk') + word(d, s) + '</div>'; }
+  function sizes(f) { return '<div class="sizes">' + [64, 28, 15].map(function (s) { return '<figure>' + f(s) + '<figcaption class="cap">' + s + '</figcaption></figure>'; }).join('') + '</div>'; }
+  function sidebar(d) {
+    var w = d === 'today' ? '<span>lokki</span>' : word(d, 15);
+    return '<aside class="side"><div class="brand">' + mark('mk') + w + '</div><nav class="nav" aria-label="Destinations">' +
+      [['home', 'Home'], ['accounts', 'Accounts'], ['activity', 'Activity'], ['settings', 'Settings']].map(function (n, i) {
+        return '<a href="' + n[0] + '.html"' + (i === 0 ? ' aria-current="page"' : '') + '><svg class="ic"><use href="#i-' + n[0] + '"/></svg>' + n[1] + '</a>';
+      }).join('') + '</nav><div class="side-foot"><span class="st"><span class="dot"></span>CLIProxyAPI running</span><span class="cap">lokki 0.1.1</span></div></aside>';
+  }
+  function panel(t, label, html) { return '<div class="panel" data-theme="' + t + '"><div class="tag"><span>' + label + '</span><span>' + t + '</span></div>' + html + '</div>'; }
+
+  ['today', 'a', 'b', 'c'].forEach(function (d) {
+    document.getElementById('d-' + d).innerHTML = ['light', 'dark'].map(function (t) {
+      return panel(t, d === 'today' ? 'today' : 'direction ' + d.toUpperCase(),
+        (d === 'today' ? '' : '<div class="row"><span class="cap">alone</span>' + sizes(function (s) { return word(d, s); }) + '</div>') +
+        '<div class="row"><span class="cap">beside the mark</span>' + sizes(function (s) { return lockup(d, s); }) + '</div>' +
+        '<div class="row"><span class="cap">in the sidebar · 208 px</span>' + sidebar(d) + '</div>');
+    }).join('');
+  });
+
+  document.getElementById('d-all').innerHTML = ['light', 'dark'].map(function (t) {
+    return panel(t, 'sidebar · 15 px', '<div class="sides">' + ['today', 'a', 'b', 'c'].map(function (d) {
+      return '<figure>' + sidebar(d) + '<figcaption class="cap">' + (d === 'today' ? 'today' : d.toUpperCase()) + '</figcaption></figure>';
+    }).join('') + '</div>');
+  }).join('');
+
+  /* construction: the guides, the drawing, and its centrelines */
+  var host = document.getElementById('construct');
+  ['wm-a', 'wm-b64', 'wm-c'].forEach(function (id) {
+    var w = W[id], src = document.getElementById(id);
+    var lines = Array.prototype.map.call(src.querySelectorAll('path[stroke]'), function (p) { return '<path class="c" d="' + p.getAttribute('d') + '"/>'; }).join('');
+    host.insertAdjacentHTML('beforeend', '<figure><svg class="construct" viewBox="-4 -10 ' + (w + 8) + ' 88" role="img" aria-label="Construction of ' + id + '">' +
+      '<path class="g" d="M-4 0H' + (w + 4) + 'M-4 22H' + (w + 4) + 'M-4 72H' + (w + 4) + '"/><use href="#' + id + '" x="0" y="-6" width="' + w + '" height="80" style="opacity:.35"/>' + lines +
+      '</svg><figcaption class="cap">' + id + ' · ' + w + ' × 80 units</figcaption></figure>');
+  });
+
+  /* toolbar */
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    document.querySelectorAll('#themeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === t); });
+    try { localStorage.setItem('lokki.proto.theme', t); } catch (e) {}
+  }
+  document.getElementById('themeSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setTheme(b.dataset.t); });
+  /* a scheme can be named in the address: wordmark.html#dark */
+  var t0 = 'light', h = location.hash.slice(1);
+  try { t0 = localStorage.getItem('lokki.proto.theme') || t0; } catch (e) {}
+  if (h === 'light' || h === 'dark') t0 = h;
+  setTheme(t0);
+})();
+</script>
+</body>
+</html>
