@@ -39,7 +39,9 @@ fn main_url(core_port: u16, moved_from: Option<u16>, went_back: Option<&str>) ->
     if let Some(port) = moved_from {
         let mut query = url.query_pairs_mut();
         query.append_pair("moved_from", &port.to_string());
-        let _ = went_back;
+        if let Some(said) = went_back {
+            query.append_pair("went_back", said);
+        }
     }
     url
 }

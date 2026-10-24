@@ -60,8 +60,8 @@ impl Outcome {
                 stuck: None,
                 answer: Err(e),
             },
-            Outcome::WentBack(_, sentence) => Finish {
-                window: None,
+            Outcome::WentBack(conf, sentence) => Finish {
+                window: Some((conf, Some(sentence.clone()))),
                 stuck: None,
                 answer: Err(sentence),
             },
