@@ -477,9 +477,9 @@ What is inferred:
 - The three short-lived `lokki-core-0_1_1.exe` children were the shell's core
   subcommands.
 
-Not tried: an update from one release to the next on macOS (the Intel hand test above
-updated its own test builds) or on Linux, an update through the MSI, and an update while
-a client was streaming through the core.
+Not tried: an update from one release to the next on Intel or on Linux (the Intel
+hand test above updated its own test builds), an update through the MSI, and an update
+while a client was streaming through the core. On Apple silicon it was tried once, below.
 
 ### The in-app update from 0.1.0 to 0.1.1 on macOS
 
