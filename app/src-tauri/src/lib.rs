@@ -17,7 +17,7 @@ use lokki_logic::tray::{view, writes, Mode};
 use lokki_logic::{paths, sidecar_files, Result};
 use restart::Outcome;
 use sidecars::{AppLog, Context, CoreHttp, RealClock, Service, Sidecars, GONE_WAIT};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
@@ -288,45 +288,32 @@ impl Shell {
             &conf,
             service,
         );
-        if let Outcome::Ready(conf) | Outcome::WentBack(conf, _) = &outcome {
+        if let Some(conf) = outcome.running() {
             self.report_started(&side, conf);
         }
         drop(side);
+        let opened = outcome
+            .running()
+            .map_or(Ok(()), |conf| self.open_window(conf));
         match outcome {
-            Outcome::Ready(conf) => self.open_window(&conf),
+            Outcome::Ready(_) => opened,
             Outcome::Failed(e) => Err(e),
             Outcome::WentBack(_, sentence) => {
                 self.cx.log.line(format_args!("went back: {sentence}"));
-                Err(sentence)
+                Err(match opened {
+                    Ok(()) => sentence,
+                    Err(e) => format!("{sentence}; {e}"),
+                })
             }
             Outcome::Stuck {
                 service,
                 port,
                 sentence,
             } => {
-                self.show_error(self.stuck_page(service, port, &sentence));
+                let tail = self.log_tail(service);
+                self.show_error(stuck_page(&self.cx.dir, service, port, &sentence, tail));
                 Err(sentence)
             }
-        }
-    }
-
-    /// The page for a way back that failed: what to put back by hand, and a Try again that
-    /// starts both sidecars from the file.
-    fn stuck_page(&self, service: Service, port: u16, sentence: &str) -> Failure {
-        let file = self.cx.dir.join("config.yaml");
-        let key = match service {
-            Service::Core => format!("listen to 127.0.0.1:{port}"),
-            Service::Cliproxy => format!("port under cliproxy to {port}"),
-        };
-        Failure {
-            title: "Lokki could not go back to its previous port".into(),
-            what: format!(
-                "{sentence}. In {}, set {key}, then press Try again. The last lines of logs/{}.log:",
-                file.display(),
-                service.name()
-            ),
-            name: "start".into(),
-            tail: self.log_tail(service),
         }
     }
 
@@ -577,6 +564,27 @@ fn on_termination_signals() {
     }
 }
 
+/// The page for a way back that failed: the port to put back by hand, with nothing else in
+/// the file changed, and a Try again that starts both sidecars from the file.
+fn stuck_page(dir: &Path, service: Service, port: u16, sentence: &str, tail: String) -> Failure {
+    let change = match service {
+        Service::Core => {
+            format!("under listen, change the port back to {port} and leave every host as it is")
+        }
+        Service::Cliproxy => format!("under cliproxy, change port back to {port}"),
+    };
+    Failure {
+        title: "Lokki could not go back to its previous port".into(),
+        what: format!(
+            "{sentence}. In {}, {change}, then press Try again. The last lines of logs/{}.log:",
+            dir.join("config.yaml").display(),
+            service.name()
+        ),
+        name: "start".into(),
+        tail,
+    }
+}
+
 fn gave_up_page(service: Service, sentence: &str, tail: String) -> Failure {
     Failure {
         title: format!("lokki stopped {}", service.title()),
@@ -727,6 +735,50 @@ pub fn run() {
         RunEvent::Exit => app.state::<Arc<Shell>>().stop_all(),
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_stuck_page_names_only_the_port_to_put_back() {
+        let dir = Path::new("/data");
+        let file = dir.join("config.yaml");
+        // (service, what it says to change, the log it shows)
+        let rows = [
+            (
+                Service::Core,
+                "under listen, change the port back to 1001 and leave every host as it is",
+                "core",
+            ),
+            (
+                Service::Cliproxy,
+                "under cliproxy, change port back to 2001",
+                "cliproxy",
+            ),
+        ];
+        for (service, change, log) in rows {
+            let port = service.port(&Config {
+                core_port: 1001,
+                cliproxy_port: 2001,
+                operator_token: String::new(),
+                management_secret_file: PathBuf::new(),
+                panel: false,
+            });
+            let page = stuck_page(dir, service, port, "it failed", "tail".into());
+            assert_eq!(
+                page.what,
+                format!(
+                    "it failed. In {}, {change}, then press Try again. \
+                     The last lines of logs/{log}.log:",
+                    file.display()
+                ),
+                "{service:?}"
+            );
+            assert_eq!(page.name, "start", "Try again starts both from the file");
+        }
+    }
 }
 
 /// Test doubles shared by the modules' tests.

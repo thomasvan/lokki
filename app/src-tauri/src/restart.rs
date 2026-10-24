@@ -33,6 +33,17 @@ pub enum Outcome {
     },
 }
 
+impl Outcome {
+    /// What runs once the restart is over, on the ports it names: the window follows the
+    /// core there, also after a go-back, which can leave the core on a port that moved.
+    pub fn running(&self) -> Option<&Config> {
+        match self {
+            Outcome::Ready(conf) | Outcome::WentBack(conf, _) => Some(conf),
+            Outcome::Failed(_) | Outcome::Stuck { .. } => None,
+        }
+    }
+}
+
 /// What a restart of `service` starts, in order: CLIProxyAPI before the core, which reads
 /// CLIProxyAPI's address only at start.
 fn services(service: Service) -> &'static [Service] {
@@ -297,5 +308,27 @@ mod tests {
             assert_eq!(restart(&mut ops, &running, service), want, "{label}");
             assert_eq!(ops.calls, calls, "{label}");
         }
+    }
+
+    #[test]
+    fn after_a_go_back_the_window_follows_a_core_whose_own_port_moved() {
+        // Both ports saved, then CLIProxyAPI's restart: its new port is taken, the core's is
+        // not, so CLIProxyAPI goes back and the core stays on its new port.
+        let mut ops = Fake {
+            file: conf(1002, 2002),
+            taken: [2002].into_iter().collect(),
+            set_port_fails: false,
+            calls: Vec::new(),
+        };
+        let got = restart(&mut ops, &conf(1001, 2001), Service::Cliproxy);
+        assert_eq!(
+            got,
+            Outcome::WentBack(
+                conf(1002, 2001),
+                "port 2002 is taken; CLIProxyAPI is back on port 2001".into(),
+            )
+        );
+        assert_eq!(got.running(), Some(&conf(1002, 2001)));
+        assert_eq!(Outcome::Failed("x".into()).running(), None);
     }
 }
